@@ -5,6 +5,7 @@ import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
+import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.service.UserService;
@@ -12,10 +13,13 @@ import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -27,25 +31,9 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final KakaoService kakaoService;
     private final UserService userService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    public LoginResDto guestLogin() {
-        String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
-
-        User user = userRepository.save(User.builder()
-                .role(Role.GUEST)
-                .socialType(SocialType.GUEST)
-                .socialId(socialId)
-                .build());
-        user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
-
-        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole());
-        String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
-
-        refreshTokenService.save(user.getSocialId(), refreshToken);
-
-        return new LoginResDto(accessToken, refreshToken, true, SocialType.GUEST);
-    }
-
+    @Transactional
     public LoginResDto kakaoLogin(@Valid KakaoLoginReqDto reqDto) {
         // accessToken을 활용하여 카카오 사용자 정보 얻기
         KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getKakaoAccessToken());
@@ -68,7 +56,27 @@ public class AuthService {
         return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO);
     }
 
+    @Transactional
+    public LoginResDto guestLogin() {
+        String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
+        User user = userRepository.save(User.builder()
+                .role(Role.GUEST)
+                .socialType(SocialType.GUEST)
+                .socialId(socialId)
+                .build());
+        user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
+
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole());
+        String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
+
+        refreshTokenService.save(user.getSocialId(), refreshToken);
+
+        return new LoginResDto(accessToken, refreshToken, true, SocialType.GUEST);
+    }
+
+
+    @Transactional
     public RefreshResDto refresh(@Valid RefreshReqDto reqDto) {
         String refreshToken = reqDto.getRefreshToken();
 
@@ -95,5 +103,12 @@ public class AuthService {
         refreshTokenService.save(username, newRefreshToken);
 
         return new RefreshResDto(newAccessToken, newRefreshToken);
+    }
+
+    @Transactional
+    public MessageResDto logout(CustomUserDetails user) {
+        String username = user.getUsername();
+        refreshTokenRepository.deleteById(username);
+        return new MessageResDto("로그아웃 되었습니다.");
     }
 }

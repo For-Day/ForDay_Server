@@ -5,6 +5,8 @@ import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.domain.auth.service.AuthService;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -15,10 +17,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @Tag(name = "Auth", description = "인증 / 로그인 API")
@@ -97,5 +97,23 @@ public class AuthController {
     })
     public RefreshResDto refresh(@RequestBody @Valid RefreshReqDto reqDto) {
         return authService.refresh(reqDto);
+    }
+
+
+
+    @Operation(
+            summary = "로그아웃",
+            description = "현재 로그인한 사용자의 리프레시 토큰을 삭제하여 로그아웃합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "로그아웃 성공",
+                    content = @Content(schema = @Schema(implementation = MessageResDto.class))
+            )
+    })
+    @DeleteMapping("/logout")
+    public MessageResDto logout(@AuthenticationPrincipal CustomUserDetails user) {
+        return authService.logout(user);
     }
 }
