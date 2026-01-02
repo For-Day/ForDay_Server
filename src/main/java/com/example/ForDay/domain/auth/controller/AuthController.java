@@ -1,20 +1,10 @@
 package com.example.ForDay.domain.auth.controller;
 
-import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.domain.auth.service.AuthService;
-import com.example.ForDay.domain.auth.service.KakaoService;
-import com.example.ForDay.domain.auth.service.RefreshTokenService;
-import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.domain.user.service.UserService;
-import com.example.ForDay.domain.user.type.Role;
-import com.example.ForDay.domain.user.type.SocialType;
-import com.example.ForDay.global.common.error.exception.CustomException;
-import com.example.ForDay.global.common.error.exception.ErrorCode;
-import com.example.ForDay.global.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
