@@ -1,6 +1,6 @@
-package com.example.ForDay.domain.test.controller;
+package com.example.ForDay.global.common.test.controller;
 
-import com.example.ForDay.domain.test.dto.response.TestResponseDto;
+import com.example.ForDay.global.common.test.dto.response.TestResponseDto;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +25,11 @@ public class TestController {
     @GetMapping("/health_check")
     public TestResponseDto healthCheck() {
         return new TestResponseDto("테스트에 성공하였습니다!");
+    }
+
+    @GetMapping("/auth/check")
+    public TestResponseDto authCheck() {
+        return new TestResponseDto("인증에 성공하였습니다!");
     }
 
     @Operation(

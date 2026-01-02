@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.test.dto.response;
+package com.example.ForDay.global.common.test.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
