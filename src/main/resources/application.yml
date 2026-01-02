@@ -25,9 +25,3 @@ spring:
     secret: ${JWT_SECRET}
     access-expiration: 180 # 분 단위
     refresh-expiration: 7 # 일 단위
-
-
-oauth:
-  kakao:
-    client-id: ${KAKAO_CLIENT_ID}
-    redirect-uri: ${KAKAO_REDIRECT_URI}
