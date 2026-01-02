@@ -26,8 +26,9 @@ public class User extends BaseTimeEntity {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "email", length = 20, nullable = false)
-    private String email;
+    @Column(name = "email", length = 20)
+    @Builder.Default
+    private String email = null;
 
     @Column(name = "nickname", length = 10, unique = true)
     @Builder.Default
@@ -41,12 +42,20 @@ public class User extends BaseTimeEntity {
     @Column(name = "social_type", length = 20, nullable = false)
     private SocialType socialType;
 
-    @Column(name = "social_id", length = 100)
+    @Column(name = "social_id", length = 100, unique = true)
     private String socialId;
 
     @Column(name = "last_routine_recorded_at")
     @Builder.Default
     private LocalDateTime lastRoutineRecordedAt = null;
+
+    @Column(name = "last_activity_at")
+    @Builder.Default
+    private LocalDateTime lastActivityAt; // 게스트용 마지막 활동일시 저장
+
+    public void updateLastActivity() {
+        this.lastActivityAt = LocalDateTime.now();
+    }
 
     // 닉네임 변경
     public void changeNickname(String nickname) {

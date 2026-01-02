@@ -1,11 +1,11 @@
 package com.example.ForDay.domain.auth.controller;
 
 import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
-import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
+import com.example.ForDay.domain.auth.service.AuthService;
 import com.example.ForDay.domain.auth.service.KakaoService;
 import com.example.ForDay.domain.auth.service.RefreshTokenService;
 import com.example.ForDay.domain.user.entity.User;
@@ -36,10 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/auth")
 public class AuthController {
-    private final KakaoService kakaoService;
-    private final UserService userService;
-    private final JwtUtil jwtUtil;
-    private final RefreshTokenService refreshTokenService;
+    private final AuthService authService;
 
     @Operation(
             summary = "카카오 로그인"
@@ -51,32 +48,26 @@ public class AuthController {
     )
     @PostMapping("/kakao")
     public LoginResDto kakaoLogin(@RequestBody @Valid KakaoLoginReqDto reqDto) {
-        // accessToken을 활용하여 카카오 사용자 정보 얻기
-        KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getKakaoAccessToken());
-
-        boolean isNewUser = false;
-        // 회원가입이 되어 있지 않다면 회원가입
-        User originalUser = userService.getUserBySocialId(kakaoProfileDto.getId());
-        if(originalUser == null) {
-            isNewUser = true;
-            // 회원가입
-            originalUser = userService.createOauth(kakaoProfileDto.getId(), kakaoProfileDto.getKakao_account(), SocialType.KAKAO);
-        }
-
-        // 회원 가입 되어 있는 경우 -> 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER);
-        String refreshToken = jwtUtil.createRefreshToken(originalUser.getSocialId());
-
-        refreshTokenService.save(originalUser.getSocialId(), refreshToken);
-
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO);
-
+        return authService.kakaoLogin(reqDto);
     }
 
     @PostMapping("/guest")
-    public LoginResDto guestLogin(@RequestBody @Valid GuestLoginReqDto reqDto) {
-
-        return null;
+    @Operation(
+            summary = "게스트 로그인",
+            description = "회원가입 없이 임시 게스트 계정을 생성하고 Access/Refresh 토큰을 발급합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "게스트 로그인 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = LoginResDto.class)
+                    )
+            )
+    })
+    public LoginResDto guestLogin() {
+        return authService.guestLogin();
     }
 
 
@@ -115,31 +106,6 @@ public class AuthController {
             )
     })
     public RefreshResDto refresh(@RequestBody @Valid RefreshReqDto reqDto) {
-
-        String refreshToken = reqDto.getRefreshToken();
-
-        // 리프레시 토큰 유효성 검사
-        if (!jwtUtil.validate(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        String username = jwtUtil.getUsername(refreshToken);
-
-        // 저장된 refreshToken 조회
-        String storedToken = refreshTokenService.get(username);
-
-        if (storedToken == null || !storedToken.equals(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        // 토큰 재발급
-        Role role = userService.getRoleByUsername(username);
-
-        String newAccessToken = jwtUtil.createAccessToken(username, role);
-        String newRefreshToken = jwtUtil.createRefreshToken(username);
-
-        refreshTokenService.save(username, newRefreshToken);
-
-        return new RefreshResDto(newAccessToken, newRefreshToken);
+        return authService.refresh(reqDto);
     }
 }
