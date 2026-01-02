@@ -38,6 +38,7 @@ public class AuthController {
     )
     @PostMapping("/kakao")
     public LoginResDto kakaoLogin(@RequestBody @Valid KakaoLoginReqDto reqDto) {
+        log.info("[LOGIN] Kakao login request received");
         return authService.kakaoLogin(reqDto);
     }
 
@@ -57,6 +58,7 @@ public class AuthController {
             )
     })
     public LoginResDto guestLogin() {
+        log.info("[LOGIN] guest login request received");
         return authService.guestLogin();
     }
 
@@ -114,6 +116,7 @@ public class AuthController {
     })
     @DeleteMapping("/logout")
     public MessageResDto logout(@AuthenticationPrincipal CustomUserDetails user) {
+        log.info("[LOGOUT] 사용자={}", user.getUsername());
         return authService.logout(user);
     }
 }
