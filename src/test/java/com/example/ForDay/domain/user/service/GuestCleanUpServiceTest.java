@@ -60,4 +60,5 @@ class GuestCleanUpServiceTest {
         assertThat(users.get(0).getSocialId()).isEqualTo("guest_active");
     }
 
+    // 요청시 게스트 최근 활동일시 업데이트 되는지 확인
 }

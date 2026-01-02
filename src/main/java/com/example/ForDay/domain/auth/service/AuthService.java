@@ -18,14 +18,19 @@ import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
@@ -35,17 +40,24 @@ public class AuthService {
 
     @Transactional
     public LoginResDto kakaoLogin(@Valid KakaoLoginReqDto reqDto) {
+        log.info("[LOGIN] kakao login process start");
+
         // accessToken을 활용하여 카카오 사용자 정보 얻기
         KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getKakaoAccessToken());
+
+        log.info("[LOGIN] Kakao userId={}", kakaoProfileDto.getId());
 
         boolean isNewUser = false;
         // 회원가입이 되어 있지 않다면 회원가입
         User originalUser = userService.getUserBySocialId(kakaoProfileDto.getId());
         if(originalUser == null) {
+            log.info("[LOGIN] New Kakao user registered. kakaoId={}", kakaoProfileDto.getId());
             isNewUser = true;
             // 회원가입
             originalUser = userService.createOauth(kakaoProfileDto.getId(), kakaoProfileDto.getKakao_account(), SocialType.KAKAO);
         }
+
+        log.info("[LOGIN] Kakao login success userId={}", originalUser.getId());
 
         // 회원 가입 되어 있는 경우 -> 토큰 발급
         String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER);
@@ -60,12 +72,15 @@ public class AuthService {
     public LoginResDto guestLogin() {
         String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
+        log.info("[GUEST] New guest created socialId={}", socialId);
+
         User user = userRepository.save(User.builder()
                 .role(Role.GUEST)
                 .socialType(SocialType.GUEST)
                 .socialId(socialId)
                 .build());
         user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
+        log.info("[GUEST] Last activity updated userId={}", user.getId());
 
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole());
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
