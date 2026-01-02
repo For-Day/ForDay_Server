@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.auth.controller;
 
-import com.example.ForDay.domain.auth.dto.AccessTokenDto;
 import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
+import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
@@ -51,11 +51,8 @@ public class AuthController {
     )
     @PostMapping("/kakao")
     public LoginResDto kakaoLogin(@RequestBody @Valid KakaoLoginReqDto reqDto) {
-        // (사용자 정보 요청을 위한) 카카오 accessToken 발급
-        AccessTokenDto accessTokenDto = kakaoService.getAccessToken(reqDto.getCode());
-
         // accessToken을 활용하여 카카오 사용자 정보 얻기
-        KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(accessTokenDto.getAccess_token());
+        KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getKakaoAccessToken());
 
         boolean isNewUser = false;
         // 회원가입이 되어 있지 않다면 회원가입
@@ -72,8 +69,14 @@ public class AuthController {
 
         refreshTokenService.save(originalUser.getSocialId(), refreshToken);
 
-        return new LoginResDto(accessToken, refreshToken, isNewUser);
+        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO);
 
+    }
+
+    @PostMapping("/guest")
+    public LoginResDto guestLogin(@RequestBody @Valid GuestLoginReqDto reqDto) {
+
+        return null;
     }
 
 

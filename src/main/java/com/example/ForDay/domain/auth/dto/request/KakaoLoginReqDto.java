@@ -13,8 +13,8 @@ import lombok.NoArgsConstructor;
 public class KakaoLoginReqDto {
 
     @Schema(
-            description = "카카오 인가 코드 (카카오 SDK / redirect uri에서 받은 값)"
+            description = "카카오 액세스 토큰"
     )
-    @NotBlank(message = "인가 코드는 필수 값입니다.")
-    private String code; // 인가 코드 (accessToken을 발급받기 위함)
+    @NotBlank(message = "카카오 액세스 토큰은 필수 값입니다.")
+    private String kakaoAccessToken;
 }

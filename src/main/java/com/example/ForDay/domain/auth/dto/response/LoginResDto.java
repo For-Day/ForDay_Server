@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.auth.dto.response;
 
+import com.example.ForDay.domain.user.type.SocialType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,4 +19,7 @@ public class LoginResDto {
 
     @Schema(description = "신규 가입 여부", example = "true")
     private boolean newUser;
+
+    @Schema(description = "가입 유형", example = "KAKAO")
+    private SocialType socialType;
 }
