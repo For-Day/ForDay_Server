@@ -21,4 +21,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
       AND u.lastActivityAt < :threshold""")
     int deleteOldGuests(@Param("threshold") LocalDateTime threshold);
 
+    boolean existsByNickname(String nickname);
 }

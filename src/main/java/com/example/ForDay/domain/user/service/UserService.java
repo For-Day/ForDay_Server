@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.user.service;
 
 import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
+import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
@@ -40,4 +41,53 @@ public class UserService {
 
         return user.getRole();
     }
+
+    public NicknameCheckResDto nicknameCheck(String nickname) {
+
+        // 공백 / null 체크
+        if (nickname == null || nickname.trim().isEmpty()) {
+            return new NicknameCheckResDto(
+                    nickname,
+                    false,
+                    "닉네임을 입력해주세요."
+            );
+        }
+
+        // 길이 체크 (10자 초과)
+        if (nickname.length() > 10) {
+            return new NicknameCheckResDto(
+                    nickname,
+                    false,
+                    "닉네임은 10자 이내로 입력해주세요."
+            );
+        }
+
+        // 허용 문자 체크 (한글, 영어, 숫자만 허용)
+        if (!nickname.matches("^[가-힣a-zA-Z0-9]+$")) {
+            return new NicknameCheckResDto(
+                    nickname,
+                    false,
+                    "한글, 영어, 숫자만 사용할 수 있습니다."
+            );
+        }
+
+        // DB 중복 체크
+        boolean exists = userRepository.existsByNickname(nickname);
+
+        if (exists) {
+            return new NicknameCheckResDto(
+                    nickname,
+                    false,
+                    "이미 사용 중인 닉네임입니다."
+            );
+        }
+
+        // 사용 가능
+        return new NicknameCheckResDto(
+                nickname,
+                true,
+                "사용 가능한 닉네임입니다."
+        );
+    }
+
 }

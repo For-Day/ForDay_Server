@@ -26,7 +26,7 @@ public class User extends BaseTimeEntity {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "email", length = 20)
+    @Column(name = "email", length = 50)
     @Builder.Default
     private String email = null;
 
@@ -53,6 +53,7 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private LocalDateTime lastActivityAt = null; // 게스트용 마지막 활동일시 저장
 
+    // 게스트 마지막 활동일시 업데이트
     public void updateLastActivity() {
         this.lastActivityAt = LocalDateTime.now();
     }

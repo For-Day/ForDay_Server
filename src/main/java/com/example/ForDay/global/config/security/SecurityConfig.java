@@ -42,7 +42,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
                                 "log-test"
-                                                ).permitAll()
+                        ).permitAll()
                         .requestMatchers("/guest").hasRole("GUEST")
                         .requestMatchers("/admin").hasRole("ADMIN")
                         .anyRequest().authenticated())
