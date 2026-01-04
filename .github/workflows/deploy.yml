@@ -1,0 +1,126 @@
+name: Deploy To EC2 (Blue-Green via Bastion)
+
+on:
+  push:
+    branches: [ "dev", "main", "release" ]
+
+permissions:
+  contents: read
+
+jobs:
+  # 1️⃣ BUILD JOB
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create application-prod.yml
+        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application-prod.yml
+
+      - name: Build Spring Boot
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build -x test
+
+      # AWS / ECR
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ap-northeast-2 \
+            | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
+
+      - name: Build & Push Docker Image
+        run: |
+          docker build -t forday .
+          docker tag forday:latest 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
+          docker push 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
+
+  # 2️⃣ DEPLOY JOB
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH (Bastion → Private)
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          cat <<EOF >> ~/.ssh/config
+          Host bastion
+            HostName ${{ secrets.BASTION_HOST }}
+            User ubuntu
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+
+          Host private
+            HostName ${{ secrets.EC2_PRIVATE_HOST }}
+            User ubuntu
+            IdentityFile ~/.ssh/id_rsa
+            ProxyJump bastion
+            StrictHostKeyChecking no
+          EOF
+
+      - name: Blue-Green Deploy
+        run: |
+          ssh private << 'EOF'
+            set -e
+
+            echo "▶ Detect current upstream"
+            CURRENT=$(curl -s http://localhost/env || echo blue)
+
+            if [ "$CURRENT" = "blue" ]; then
+              TARGET=green
+              TARGET_PORT=8081
+            else
+              TARGET=blue
+              TARGET_PORT=8080
+            fi
+
+            echo "▶ Deploy target: $TARGET (host port: $TARGET_PORT)"
+
+            aws ecr get-login-password --region ap-northeast-2 \
+              | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
+
+            docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
+
+            docker stop $TARGET || true
+            docker rm $TARGET || true
+
+            docker run -d \
+              --name $TARGET \
+              --restart=always \
+              -e SPRING_PROFILES_ACTIVE=$TARGET \
+              -p $TARGET_PORT:8080 \
+              839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
+
+            echo "▶ Health Check"
+            for i in {1..10}; do
+              if curl -sf http://localhost:$TARGET_PORT/env; then
+                echo "Health check passed"
+                break
+              fi
+              sleep 5
+            done
+
+            echo "▶ Switch nginx upstream to $TARGET"
+            echo "set \$service_url $TARGET;" | sudo tee /etc/nginx/conf.d/service-env.inc
+            sudo nginx -t
+            sudo nginx -s reload
+
+            echo "▶ Stop old container: $CURRENT"
+            docker stop $CURRENT || true
+            docker rm $CURRENT || true
+          EOF
