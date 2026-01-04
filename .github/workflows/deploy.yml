@@ -22,7 +22,7 @@ jobs:
           java-version: 17
 
       - name: Create application-prod.yml
-        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application-prod.yml
+        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
 
       - name: Build Spring Boot
         run: |
