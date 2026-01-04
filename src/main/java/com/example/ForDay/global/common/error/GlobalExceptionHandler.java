@@ -27,16 +27,38 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<GlobalResponse> handleValidationException(MethodArgumentNotValidException e) {
+
         Map<String, String> errors = new HashMap<>();
+
         for (FieldError fieldError : e.getBindingResult().getFieldErrors()) {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
         }
+        ErrorResponse errorResponse =
+                ErrorResponse.of("VALIDATION_ERROR", errors.toString());
 
-        ErrorResponse errorResponse = ErrorResponse.of("VALIDATION_ERROR", errors.toString());
-        GlobalResponse response = GlobalResponse.failure(HttpStatus.BAD_REQUEST.value(), errorResponse);
+        GlobalResponse response =
+                GlobalResponse.failure(HttpStatus.BAD_REQUEST.value(), errorResponse);
+
         return ResponseEntity.badRequest().body(response);
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<GlobalResponse> handleException(Exception e) {
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+                "INTERNAL_SERVER_ERROR",
+                e.getMessage()
+        );
+
+        GlobalResponse response = GlobalResponse.failure(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                errorResponse
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
+    }
 
 }
 

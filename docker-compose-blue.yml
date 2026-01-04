@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  blue:
+    image: 276995858259.dkr.ecr.ap-northeast-2.amazonaws.com/petbulance:latest
+    container_name: blue
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=blue
+      - ENV=blue
+    restart: always
