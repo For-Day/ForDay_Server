@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 public class TestController {
+    @Value("${server.env}")
+    private String env;
 
     @Operation(
             summary = "헬스 체크",
@@ -56,5 +59,10 @@ public class TestController {
         log.info("Info Log"); // 출력
         log.warn("Warn Log"); // 출력
         log.error("Error Log"); // 출력
+    }
+
+    @GetMapping("/env")
+    public String env() {
+        return env;
     }
 }
