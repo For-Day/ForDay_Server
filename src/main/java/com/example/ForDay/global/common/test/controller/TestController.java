@@ -17,8 +17,16 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 public class TestController {
+    @Value("${server.port}")
+    private int serverPort;
+
     @Value("${server.env}")
-    private String env;
+    private String serverEnv;
+
+    @Value("${serverName}")
+    private String serverName;
+
+
 
     @Operation(
             summary = "헬스 체크",
@@ -31,12 +39,12 @@ public class TestController {
     )
     @GetMapping("/health_check")
     public TestResponseDto healthCheck() {
-        return new TestResponseDto("테스트에 성공하였습니다!");
+        return new TestResponseDto("테스트에 성공하였습니다!", serverPort, serverEnv, serverName);
     }
 
     @GetMapping("/auth/check")
     public TestResponseDto authCheck() {
-        return new TestResponseDto("인증에 성공하였습니다!");
+        return new TestResponseDto("인증에 성공하였습니다!", serverPort, serverEnv, serverName);
     }
 
     @Operation(
@@ -63,6 +71,6 @@ public class TestController {
 
     @GetMapping("/env")
     public String env() {
-        return env;
+        return serverEnv;
     }
 }
