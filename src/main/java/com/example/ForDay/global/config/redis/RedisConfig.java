@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
@@ -30,8 +31,19 @@ public class RedisConfig {
 
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {
-        // Lettuce라는 라이브러리를 활용해 Redis 연결을 관리하는 객체를 생성하고
-        // Redis 서버에 대한 정보(host, port)를 설정한다.
-        return new LettuceConnectionFactory(new RedisStandaloneConfiguration(host, port));
+
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName(host);
+        config.setPort(port);
+
+        // (AUTH 쓰면: config.setPassword(password))
+
+        LettuceClientConfiguration clientConfig =
+                LettuceClientConfiguration.builder()
+                        .useSsl()      // ⭐⭐⭐ TLS 활성화
+                        .build();
+
+        return new LettuceConnectionFactory(config, clientConfig);
     }
+
 }
