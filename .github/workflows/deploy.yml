@@ -109,8 +109,8 @@ jobs:
 
             echo "▶ Health Check"
             HEALTH_OK=false
-            for i in {1..10}; do
-              if curl -sf http://localhost:$TARGET_PORT/env; then
+            for i in {1..30}; do
+              if curl -sf http://localhost:$TARGET_PORT/health_check; then
                 HEALTH_OK=true
                 break
               fi
