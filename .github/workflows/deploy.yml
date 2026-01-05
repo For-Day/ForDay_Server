@@ -8,11 +8,9 @@ permissions:
   contents: read
 
 jobs:
-
   # 1️⃣ BUILD JOB
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +27,6 @@ jobs:
           chmod +x ./gradlew
           ./gradlew clean build -x test
 
-      # AWS / ECR
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
@@ -51,7 +48,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
       - name: Configure SSH (Bastion → Private)
         run: |
@@ -79,27 +75,37 @@ jobs:
           ssh private << 'EOF'
             set -e
 
-            echo "▶ Detect current upstream"
-            CURRENT=$(curl -s http://localhost/env || echo blue)
+            echo "▶ Detect current upstream from nginx env file"
+            if [ -f /etc/nginx/conf.d/service-env.inc ]; then
+              # 현재 설정된 변수값을 가져옵니다.
+              CURRENT_VAL=$(grep -oP '(?<=set \$service_url ).*(?=;)' /etc/nginx/conf.d/service-env.inc || echo "blue")
+            else
+              CURRENT_VAL="blue"
+            fi
 
-            if [ "$CURRENT" = "blue" ]; then
-              TARGET=green
+            echo "현재 서비스 상태: $CURRENT_VAL"
+
+            if [ "$CURRENT_VAL" = "blue" ]; then
+              TARGET="green"
               TARGET_PORT=8081
             else
-              TARGET=blue
+              TARGET="blue"
               TARGET_PORT=8080
             fi
 
             echo "▶ Deploy target: $TARGET (port: $TARGET_PORT)"
 
-            aws ecr get-login-password --region ap-northeast-2 \
-              | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
-
+            # ECR 로그인 (Private 서버 내에서 실행)
+            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
+          
+            echo "▶ Pulling latest image"
             docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
+            echo "▶ Stopping old $TARGET container"
             docker stop $TARGET || true
             docker rm $TARGET || true
 
+            echo "▶ Starting new $TARGET container"
             docker run -d \
               --name $TARGET \
               --restart=always \
@@ -107,28 +113,32 @@ jobs:
               -p $TARGET_PORT:8080 \
               839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
-            echo "▶ Health Check"
+            echo "▶ Health Check on http://localhost:$TARGET_PORT/health_check"
             HEALTH_OK=false
-            for i in {1..30}; do
+            for i in {1..20}; do
               if curl -sf http://localhost:$TARGET_PORT/health_check; then
                 HEALTH_OK=true
                 break
               fi
+              echo "Waiting for $TARGET to be ready... ($i/20)"
               sleep 5
             done
 
             if [ "$HEALTH_OK" != "true" ]; then
-              echo "❌ Health check failed"
+              echo "❌ Health check failed. Rolling back..."
               docker logs $TARGET
               exit 1
             fi
 
-            echo "▶ Switch nginx upstream to $TARGET"
+            echo "▶ Switching Nginx upstream to $TARGET"
             echo "set \$service_url $TARGET;" | sudo tee /etc/nginx/conf.d/service-env.inc
-            sudo nginx -t
-            sudo nginx -s reload
 
-            echo "▶ Stop old container: $CURRENT"
-            docker stop $CURRENT || true
-            docker rm $CURRENT || true
+            if ! sudo nginx -t; then
+              echo "❌ Nginx config error! Rolling back to $CURRENT_VAL"
+              echo "set \$service_url $CURRENT_VAL;" | sudo tee /etc/nginx/conf.d/service-env.inc
+              exit 1
+            fi
+
+            sudo nginx -s reload
+            echo "✅ Deployment Successful! Switched to $TARGET"
           EOF
