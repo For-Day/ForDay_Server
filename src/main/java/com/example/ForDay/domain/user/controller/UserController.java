@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.user.controller;
 
+import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
 import com.example.ForDay.domain.user.service.UserService;

@@ -22,7 +22,13 @@ public enum ErrorCode {
 
     // 사용자 관련
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
-    USERNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "이미 사용 중인 사용자 이름입니다.");
+    USERNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "이미 사용 중인 사용자 이름입니다."),
+
+    // 취미 습관 관련
+    GOAL_DAYS_REQUIRED(HttpStatus.BAD_REQUEST, "기간 설정이 활성화된 경우 goalDays는 필수입니다."),
+    GOAL_DAYS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "기간 설정이 비활성화된 경우 goalDays는 입력할 수 없습니다."),
+    GOAL_DAYS_NOT_MULTIPLE_OF_SEVEN(HttpStatus.BAD_REQUEST,"goalDays는 7의 배수여야 합니다.");
+
 
 
     private final HttpStatus status;
