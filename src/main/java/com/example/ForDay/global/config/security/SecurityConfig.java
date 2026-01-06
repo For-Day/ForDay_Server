@@ -36,7 +36,7 @@ public class SecurityConfig {
                                 "/auth/apple",
                                 "/auth/guest",
                                 "/auth/refresh",
-                                "/app/init",
+                                "/app/metadata",
                                 "/app/presign",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
