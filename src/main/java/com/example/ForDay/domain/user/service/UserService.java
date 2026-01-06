@@ -38,17 +38,6 @@ public class UserService {
     }
 
     @Transactional
-    public Role getRoleByUsername(String username) {
-        User user = userRepository.findBySocialId(username);
-
-        if (user == null) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        return user.getRole();
-    }
-
-    @Transactional
     public NicknameCheckResDto nicknameCheck(String nickname) {
 
         // 길이 체크 (10자 초과)

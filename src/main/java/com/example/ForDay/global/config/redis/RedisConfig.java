@@ -30,20 +30,25 @@ public class RedisConfig {
 
 
     @Bean
-    public LettuceConnectionFactory redisConnectionFactory() {
-
+    public LettuceConnectionFactory redisConnectionFactory(
+            @Value("${spring.profiles.active:local}") String profile
+    ) {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(host);
         config.setPort(port);
 
-        // (AUTH 쓰면: config.setPassword(password))
+        // 배포 환경(blue, green)에서만 SSL 사용
+        if (profile.equals("blue") || profile.equals("green")) {
+            LettuceClientConfiguration clientConfig =
+                    LettuceClientConfiguration.builder()
+                            .useSsl()
+                            .build();
 
-        LettuceClientConfiguration clientConfig =
-                LettuceClientConfiguration.builder()
-                        .useSsl()      // ⭐⭐⭐ TLS 활성화
-                        .build();
+            return new LettuceConnectionFactory(config, clientConfig);
+        }
 
-        return new LettuceConnectionFactory(config, clientConfig);
+        return new LettuceConnectionFactory(config);
     }
+
 
 }
