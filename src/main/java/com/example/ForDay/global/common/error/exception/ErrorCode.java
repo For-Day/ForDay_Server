@@ -27,10 +27,11 @@ public enum ErrorCode {
     // 취미 습관 관련
     GOAL_DAYS_REQUIRED(HttpStatus.BAD_REQUEST, "기간 설정이 활성화된 경우 goalDays는 필수입니다."),
     GOAL_DAYS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "기간 설정이 비활성화된 경우 goalDays는 입력할 수 없습니다."),
-    GOAL_DAYS_NOT_MULTIPLE_OF_SEVEN(HttpStatus.BAD_REQUEST,"goalDays는 7의 배수여야 합니다.");
+    GOAL_DAYS_NOT_MULTIPLE_OF_SEVEN(HttpStatus.BAD_REQUEST,"goalDays는 7의 배수여야 합니다."),
 
-
-
+    AI_CALL_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "AI 최대 호출 횟수를 초과하였습니다."),
+    AI_RESPONSE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "AI 응답 형식이 올바르지 않아 데이터를 처리할 수 없습니다."),
+    ;
     private final HttpStatus status;
     private final String message;
 }
