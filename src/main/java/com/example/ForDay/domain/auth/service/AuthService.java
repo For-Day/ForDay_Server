@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.auth.service;
 
 import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
+import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
@@ -19,8 +20,6 @@ import com.example.ForDay.global.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,16 +68,32 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResDto guestLogin() {
-        String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
+    public LoginResDto guestLogin(GuestLoginReqDto reqDto) {
+        User user;
+        String guestUserId = reqDto.getGuestUserId();
+        boolean newUser;
 
-        log.info("[GUEST] New guest created socialId={}", socialId);
+        if(guestUserId == null || guestUserId.isBlank()) {
+            String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
-        User user = userRepository.save(User.builder()
-                .role(Role.GUEST)
-                .socialType(SocialType.GUEST)
-                .socialId(socialId)
-                .build());
+            user = userRepository.save(User.builder()
+                    .role(Role.GUEST)
+                    .socialType(SocialType.GUEST)
+                    .socialId(socialId)
+                    .build());
+            newUser = true;
+
+            log.info("[GUEST] New guest created id={}", user.getId());
+
+        } else {
+             user = userRepository.findBySocialId(guestUserId);
+             if(user == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
+
+            if (user.getRole() != Role.GUEST) {
+                throw new CustomException(ErrorCode.INVALID_USER_ROLE);
+            }
+            newUser = false;
+        }
         user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
         log.info("[GUEST] Last activity updated userId={}", user.getId());
 
@@ -87,7 +102,7 @@ public class AuthService {
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
-        return new LoginResDto(accessToken, refreshToken, true, SocialType.GUEST);
+        return new LoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST);
     }
 
 
