@@ -1,5 +1,6 @@
 package com.example.ForDay.global.common.error.exception;
 
+import com.querydsl.core.annotations.QueryType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
@@ -35,4 +36,5 @@ public enum ErrorCode {
 
     private final HttpStatus status;
     private final String message;
+
 }
