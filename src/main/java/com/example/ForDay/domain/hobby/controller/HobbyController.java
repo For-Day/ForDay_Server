@@ -48,6 +48,16 @@ public class HobbyController {
         return hobbyService.activityAiRecommend(reqDto, user);
     }
 
+    @Operation(
+            summary = "다른 포비들의 활동 조회 (AI 기반)",
+            description = "초기 유저 데이터가 없을 때, AI가 비슷한 조건의 다른 유저들이 할 법한 인기 활동 3개를 생성하여 반환합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "HobbyCard를 찾을 수 없음 (HOBBY_CARD_NOT_FOUND)"),
+            @ApiResponse(responseCode = "422", description = "AI 응답 형식이 올바르지 않음 (AI_RESPONSE_INVALID)"),
+            @ApiResponse(responseCode = "502", description = "AI 서비스 통신 실패 (AI_SERVICE_ERROR)")
+    })
     @PostMapping("/activities/others/v1")
     public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestBody @Valid OthersActivityRecommendReqDto reqDto) {
         return hobbyService.othersActivityRecommendV1(reqDto);
