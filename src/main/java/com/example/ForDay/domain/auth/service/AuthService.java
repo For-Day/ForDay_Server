@@ -60,7 +60,7 @@ public class AuthService {
         log.info("[LOGIN] Kakao login success userId={}", originalUser.getId());
 
         // 회원 가입 되어 있는 경우 -> 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER);
+        String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER, SocialType.KAKAO);
         String refreshToken = jwtUtil.createRefreshToken(originalUser.getSocialId());
 
         refreshTokenService.save(originalUser.getSocialId(), refreshToken);
@@ -82,7 +82,7 @@ public class AuthService {
         user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
         log.info("[GUEST] Last activity updated userId={}", user.getId());
 
-        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole());
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), SocialType.GUEST);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
@@ -110,9 +110,12 @@ public class AuthService {
         }
 
         // 토큰 재발급
-        Role role = userService.getRoleByUsername(username);
+        User user = userRepository.findBySocialId(username);
+        if (user == null) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
 
-        String newAccessToken = jwtUtil.createAccessToken(username, role);
+        String newAccessToken = jwtUtil.createAccessToken(username, user.getRole(), user.getSocialType());
         String newRefreshToken = jwtUtil.createRefreshToken(username);
 
         refreshTokenService.save(username, newRefreshToken);

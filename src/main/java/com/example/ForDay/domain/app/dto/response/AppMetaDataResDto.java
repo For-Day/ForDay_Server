@@ -1,0 +1,25 @@
+package com.example.ForDay.domain.app.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AppMetaDataResDto {
+    private String appVersion;
+    private List<HobbyCardDto> hobbyCards;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class HobbyCardDto {
+        private Long hobbyCardId;
+        private String hobbyName;
+        private String hobbyDescription;
+        private String imageCode;
+    }
+}
