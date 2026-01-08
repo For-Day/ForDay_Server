@@ -1,6 +1,7 @@
 package com.example.ForDay.global.ai.builder;
 
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
+import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -90,6 +91,50 @@ public class ActivityPromptBuilder {
                 String.join(", ", req.getHobbyPurposes()),
                 req.getExecutionCount(),
                 durationText
+        );
+    }
+
+    public String buildOtherActivityUserPrompt(OthersActivityRecommendReqDto reqDto) {
+        String durationText = Boolean.TRUE.equals(reqDto.getIsDurationSet()) ? "목표 기간 66일" : "기간 설정 없음";
+        String purposesText = String.join(", ", reqDto.getHobbyPurposes());
+
+        return String.format("""
+        [맥락]
+        우리 앱 ‘포데이’에서 아래 조건으로 '%s' 취미를 즐기는 다른 유저(포비)들이 실제 실천 중인 인기 활동 3개를 생성해줘.
+
+        [사용자 조건]
+        - 취미: %s
+        - 시간: %d분 이내
+        - 목적: %s
+        - 빈도: 주 %d회
+        - 설정: %s
+
+        [활동 설계 지침]
+        1. 반드시 해당 취미와 관련된 '물리적인 행위'여야 함 (생각하기 등 관념적 활동 금지).
+        2. 다른 유저들이 앱에 직접 등록했을 법한 생생하고 구체적인 문장으로 작성할 것.
+        3. %d분 이내에 완료 가능한 가벼운 활동일 것.
+
+        [출력 규칙]
+        - 아래 JSON 형식으로만 응답하고, JSON 외의 텍스트는 절대 포함하지 말 것.
+        - id는 1부터 순차적으로 부여할 것.
+
+        {
+            "otherActivities": [
+                  {
+                    "id": 1,
+                    "content": "실제 유저가 등록했을 법한 구체적인 활동 내용"
+                   },
+                    ...
+            ]
+        }
+        """,
+                reqDto.getHobbyName(),
+                reqDto.getHobbyName(),
+                reqDto.getHobbyTimeMinutes(),
+                purposesText,
+                reqDto.getExecutionCount(),
+                durationText,
+                reqDto.getHobbyTimeMinutes()
         );
     }
 

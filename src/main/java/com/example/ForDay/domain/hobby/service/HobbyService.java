@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.hobby.service;
 
-import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
@@ -10,17 +10,18 @@ import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
 import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.entity.HobbyPurpose;
+import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.dto.response.AiActivityResult;
+import com.example.ForDay.global.ai.dto.response.AiOthersActivityResult;
 import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,6 +43,7 @@ public class HobbyService {
     private final ActivityRepository activityRepository;
     private final AiActivityService aiActivityService;
     private final AiCallCountService aiCallCountService;
+    private final HobbyCardRepository hobbyCardRepository;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -108,7 +110,7 @@ public class HobbyService {
         log.info("[AI-RECOMMEND][CALL] user={} calling AI model", user.getUsername());
 
 
-        AiActivityResult aiResult = aiActivityService.recommend(reqDto);
+        AiActivityResult aiResult = aiActivityService.activityRecommend(reqDto);
 
         if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
             throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
@@ -148,7 +150,47 @@ public class HobbyService {
         );
     }
 
-    public OthersActivityRecommendResDto othersActivityRecommendV1(@Valid OthersActivityRecommendReqDto reqDto) {
-        return null;
+    public OthersActivityRecommendResDto othersActivityRecommendV1(OthersActivityRecommendReqDto reqDto) {
+        log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}, hobbyName={}",
+                reqDto.getHobbyCardId(), reqDto.getHobbyName());
+
+        // 1. HobbyCard 존재 여부 검증
+        if (!hobbyCardRepository.existsById(reqDto.getHobbyCardId())) {
+            log.warn("[OTHERS-AI-RECOMMEND][NOT-FOUND] hobbyCardId={} is not exist", reqDto.getHobbyCardId());
+            throw new CustomException(ErrorCode.HOBBY_CARD_NOT_FOUND);
+        }
+
+        // 2. AI 추천 서비스 호출
+        log.info("[OTHERS-AI-RECOMMEND][AI-CALL] Calling AI service for hobby: {}", reqDto.getHobbyName());
+        AiOthersActivityResult aiResult = aiActivityService.othersActivityRecommend(reqDto);
+
+        // 3. 응답 결과 검증
+        if (aiResult.getOtherActivities() == null || aiResult.getOtherActivities().isEmpty()) {
+            log.error("[OTHERS-AI-RECOMMEND][INVALID-RESPONSE] AI returned null or empty result for hobby: {}",
+                    reqDto.getHobbyName());
+            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
+        }
+
+        // 4. DTO 매핑
+        log.debug("[OTHERS-AI-RECOMMEND][MAPPING] Mapping AI result to DTO. Size: {}",
+                aiResult.getOtherActivities().size());
+
+        List<OthersActivityRecommendResDto.ActivityDto> activities = aiResult.getOtherActivities().stream()
+                .map(routine -> new OthersActivityRecommendResDto.ActivityDto(
+                        routine.getId(),
+                        routine.getContent()
+                ))
+                .toList();
+
+        // 5. 성공 로그 및 반환
+        log.info("[OTHERS-AI-RECOMMEND][SUCCESS] Successfully generated activities for hobbyCardId={}, count={}",
+                reqDto.getHobbyCardId(),
+                activities.size()
+        );
+
+        return new OthersActivityRecommendResDto(
+                "다른 포비들의 인기 활동을 조회했습니다.",
+                activities
+        );
     }
 }

@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.hobby.dto.response;
+package com.example.ForDay.global.ai.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,13 +9,13 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OthersActivityRecommendResDto {
-    private String message;
-    private List<ActivityDto> activities;
+public class AiOthersActivityResult {
+    private List<OtherActivityDto> otherActivities;
 
     @Data
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class ActivityDto {
+    public static class OtherActivityDto {
         private Long id;
         private String content;
     }
