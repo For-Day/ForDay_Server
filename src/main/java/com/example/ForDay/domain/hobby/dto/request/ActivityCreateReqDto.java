@@ -27,6 +27,7 @@ public class ActivityCreateReqDto {
 
     @NotNull(message = "executionCount는 필수입니다.")
     @Min(value = 1, message = "executionCount는 1 이상이어야 합니다.")
+    @Max(value = 7, message = "executionCount는 7 이하여야 합니다.")
     private Integer executionCount;
 
     @NotNull(message = "isDurationSet은 필수입니다.")
@@ -41,7 +42,7 @@ public class ActivityCreateReqDto {
     @AllArgsConstructor
     public static class ActivityDto {
 
-        @NotBlank(message = "aiRecommended는 필수 값입니다.")
+        @NotNull(message = "추천 여부는 필수입니다.")
         private boolean aiRecommended;
 
         @NotBlank(message = "activities content는 필수입니다.")

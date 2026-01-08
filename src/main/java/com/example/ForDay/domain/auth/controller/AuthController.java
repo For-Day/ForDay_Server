@@ -7,13 +7,6 @@ import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.domain.auth.service.AuthService;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,99 +14,33 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
-@Tag(name = "Auth", description = "인증 / 로그인 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/auth")
-public class AuthController {
+public class AuthController implements AuthControllerDocs {
     private final AuthService authService;
 
-    @Operation(
-            summary = "카카오 로그인"
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "로그인 성공",
-            content = @Content(schema = @Schema(implementation = LoginResDto.class))
-    )
+    @Override
     @PostMapping("/kakao")
     public LoginResDto kakaoLogin(@RequestBody @Valid KakaoLoginReqDto reqDto) {
         log.info("[LOGIN] Kakao login request received");
         return authService.kakaoLogin(reqDto);
     }
 
+    @Override
     @PostMapping("/guest")
-    @Operation(
-            summary = "게스트 로그인",
-            description = "회원가입 없이 임시 게스트 계정을 생성하고 Access/Refresh 토큰을 발급합니다."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "게스트 로그인 성공",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = LoginResDto.class)
-                    )
-            )
-    })
     public LoginResDto guestLogin() {
         log.info("[LOGIN] guest login request received");
         return authService.guestLogin();
     }
 
-
+    @Override
     @PostMapping("/refresh")
-    @Operation(
-            summary = "Access / Refresh 토큰 재발급",
-            description = "만료된 Access Token 대신 Refresh Token을 이용해 토큰을 재발급합니다."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "토큰 재발급 성공",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = RefreshResDto.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "유효하지 않은 리프레시 토큰",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    value = """
-                                {
-                                  "status": 401,
-                                  "success": false,
-                                  "data": {
-                                    "errorClassName": "INVALID_REFRESH_TOKEN",
-                                    "message": "유효하지 않은 리프레시 토큰입니다."
-                                  }
-                                }
-                                """
-                            )
-                    )
-            )
-    })
     public RefreshResDto refresh(@RequestBody @Valid RefreshReqDto reqDto) {
         return authService.refresh(reqDto);
     }
 
-
-
-    @Operation(
-            summary = "로그아웃",
-            description = "현재 로그인한 사용자의 리프레시 토큰을 삭제하여 로그아웃합니다."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "로그아웃 성공",
-                    content = @Content(schema = @Schema(implementation = MessageResDto.class))
-            )
-    })
+    @Override
     @DeleteMapping("/logout")
     public MessageResDto logout(@AuthenticationPrincipal CustomUserDetails user) {
         log.info("[LOGOUT] 사용자={}", user.getUsername());
