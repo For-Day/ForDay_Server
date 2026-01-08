@@ -32,8 +32,6 @@ public class ActivityCreateReqDto {
     @NotNull(message = "isDurationSet은 필수입니다.")
     private Boolean isDurationSet;
 
-    private Integer goalDays;
-
     @NotEmpty(message = "activities는 최소 1개 이상 필요합니다.")
     @Valid
     private List<ActivityDto> activities;

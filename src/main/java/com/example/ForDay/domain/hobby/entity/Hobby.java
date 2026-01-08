@@ -45,18 +45,15 @@ public class Hobby extends BaseTimeEntity {
 
     @Column(name = "goal_grapes")
     @Builder.Default
-    private Integer goalGrapes = null;
+    private Integer goalGrapes = null; // 나중에 삭제될 수도
 
     @Column(name = "goal_days")
     @Builder.Default
-    private Integer goalDays = null;
+    private Integer goalDays = null; // 기간 미지정이면 null, 기간 지정이면 66
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private HobbyStatus status;
-
-    @Column(name = "start_date")
-    private LocalDate startDate;
 
     @OneToMany(
             mappedBy = "hobby",

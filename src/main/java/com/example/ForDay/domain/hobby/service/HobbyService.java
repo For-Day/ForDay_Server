@@ -46,19 +46,8 @@ public class HobbyService {
         log.info("[ActivityCreate] 요청 시작 - userId={}, hobbyCardId={}",
                 user.getUsername(), reqDto.getHobbyCardId());
 
-        if (Boolean.TRUE.equals(reqDto.getIsDurationSet()) && reqDto.getGoalDays() == null) {
-            log.warn("[ActivityCreate] 기간 설정 오류 - isDurationSet=true, goalDays=null, userId={}", user.getUsername());
-            throw new CustomException(ErrorCode.GOAL_DAYS_REQUIRED);
-        }
-
-        if (Boolean.FALSE.equals(reqDto.getIsDurationSet()) && reqDto.getGoalDays() != null) {
-            log.warn("[ActivityCreate] 기간 설정 오류 - isDurationSet=false, goalDays={}, userId={}", reqDto.getGoalDays(), user.getUsername());
-            throw new CustomException(ErrorCode.GOAL_DAYS_NOT_ALLOWED);
-        }
-
         User currentUser = userUtil.getCurrentUser(user);
         Integer executionCount = reqDto.getExecutionCount();
-        Integer goalDays = reqDto.getGoalDays();
 
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
@@ -66,10 +55,8 @@ public class HobbyService {
                 .hobbyName(reqDto.getHobbyName())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
                 .executionCount(executionCount)
-                .goalGrapes(goalDays == null ? null : calculateGoalGrapes(goalDays, executionCount))
-                .goalDays(goalDays)
+                .goalDays(reqDto.getIsDurationSet() ? 66 : null)
                 .status(HobbyStatus.IN_PROGRESS)
-                .startDate(LocalDate.now())
                 .build();
 
         reqDto.getHobbyPurposes().forEach(purpose ->
@@ -99,15 +86,6 @@ public class HobbyService {
                 hobby.getId(), reqDto.getActivities().size(), currentUser.getId());
 
         return new ActivityCreateResDto("취미 활동이 성공적으로 생성되었습니다.", reqDto.getActivities().size(), hobby.getId());
-    }
-
-    private Integer calculateGoalGrapes(Integer goalDays, Integer executionCount) {
-        if (goalDays % 7 != 0) {
-            throw new CustomException(ErrorCode.GOAL_DAYS_NOT_MULTIPLE_OF_SEVEN);
-        }
-
-        int weeks = goalDays / 7;
-        return weeks * executionCount;
     }
 
     public ActivityAIRecommendResDto activityAiRecommend(
