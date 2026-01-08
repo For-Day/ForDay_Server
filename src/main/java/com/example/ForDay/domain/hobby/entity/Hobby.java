@@ -39,13 +39,13 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "execution_count", nullable = false)
     private Integer executionCount;
 
-    @Column(name = "current_grapes")
+    @Column(name = "current_sticker_num")
     @Builder.Default
-    private Integer currentGrapes = 0;
+    private Integer currentStickerNum = 0;
 
     @Column(name = "goal_grapes")
     @Builder.Default
-    private Integer goalGrapes = null; // 나중에 삭제될 수도
+    private Integer goalStickerNum = null; // 나중에 삭제될 수도
 
     @Column(name = "goal_days")
     @Builder.Default

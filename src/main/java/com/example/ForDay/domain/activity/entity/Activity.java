@@ -35,7 +35,7 @@ public class Activity extends BaseTimeEntity {
 
     private boolean aiRecommended;
 
-    @Column(name = "collected_grapes")
+    @Column(name = "collected_sticker_num")
     @Builder.Default
-    private Integer collectedGrapes = 0;
+    private Integer collectedStickerNum = 0;
 }

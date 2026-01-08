@@ -1,6 +1,8 @@
 package com.example.ForDay.domain.hobby.controller;
 
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
+import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
+import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
@@ -44,5 +46,10 @@ public class HobbyController {
     @PostMapping("/activities/ai/recommend")
     public ActivityAIRecommendResDto activityAiRecommend(@RequestBody @Valid ActivityAIRecommendReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) throws Exception {
         return hobbyService.activityAiRecommend(reqDto, user);
+    }
+
+    @PostMapping("/activities/others/v1")
+    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestBody @Valid OthersActivityRecommendReqDto reqDto) {
+        return hobbyService.othersActivityRecommendV1(reqDto);
     }
 }

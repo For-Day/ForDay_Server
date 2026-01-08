@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.activity;
+package com.example.ForDay.domain.activity.repository;
 
 
 import com.example.ForDay.domain.activity.entity.Activity;

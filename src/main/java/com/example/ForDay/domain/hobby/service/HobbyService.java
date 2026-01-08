@@ -1,11 +1,13 @@
 package com.example.ForDay.domain.hobby.service;
 
-import com.example.ForDay.domain.activity.ActivityRepository;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
+import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
+import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.entity.HobbyPurpose;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
@@ -18,13 +20,13 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -146,4 +148,7 @@ public class HobbyService {
         );
     }
 
+    public OthersActivityRecommendResDto othersActivityRecommendV1(@Valid OthersActivityRecommendReqDto reqDto) {
+        return null;
+    }
 }
