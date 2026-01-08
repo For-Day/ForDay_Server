@@ -1,6 +1,7 @@
 package com.example.ForDay.global.util;
 
 import com.example.ForDay.domain.user.type.Role;
+import com.example.ForDay.domain.user.type.SocialType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,10 +53,11 @@ public class JwtUtil {
         return getClaims(token).getExpiration().before(new Date());
     }
 
-    public String createAccessToken(String username, Role role) {
+    public String createAccessToken(String username, Role role, SocialType socialType) {
         return Jwts.builder()
                 .claim("username", username)
                 .claim("role", role)
+                .claim("socialType", socialType)
                 .issuedAt(new Date())
                 .expiration(
                         new Date(

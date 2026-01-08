@@ -23,7 +23,7 @@ public class User extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
+    @Column(name = "user_id")
     private Long id;
 
     @Column(name = "email", length = 50)
@@ -42,7 +42,7 @@ public class User extends BaseTimeEntity {
     @Column(name = "social_type", length = 20, nullable = false)
     private SocialType socialType;
 
-    @Column(name = "social_id", length = 100, unique = true)
+    @Column(name = "social_id", length = 100, unique = true, nullable = false)
     private String socialId;
 
     @Column(name = "last_routine_recorded_at")

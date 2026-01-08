@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.auth.service;
 
 import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
+import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
@@ -19,8 +20,6 @@ import com.example.ForDay.global.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,7 +59,7 @@ public class AuthService {
         log.info("[LOGIN] Kakao login success userId={}", originalUser.getId());
 
         // 회원 가입 되어 있는 경우 -> 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER);
+        String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER, SocialType.KAKAO);
         String refreshToken = jwtUtil.createRefreshToken(originalUser.getSocialId());
 
         refreshTokenService.save(originalUser.getSocialId(), refreshToken);
@@ -69,25 +68,41 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResDto guestLogin() {
-        String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
+    public LoginResDto guestLogin(GuestLoginReqDto reqDto) {
+        User user;
+        String guestUserId = reqDto.getGuestUserId();
+        boolean newUser;
 
-        log.info("[GUEST] New guest created socialId={}", socialId);
+        if(guestUserId == null || guestUserId.isBlank()) {
+            String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
-        User user = userRepository.save(User.builder()
-                .role(Role.GUEST)
-                .socialType(SocialType.GUEST)
-                .socialId(socialId)
-                .build());
+            user = userRepository.save(User.builder()
+                    .role(Role.GUEST)
+                    .socialType(SocialType.GUEST)
+                    .socialId(socialId)
+                    .build());
+            newUser = true;
+
+            log.info("[GUEST] New guest created id={}", user.getId());
+
+        } else {
+             user = userRepository.findBySocialId(guestUserId);
+             if(user == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
+
+            if (user.getRole() != Role.GUEST) {
+                throw new CustomException(ErrorCode.INVALID_USER_ROLE);
+            }
+            newUser = false;
+        }
         user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
         log.info("[GUEST] Last activity updated userId={}", user.getId());
 
-        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole());
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), SocialType.GUEST);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
-        return new LoginResDto(accessToken, refreshToken, true, SocialType.GUEST);
+        return new LoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST);
     }
 
 
@@ -110,9 +125,12 @@ public class AuthService {
         }
 
         // 토큰 재발급
-        Role role = userService.getRoleByUsername(username);
+        User user = userRepository.findBySocialId(username);
+        if (user == null) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
 
-        String newAccessToken = jwtUtil.createAccessToken(username, role);
+        String newAccessToken = jwtUtil.createAccessToken(username, user.getRole(), user.getSocialType());
         String newRefreshToken = jwtUtil.createRefreshToken(username);
 
         refreshTokenService.save(username, newRefreshToken);

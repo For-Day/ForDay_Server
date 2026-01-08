@@ -9,6 +9,8 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.data.redis.serializer.GenericToStringSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 @EnableRedisRepositories(
@@ -30,20 +32,36 @@ public class RedisConfig {
 
 
     @Bean
-    public LettuceConnectionFactory redisConnectionFactory() {
-
+    public LettuceConnectionFactory redisConnectionFactory(
+            @Value("${spring.profiles.active:local}") String profile
+    ) {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(host);
         config.setPort(port);
 
-        // (AUTH 쓰면: config.setPassword(password))
+        // 배포 환경(blue, green)에서만 SSL 사용
+        if (profile.equals("blue") || profile.equals("green")) {
+            LettuceClientConfiguration clientConfig =
+                    LettuceClientConfiguration.builder()
+                            .useSsl()
+                            .build();
 
-        LettuceClientConfiguration clientConfig =
-                LettuceClientConfiguration.builder()
-                        .useSsl()      // ⭐⭐⭐ TLS 활성화
-                        .build();
+            return new LettuceConnectionFactory(config, clientConfig);
+        }
 
-        return new LettuceConnectionFactory(config, clientConfig);
+        return new LettuceConnectionFactory(config);
     }
+
+    @Bean
+    public RedisTemplate<String, Integer> aiCallCountRedisTemplate(
+            RedisConnectionFactory connectionFactory
+    ) {
+        RedisTemplate<String, Integer> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericToStringSerializer<>(Integer.class));
+        return template;
+    }
+
 
 }
