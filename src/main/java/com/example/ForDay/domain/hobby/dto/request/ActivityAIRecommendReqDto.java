@@ -30,6 +30,4 @@ public class ActivityAIRecommendReqDto {
 
     @NotNull(message = "isDurationSet은 필수입니다.")
     private Boolean isDurationSet;
-
-    private Integer goalDays;
 }

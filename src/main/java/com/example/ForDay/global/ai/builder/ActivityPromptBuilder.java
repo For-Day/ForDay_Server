@@ -28,7 +28,7 @@ public class ActivityPromptBuilder {
     public String buildUserPrompt(ActivityAIRecommendReqDto req) {
 
         String durationText = Boolean.TRUE.equals(req.getIsDurationSet())
-                ? req.getGoalDays() + "일"
+                ? "66일"
                 : "기간 설정 없음";
 
         return String.format("""
