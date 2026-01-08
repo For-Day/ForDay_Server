@@ -41,6 +41,9 @@ public class ActivityCreateReqDto {
     @AllArgsConstructor
     public static class ActivityDto {
 
+        @NotBlank(message = "aiRecommended는 필수 값입니다.")
+        private boolean aiRecommended;
+
         @NotBlank(message = "activities content는 필수입니다.")
         @Size(max = 100, message = "activities content는 100자 이하여야 합니다.")
         private String content;

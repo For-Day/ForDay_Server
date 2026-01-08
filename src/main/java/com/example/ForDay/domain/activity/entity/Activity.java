@@ -33,6 +33,8 @@ public class Activity extends BaseTimeEntity {
     @Column(length = 255)
     private String description;
 
+    private boolean aiRecommended;
+
     @Column(name = "collected_grapes")
     @Builder.Default
     private Integer collectedGrapes = 0;

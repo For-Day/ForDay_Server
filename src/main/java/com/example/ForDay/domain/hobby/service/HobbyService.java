@@ -73,11 +73,12 @@ public class HobbyService {
 
         activityRepository.saveAll(
                 reqDto.getActivities().stream()
-                .map(routine -> Activity.builder()
+                .map(activity -> Activity.builder()
                         .user(currentUser)
                         .hobby(hobby)
-                        .content(routine.getContent())
-                        .description(routine.getDescription())
+                        .content(activity.getContent())
+                        .description(activity.getDescription())
+                        .aiRecommended(activity.isAiRecommended())
                         .build()
                 )
                 .toList());
