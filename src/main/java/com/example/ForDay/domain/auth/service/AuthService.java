@@ -1,9 +1,11 @@
 package com.example.ForDay.domain.auth.service;
 
-import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
+import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
+import com.example.ForDay.domain.auth.dto.response.KakaoProfileDto;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
+import com.example.ForDay.domain.auth.dto.response.AppleTokenResDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
@@ -17,6 +19,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ public class AuthService {
     private final KakaoService kakaoService;
     private final UserService userService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AppleService appleService;
 
     @Transactional
     public LoginResDto kakaoLogin(@Valid KakaoLoginReqDto reqDto) {
@@ -48,23 +52,55 @@ public class AuthService {
 
         boolean isNewUser = false;
         // 회원가입이 되어 있지 않다면 회원가입
-        User originalUser = userService.getUserBySocialId(kakaoProfileDto.getId());
-        if(originalUser == null) {
+        User user = userService.getUserBySocialId(kakaoProfileDto.getId());
+        if(user == null) {
             log.info("[LOGIN] New Kakao user registered. kakaoId={}", kakaoProfileDto.getId());
             isNewUser = true;
             // 회원가입
-            originalUser = userService.createOauth(kakaoProfileDto.getId(), kakaoProfileDto.getKakao_account(), SocialType.KAKAO);
+            user = userService.createOauth(kakaoProfileDto.getId(), kakaoProfileDto.getKakao_account().getEmail(), SocialType.KAKAO);
         }
 
-        log.info("[LOGIN] Kakao login success userId={}", originalUser.getId());
+        log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
         // 회원 가입 되어 있는 경우 -> 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(originalUser.getSocialId(), Role.USER, SocialType.KAKAO);
-        String refreshToken = jwtUtil.createRefreshToken(originalUser.getSocialId());
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), Role.USER, SocialType.KAKAO);
+        String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
-        refreshTokenService.save(originalUser.getSocialId(), refreshToken);
+        refreshTokenService.save(user.getSocialId(), refreshToken);
 
         return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO);
+    }
+
+    @Transactional
+    public LoginResDto appleLogin(@Valid AppleLoginReqDto reqDto) {
+        // 프론트에서 code값을 보내면서 로그인/회원가입 요청을 한다.
+        // code와 애플 설정값을 이용하여 직접 JWT 토큰 생성후 apple api에 유저 정보 요청을 보낸다. -> 응답으로 idToken과 accessToken을 받는다.
+        AppleTokenResDto appleTokenResDto = appleService.getAppleToken(reqDto.getCode());
+
+        // 응답으로 받은 idToken에 대해 공개키로 무결성 검증을 진행한다.  (공개키 생성은 애플 api에 요청해서 받아오기)
+        // 공개키 받아서 검증 후 payload 읽기
+        Claims claims = appleService.verifyAndParseAppleIdToken(appleTokenResDto);
+
+        String socialId = claims.getSubject();
+        String email = claims.get("email", String.class);
+        User user = userRepository.findBySocialId(socialId);
+
+        boolean isNewUser = false;
+        if(user == null) {
+            // 처음 회원가입 하는 유저
+            log.info("[LOGIN] New Apple user registered. appleId={}", socialId);
+            isNewUser = true;
+            user = userService.createOauth(socialId, email, SocialType.APPLE);
+        }
+
+        log.info("[LOGIN] Apple login success userId={}", user.getId());
+
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), Role.USER, SocialType.APPLE);
+        String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
+
+        refreshTokenService.save(user.getSocialId(), refreshToken);
+
+        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.APPLE);
     }
 
     @Transactional

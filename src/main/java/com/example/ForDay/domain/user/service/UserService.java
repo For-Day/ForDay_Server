@@ -1,6 +1,5 @@
 package com.example.ForDay.domain.user.service;
 
-import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
 import com.example.ForDay.domain.user.entity.User;
@@ -28,10 +27,10 @@ public class UserService {
     }
 
     @Transactional
-    public User createOauth(String id, KakaoProfileDto.KakaoAccount kakaoAccount, SocialType socialType) {
+    public User createOauth(String id, String email, SocialType socialType) {
         return userRepository.save(User.builder()
                 .role(Role.USER)
-                .email(kakaoAccount.getEmail())
+                .email(email)
                 .socialType(socialType)
                 .socialId(id)
                 .build());
