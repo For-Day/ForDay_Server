@@ -1,6 +1,6 @@
 package com.example.ForDay.domain.auth.service;
 
-import com.example.ForDay.domain.auth.dto.KakaoProfileDto;
+import com.example.ForDay.domain.auth.dto.response.KakaoProfileDto;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

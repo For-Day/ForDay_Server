@@ -16,6 +16,10 @@ public enum ErrorCode {
     // 카카오 관련
     KAKAO_PROFILE_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "카카오 사용자 정보 조회에 실패했습니다."),
 
+    // 애플 관련
+    APPLE_PROFILE_REQUEST_FAILED(HttpStatus.BAD_REQUEST, "애플 사용자 정보 조회에 실패했습니다."),
+    APPLE_LOGIN_FAILED(HttpStatus.BAD_REQUEST, "애플 로그인에 실패했습니다."),
+
     // 인증/인가 관련
     TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "토큰이 만료되었습니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
@@ -32,7 +36,8 @@ public enum ErrorCode {
 
     // 취미 관련
     HOBBY_CARD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미 카드입니다."),
-    INVALID_USER_ROLE(HttpStatus.FORBIDDEN, "해당 작업을 수행할 수 있는 권한이 없습니다.");
+    INVALID_USER_ROLE(HttpStatus.FORBIDDEN, "해당 작업을 수행할 수 있는 권한이 없습니다."),
+ ;
 
     private final HttpStatus status;
     private final String message;

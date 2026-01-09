@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.auth.controller;
 
+import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
@@ -26,6 +27,12 @@ public class AuthController implements AuthControllerDocs {
     public LoginResDto kakaoLogin(@RequestBody @Valid KakaoLoginReqDto reqDto) {
         log.info("[LOGIN] Kakao login request received");
         return authService.kakaoLogin(reqDto);
+    }
+
+    @PostMapping("/apple")
+    public LoginResDto appleLogin(@RequestBody @Valid AppleLoginReqDto reqDto) {
+        log.info("[LOGIN] Apple login request received");
+        return authService.appleLogin(reqDto);
     }
 
     @Override
