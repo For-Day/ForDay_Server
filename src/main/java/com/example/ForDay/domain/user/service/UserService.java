@@ -32,7 +32,7 @@ public class UserService {
                 .role(Role.USER)
                 .email(email)
                 .socialType(socialType)
-                .socialId(id)
+                .socialId(socialType.toString().toLowerCase() + "_" + id)
                 .build());
     }
 
