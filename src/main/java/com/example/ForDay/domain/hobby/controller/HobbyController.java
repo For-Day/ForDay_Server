@@ -1,7 +1,9 @@
 package com.example.ForDay.domain.hobby.controller;
 
+import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
+import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
 import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
@@ -16,10 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -45,5 +44,11 @@ public class HobbyController implements HobbyControllerDocs {
     @PostMapping("/activities/others/v1")
     public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestBody @Valid OthersActivityRecommendReqDto reqDto) {
         return hobbyService.othersActivityRecommendV1(reqDto);
+    }
+
+    @Override
+    @PostMapping("/{hobbyId}/activities")
+    public AddActivityResDto addActivity(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid AddActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.addActivity(hobbyId, reqDto, user);
     }
 }

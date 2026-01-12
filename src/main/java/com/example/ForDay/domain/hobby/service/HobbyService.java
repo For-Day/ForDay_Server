@@ -2,11 +2,13 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
 import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
+import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
 import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.entity.HobbyPurpose;
@@ -177,5 +179,32 @@ public class HobbyService {
                 "다른 포비들의 인기 활동을 조회했습니다.",
                 activities
         );
+    }
+
+    public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
+        Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        List<Activity> activities = reqDto.getActivities().stream()
+                .map(activity -> Activity.builder()
+                        .user(currentUser)
+                        .hobby(hobby)
+                        .content(activity.getContent())
+                        .aiRecommended(activity.isAiRecommended())
+                        .build()
+                )
+                .toList();
+
+        activityRepository.saveAll(activities);
+
+        return new AddActivityResDto(
+                "취미 활동이 정상적으로 생성되었습니다.",
+                activities.size()
+        );
+    }
+
+
+    private Hobby getHobby(Long hobbyId) {
+        return hobbyRepository.findById(hobbyId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
     }
 }
