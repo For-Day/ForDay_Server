@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 @Table(
         name = "users",
         indexes = {
-                @Index(name = "uk_users_nickname", columnList = "nickname", unique = true)
+                @Index(name = "uk_users_nickname", columnList = "nickname", unique = true),
+                @Index(name = "uk_users_social_id", columnList = "social_id", unique = true)
         }
 )
 @Getter
@@ -22,9 +23,9 @@ import java.time.LocalDateTime;
 public class User extends BaseTimeEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "user_id", columnDefinition = "CHAR(36)")
+    private String id;
 
     @Column(name = "email", length = 50)
     @Builder.Default
