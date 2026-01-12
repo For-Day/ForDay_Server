@@ -1,13 +1,10 @@
 package com.example.ForDay.domain.auth.service;
 
 import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
-import com.example.ForDay.domain.auth.dto.response.KakaoProfileDto;
+import com.example.ForDay.domain.auth.dto.response.*;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
-import com.example.ForDay.domain.auth.dto.response.AppleTokenResDto;
-import com.example.ForDay.domain.auth.dto.response.LoginResDto;
-import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
@@ -104,7 +101,7 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResDto guestLogin(GuestLoginReqDto reqDto) {
+    public GuestLoginResDto guestLogin(GuestLoginReqDto reqDto) {
         User user;
         String guestUserId = reqDto.getGuestUserId();
         boolean newUser;
@@ -138,7 +135,7 @@ public class AuthService {
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
-        return new LoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST);
+        return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, user.getSocialId());
     }
 
 
