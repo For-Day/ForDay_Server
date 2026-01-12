@@ -4,6 +4,7 @@ import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
+import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.domain.auth.service.AuthService;
@@ -37,7 +38,7 @@ public class AuthController implements AuthControllerDocs {
 
     @Override
     @PostMapping("/guest")
-    public LoginResDto guestLogin(@RequestBody GuestLoginReqDto reqDto) {
+    public GuestLoginResDto guestLogin(@RequestBody GuestLoginReqDto reqDto) {
         log.info("[LOGIN] guest login request received");
         return authService.guestLogin(reqDto);
     }

@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "로그인 응답 DTO")
-public class LoginResDto {
+@Schema(description = "게스트 로그인 응답 DTO")
+public class GuestLoginResDto {
     @Schema(description = "Access Token (API 호출 시 Authorization 헤더에 사용)", example = "eyJhbGciOiJIUzI1...")
     private String accessToken;
 
@@ -22,4 +22,6 @@ public class LoginResDto {
 
     @Schema(description = "가입 유형", example = "KAKAO")
     private SocialType socialType;
+
+    private String guestUserId;
 }

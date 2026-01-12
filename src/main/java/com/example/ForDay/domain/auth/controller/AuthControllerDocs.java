@@ -4,6 +4,7 @@ import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
+import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -154,7 +155,7 @@ public interface AuthControllerDocs {
                     ))
             )
     })
-    LoginResDto guestLogin(GuestLoginReqDto reqDto);
+    GuestLoginResDto guestLogin(GuestLoginReqDto reqDto);
 
     @Operation(
             summary = "Access / Refresh 토큰 재발급",
