@@ -28,7 +28,7 @@ public class HobbyController implements HobbyControllerDocs {
     private final HobbyService hobbyService;
 
     @Override
-    @PostMapping("/activities/create")
+    @PostMapping("/create")
     public ActivityCreateResDto hobbyCreate(@RequestBody @Valid ActivityCreateReqDto reqDto,
                                             @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.hobbyCreate(reqDto, user);

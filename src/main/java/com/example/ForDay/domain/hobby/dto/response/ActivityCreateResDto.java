@@ -9,6 +9,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ActivityCreateResDto {
     private String message;
-    private Integer createdActivityCount;
     private Long hobbyId;
 }

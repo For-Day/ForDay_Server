@@ -51,14 +51,13 @@ public class HobbyService {
                 user.getUsername(), reqDto.getHobbyCardId());
 
         User currentUser = userUtil.getCurrentUser(user);
-        Integer executionCount = reqDto.getExecutionCount();
 
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
                 .hobbyCardId(reqDto.getHobbyCardId())
                 .hobbyName(reqDto.getHobbyName())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
-                .executionCount(executionCount)
+                .executionCount(reqDto.getExecutionCount())
                 .goalDays(reqDto.getIsDurationSet() ? 66 : null)
                 .status(HobbyStatus.IN_PROGRESS)
                 .build();
@@ -75,22 +74,8 @@ public class HobbyService {
         log.info("[ActivityCreate] Hobby 생성 완료 - hobbyId={}, userId={}",
                 hobby.getId(), currentUser.getId());
 
-        activityRepository.saveAll(
-                reqDto.getActivities().stream()
-                .map(activity -> Activity.builder()
-                        .user(currentUser)
-                        .hobby(hobby)
-                        .content(activity.getContent())
-                        .description(activity.getDescription())
-                        .aiRecommended(activity.isAiRecommended())
-                        .build()
-                )
-                .toList());
 
-        log.info("[ActivityCreate] Activity 생성 완료 - hobbyId={}, activityCount={}, userId={}",
-                hobby.getId(), reqDto.getActivities().size(), currentUser.getId());
-
-        return new ActivityCreateResDto("취미 활동이 성공적으로 생성되었습니다.", reqDto.getActivities().size(), hobby.getId());
+        return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
     }
 
     public ActivityAIRecommendResDto activityAiRecommend(
