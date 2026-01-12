@@ -41,7 +41,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
-                                "log-test"
+                                "/log-test"
                         ).permitAll()
                         .requestMatchers("/guest").hasRole("GUEST")
                         .requestMatchers("/admin").hasRole("ADMIN")

@@ -1,8 +1,10 @@
 package com.example.ForDay.domain.auth.controller;
 
+import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
+import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -14,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "Auth", description = "인증 / 로그인 API")
@@ -47,6 +50,71 @@ public interface AuthControllerDocs {
             )
     })
     LoginResDto kakaoLogin(KakaoLoginReqDto reqDto);
+
+    @Operation(
+            summary = "애플 로그인",
+            description = "Apple OAuth 로그인 API입니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "애플 로그인 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = LoginResDto.class),
+                            examples = @ExampleObject(
+                                    name = "success",
+                                    value = """
+                                {
+                                  "status": 200,
+                                  "success": true,
+                                  "data": {
+                                    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                    "newUser": false,
+                                    "socialType": "APPLE"
+                                  }
+                                }
+                                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "애플 로그인 실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "APPLE_LOGIN_FAILED",
+                                            value = """
+                                        {
+                                          "status": 400,
+                                          "success": false,
+                                          "error": {
+                                            "code": "APPLE_LOGIN_FAILED",
+                                            "message": "애플 로그인에 실패했습니다."
+                                          }
+                                        }
+                                        """
+                                    ),
+                                    @ExampleObject(
+                                            name = "APPLE_PROFILE_REQUEST_FAILED",
+                                            value = """
+                                        {
+                                          "status": 400,
+                                          "success": false,
+                                          "error": {
+                                            "code": "APPLE_PROFILE_REQUEST_FAILED",
+                                            "message": "애플 사용자 정보 조회에 실패했습니다."
+                                          }
+                                        }
+                                        """
+                                    )
+                            }
+                    )
+            )
+    })
+    LoginResDto appleLogin(AppleLoginReqDto reqDto);
 
     @Operation(
             summary = "게스트 로그인",
@@ -87,7 +155,7 @@ public interface AuthControllerDocs {
                     ))
             )
     })
-    LoginResDto guestLogin(GuestLoginReqDto reqDto);
+    GuestLoginResDto guestLogin(GuestLoginReqDto reqDto);
 
     @Operation(
             summary = "Access / Refresh 토큰 재발급",
