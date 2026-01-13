@@ -1,31 +1,26 @@
 package com.example.ForDay.domain.hobby.controller;
 
-import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
-import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
-import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
+import com.example.ForDay.domain.hobby.dto.request.*;
+import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Hobby", description = "취미 및 활동 관련 API")
 public interface HobbyControllerDocs {
 
     @Operation(
-            summary = "취미 루틴 생성",
-            description = "사용자의 취미 정보로 루틴을 생성합니다."
+            summary = "취미 생성",
+            description = "사용자의 취미를 생성합니다."
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -158,4 +153,97 @@ public interface HobbyControllerDocs {
             )
     })
     AddActivityResDto addActivity(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid AddActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "내 취미 활동 리스트 조회",
+            description = "특정 취미 카드에 속한 활동들을 기록 여부, 스티커 개수, 가나다 순으로 정렬하여 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetHobbyActivitiesResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "접근 권한 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\n  \"status\": 403,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"NOT_HOBBY_OWNER\",\n    \"message\": \"취미 소유자가 아닙니다.\"\n  }\n}"))
+            )
+    })
+    GetHobbyActivitiesResDto getHobbyActivities(
+            @Parameter(description = "취미 카드 ID", example = "1") @PathVariable(value = "hobbyId") Long hobbyId,
+            @AuthenticationPrincipal CustomUserDetails user);
+
+
+
+
+    @Operation(
+            summary = "활동 기록 작성",
+            description = "특정 활동에 대한 기록(스티커, 메모, 이미지)을 작성합니다. <br>" +
+                    "**제약사항:** <br>" +
+                    "1. 해당 취미 카드의 소유자만 작성 가능합니다. <br>" +
+                    "2. 특정 취미에 대해 **하루에 단 한 번만** 기록할 수 있습니다. (Redis 체크) <br>" +
+                    "3. 이미지는 최대 3개까지 등록 가능하며, S3에 실제 업로드된 상태여야 합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "기록 작성 성공",
+                    content = @Content(schema = @Schema(implementation = RecordActivityResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "중복 기록 시도",
+                    content = @Content(examples = @ExampleObject(value = "{\n  \"status\": 400,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"ALREADY_RECORDED_TODAY\",\n    \"message\": \"오늘 해당 취미에 대한 활동 기록을 이미 작성하였습니다.\"\n  }\n}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\n  \"status\": 403,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"NOT_ACTIVITY_OWNER\",\n    \"message\": \"활동 소유자가 아닙니다.\"\n  }\n}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "리소스 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "활동 없음",
+                            value = "{\n  \"status\": 404,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"ACTIVITY_NOT_FOUND\",\n    \"message\": \"존재하지 않는 활동입니다.\"\n  }\n}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "S3 이미지 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "이미지 없음",
+                            value = "{\n  \"status\": 404,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"S3_IMAGE_NOT_FOUND\",\n    \"message\": \"S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.\"\n  }\n}"))
+            )
+    })
+    RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "홈 대시보드 정보 조회",
+            description = "홈 화면에 필요한 취미 리스트, 활동 미리보기, 오늘 기록 여부 등을 조회합니다. <br>" +
+                    "- **hobbyId가 없을 경우**: 가장 최근에 생성된(IN_PROGRESS) 취미를 기준으로 데이터를 조회합니다. <br>" +
+                    "- **hobbyId가 있을 경우**: 해당 ID의 취미를 기준으로 데이터를 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetHomeHobbyInfoResDto.class))
+            )
+    })
+    GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "내 취미 설정 조회",
+            description = "현재 진행 중인(IN_PROGRESS) 모든 취미의 설정 값들을 조회합니다. <br>" +
+                    "취미 관리 페이지에서 각 취미의 시간, 목표 일수 등을 확인할 때 사용합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = MyHobbySettingResDto.class))
+            )
+    })
+    MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user);
 }

@@ -2,16 +2,12 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
-import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
+import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
-import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
-import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
+import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.entity.HobbyPurpose;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -31,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.IntStream;
 
 @Slf4j
@@ -58,19 +55,12 @@ public class HobbyService {
                 .user(currentUser)
                 .hobbyCardId(reqDto.getHobbyCardId())
                 .hobbyName(reqDto.getHobbyName())
+                .hobbyPurpose(reqDto.getHobbyPurpose())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
                 .executionCount(reqDto.getExecutionCount())
                 .goalDays(reqDto.getIsDurationSet() ? 66 : null)
                 .status(HobbyStatus.IN_PROGRESS)
                 .build();
-
-        reqDto.getHobbyPurposes().forEach(purpose ->
-                hobby.addPurpose(
-                        HobbyPurpose.builder()
-                                .content(purpose)
-                                .build()
-                )
-        );
 
         hobbyRepository.save(hobby);
         log.info("[ActivityCreate] Hobby 생성 완료 - hobbyId={}, userId={}",
@@ -80,6 +70,7 @@ public class HobbyService {
         return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
     }
 
+    @Transactional
     public ActivityAIRecommendResDto activityAiRecommend(
             ActivityAIRecommendReqDto reqDto,
             CustomUserDetails user) throws Exception {
@@ -87,7 +78,7 @@ public class HobbyService {
                 user.getUsername(),
                 reqDto.getHobbyName(),
                 reqDto.getHobbyTimeMinutes(),
-                reqDto.getHobbyPurposes(),
+                reqDto.getHobbyPurpose(),
                 reqDto.getExecutionCount()
         );
 
@@ -137,6 +128,7 @@ public class HobbyService {
         );
     }
 
+    @Transactional
     public OthersActivityRecommendResDto othersActivityRecommendV1(OthersActivityRecommendReqDto reqDto) {
         log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}, hobbyName={}",
                 reqDto.getHobbyCardId(), reqDto.getHobbyName());
@@ -181,9 +173,12 @@ public class HobbyService {
         );
     }
 
+    @Transactional
     public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}",
+                currentUser.getId(), hobbyId, reqDto.getActivities().size());
 
         List<Activity> activities = reqDto.getActivities().stream()
                 .map(activity -> Activity.builder()
@@ -196,6 +191,7 @@ public class HobbyService {
                 .toList();
 
         activityRepository.saveAll(activities);
+        log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
 
         return new AddActivityResDto(
                 "취미 활동이 정상적으로 생성되었습니다.",
@@ -206,5 +202,42 @@ public class HobbyService {
 
     private Hobby getHobby(Long hobbyId) {
         return hobbyRepository.findById(hobbyId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+    }
+
+    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user) {
+        Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("[GetHobbyActivities] 조회 시작 - UserId: {}, HobbyId: {}", currentUser.getId(), hobbyId);
+
+        // 현재 사용자가 hobby의 소유자인지 판별
+        verifyHobbyOwner(hobby, currentUser);
+
+        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobby);
+        log.info("[GetHobbyActivities] 조회 완료 - 활동 개수: {}", response.getActivities().size());
+        return response; // 해당 취미에 대한 활동 목록 조회
+
+    }
+
+    private void verifyHobbyOwner(Hobby hobby, User currentUser) {
+        if (!Objects.equals(hobby.getUser(), currentUser)) {
+            log.warn("[HobbyService] 권한 없음 - HobbyOwnerId: {}, CurrentUserId: {}",
+                    hobby.getUser().getId(), currentUser.getId());
+            throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
+        }
+    }
+
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("[GetHomeHobbyInfo] 대시보드 조회 - UserId: {}, TargetHobbyId: {}",
+                currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
+
+        return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
+    }
+
+    public MyHobbySettingResDto myHobbySetting(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("[MyHobbySetting] 취미 설정 목록 조회 - UserId: {}", currentUser.getId());
+
+        return hobbyRepository.myHobbySetting(currentUser);
     }
 }

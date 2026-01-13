@@ -1,20 +1,10 @@
 package com.example.ForDay.domain.hobby.controller;
 
-import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
-import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
+import com.example.ForDay.domain.activity.service.ActivityService;
+import com.example.ForDay.domain.hobby.dto.request.*;
+import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.HobbyService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/hobbies")
 public class HobbyController implements HobbyControllerDocs {
     private final HobbyService hobbyService;
+    private final ActivityService activityService;
 
     @Override
     @PostMapping("/create")
@@ -50,5 +41,29 @@ public class HobbyController implements HobbyControllerDocs {
     @PostMapping("/{hobbyId}/activities")
     public AddActivityResDto addActivity(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid AddActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.addActivity(hobbyId, reqDto, user);
+    }
+
+    @Override
+    @GetMapping("/{hobbyId}/activities")
+    public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getHobbyActivities(hobbyId, user);
+    }
+
+    @Override
+    @PostMapping("/activities/{activityId}/record")
+    public RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return activityService.recordActivity(activityId, reqDto, user);
+    }
+
+    @Override
+    @GetMapping("/home")
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getHomeHobbyInfo(hobbyId, user);
+    }
+
+    @Override
+    @GetMapping("/setting")
+    public MyHobbySettingResDto myHobbySetting(@AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.myHobbySetting(user);
     }
 }
