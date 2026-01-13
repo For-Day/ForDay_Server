@@ -2,14 +2,11 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
-import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
+import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
-import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
-import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
+import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.entity.HobbyPurpose;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
@@ -31,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.IntStream;
 
 @Slf4j
@@ -206,5 +204,22 @@ public class HobbyService {
 
     private Hobby getHobby(Long hobbyId) {
         return hobbyRepository.findById(hobbyId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+    }
+
+    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user) {
+        Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        // 현재 사용자가 hobby의 소유자인지 판별
+        verifyHobbyOwner(hobby, currentUser);
+
+        return activityRepository.getHobbyActivities(hobby); // 해당 취미에 대한 활동 목록 조회
+
+    }
+
+    private void verifyHobbyOwner(Hobby hobby, User currentUser) {
+        if (!Objects.equals(hobby.getUser(), currentUser)) {
+            throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
+        }
     }
 }

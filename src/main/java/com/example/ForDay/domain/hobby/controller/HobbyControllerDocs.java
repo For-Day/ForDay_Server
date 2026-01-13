@@ -1,6 +1,6 @@
 package com.example.ForDay.domain.hobby.controller;
 
-import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
+import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;

@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.hobby.dto.requ;
+package com.example.ForDay.domain.hobby.dto.request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;

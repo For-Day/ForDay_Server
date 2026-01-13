@@ -26,6 +26,7 @@ public class ActivityRecordImage extends BaseTimeEntity {
     @Column(nullable = false, length = 255)
     private String imageUrl;
 
-    private Integer order;
+    @Column(name = "sort_order")
+    private Integer sortOrder;
 
 }

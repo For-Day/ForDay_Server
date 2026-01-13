@@ -1,20 +1,12 @@
 package com.example.ForDay.domain.hobby.controller;
 
-import com.example.ForDay.domain.hobby.dto.requ.AddActivityReqDto;
+import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
-import com.example.ForDay.domain.hobby.dto.response.OthersActivityRecommendResDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityAIRecommendResDto;
+import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
-import com.example.ForDay.domain.hobby.dto.response.ActivityCreateResDto;
 import com.example.ForDay.domain.hobby.service.HobbyService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -50,5 +42,10 @@ public class HobbyController implements HobbyControllerDocs {
     @PostMapping("/{hobbyId}/activities")
     public AddActivityResDto addActivity(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid AddActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.addActivity(hobbyId, reqDto, user);
+    }
+
+    @GetMapping("/{hobbyId}/activities")
+    public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getHobbyActivities(hobbyId, user);
     }
 }
