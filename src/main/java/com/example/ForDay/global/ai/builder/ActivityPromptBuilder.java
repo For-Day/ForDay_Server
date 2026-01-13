@@ -1,7 +1,6 @@
 package com.example.ForDay.global.ai.builder;
 
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
+import com.example.ForDay.domain.hobby.entity.Hobby;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -26,11 +25,9 @@ public class ActivityPromptBuilder {
         """;
     }
 
-    public String buildUserPrompt(ActivityAIRecommendReqDto req) {
+    public String buildUserPrompt(Hobby hobby) {
 
-        String durationText = Boolean.TRUE.equals(req.getIsDurationSet())
-                ? "66일"
-                : "기간 설정 없음";
+        String durationText = hobby.getGoalDays() == null ? "기간 없음" : "66일";
 
         return String.format("""
         아래 사용자 조건을 모두 반영하여 추천 활동 카드 3개를 생성해줘.
@@ -86,16 +83,16 @@ public class ActivityPromptBuilder {
           ]
         }
         """,
-                req.getHobbyName(),
-                req.getHobbyTimeMinutes(),
-                req.getHobbyPurpose(),
-                req.getExecutionCount(),
+                hobby.getHobbyName(),
+                hobby.getHobbyTimeMinutes(),
+                hobby.getHobbyPurpose(),
+                hobby.getExecutionCount(),
                 durationText
         );
     }
 
-    public String buildOtherActivityUserPrompt(OthersActivityRecommendReqDto reqDto) {
-        String durationText = Boolean.TRUE.equals(reqDto.getIsDurationSet()) ? "목표 기간 66일" : "기간 설정 없음";
+    public String buildOtherActivityUserPrompt(Hobby hobby) {
+        String durationText = hobby.getGoalDays() == null ? "기간 없음" : "66일";
 
         return String.format("""
         [맥락]
@@ -121,19 +118,19 @@ public class ActivityPromptBuilder {
             "otherActivities": [
                   {
                     "id": 1,
-                    "content": "실제 유저가 등록했을 법한 구체적인 활동 내용"
+                    "content": "[10자 내외] 실제 유저가 등록했을 법한 구체적인 활동 내용"
                    },
                     ...
             ]
         }
         """,
-                reqDto.getHobbyName(),
-                reqDto.getHobbyName(),
-                reqDto.getHobbyTimeMinutes(),
-                reqDto.getHobbyPurpose(),
-                reqDto.getExecutionCount(),
+                hobby.getHobbyName(),
+                hobby.getHobbyName(),
+                hobby.getHobbyTimeMinutes(),
+                hobby.getHobbyPurpose(),
+                hobby.getExecutionCount(),
                 durationText,
-                reqDto.getHobbyTimeMinutes()
+                hobby.getHobbyTimeMinutes()
         );
     }
 

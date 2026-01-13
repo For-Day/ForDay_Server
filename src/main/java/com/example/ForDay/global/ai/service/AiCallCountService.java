@@ -20,9 +20,9 @@ public class AiCallCountService {
 
     private final RedisTemplate<String, Integer> redisTemplate;
 
-    public int increaseAndGet(String userSocialId) {
+    public int increaseAndGet(String userSocialId, Long hobbyId) {
 
-        String key = generateKey(userSocialId);
+        String key = generateKey(userSocialId, hobbyId);
 
         Integer count = redisTemplate.opsForValue().increment(key).intValue();
 
@@ -38,9 +38,9 @@ public class AiCallCountService {
         return count;
     }
 
-    private String generateKey(String userSocialId) {
+    private String generateKey(String userId, Long hobbyId) {
         String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "ai:activity:recommend:" + userSocialId + ":" + today;
+        return "ai:activity:recommend:" + userId + ":" + hobbyId + ":" + today;
     }
 
     private long secondsUntilMidnight() {

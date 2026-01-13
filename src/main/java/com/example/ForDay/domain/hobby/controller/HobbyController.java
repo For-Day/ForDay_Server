@@ -25,16 +25,16 @@ public class HobbyController implements HobbyControllerDocs {
     }
 
     @Override
-    @PostMapping("/activities/ai/recommend")
-    public ActivityAIRecommendResDto activityAiRecommend(@RequestBody @Valid ActivityAIRecommendReqDto reqDto,
+    @GetMapping("/activities/ai/recommend")
+    public ActivityAIRecommendResDto activityAiRecommend(@RequestParam(name = "hobbyId") Long hobbyId,
                                                          @AuthenticationPrincipal CustomUserDetails user) throws Exception {
-        return hobbyService.activityAiRecommend(reqDto, user);
+        return hobbyService.activityAiRecommend(hobbyId, user);
     }
 
     @Override
-    @PostMapping("/activities/others/v1")
-    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestBody @Valid OthersActivityRecommendReqDto reqDto) {
-        return hobbyService.othersActivityRecommendV1(reqDto);
+    @GetMapping("/activities/others/v1")
+    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId,  @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.othersActivityRecommendV1(hobbyId, user);
     }
 
     @Override
