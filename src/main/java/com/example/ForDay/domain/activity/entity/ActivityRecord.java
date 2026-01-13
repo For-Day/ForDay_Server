@@ -9,6 +9,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "activity_records")
 @Getter
@@ -38,4 +41,15 @@ public class ActivityRecord extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private RecordVisibility visibility;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ActivityRecordImage> images = new ArrayList<>();
+
+    public void addImage(ActivityRecordImage image) {
+        this.images.add(image);
+        if (image.getActivityRecord() != this) {
+            image.setActivityRecord(this);
+        }
+    }
 }

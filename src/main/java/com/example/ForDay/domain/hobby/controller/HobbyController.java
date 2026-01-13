@@ -1,10 +1,7 @@
 package com.example.ForDay.domain.hobby.controller;
 
-import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
+import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
-import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.service.HobbyService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -48,5 +45,10 @@ public class HobbyController implements HobbyControllerDocs {
     @GetMapping("/{hobbyId}/activities")
     public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getHobbyActivities(hobbyId, user);
+    }
+
+    @PostMapping("/activities/{activityId}/record")
+    public RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.recordActivity(activityId, reqDto, user);
     }
 }

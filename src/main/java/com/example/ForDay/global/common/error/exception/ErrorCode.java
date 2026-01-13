@@ -38,8 +38,17 @@ public enum ErrorCode {
     HOBBY_CARD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미 카드입니다."),
     INVALID_USER_ROLE(HttpStatus.FORBIDDEN, "해당 작업을 수행할 수 있는 권한이 없습니다."),
     HOBBY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미입니다."),
-    NOT_HOBBY_OWNER(HttpStatus.FORBIDDEN, "취미 소유자가 아닙니다.");
+    NOT_HOBBY_OWNER(HttpStatus.FORBIDDEN, "취미 소유자가 아닙니다."),
 
+    // 활동 관련
+    ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."),
+    NOT_ACTIVITY_OWNER(HttpStatus.FORBIDDEN, "활동 소유자가 아닙니다."),
+
+    // 활동 기록 관련
+    ALREADY_RECORDED_TODAY(HttpStatus.BAD_REQUEST, "오늘 해당 취미에 대한 활동 기록을 이미 작성하였습니다."),
+
+    // s3 관련
+    S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.");
 
     private final HttpStatus status;
     private final String message;

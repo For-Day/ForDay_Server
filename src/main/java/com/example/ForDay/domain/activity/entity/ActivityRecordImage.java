@@ -29,4 +29,8 @@ public class ActivityRecordImage extends BaseTimeEntity {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    public void setActivityRecord(ActivityRecord activityRecord) {
+        this.activityRecord = activityRecord;
+    }
+
 }
