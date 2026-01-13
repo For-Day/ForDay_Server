@@ -225,4 +225,10 @@ public class HobbyService {
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
     }
+
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
+    }
 }

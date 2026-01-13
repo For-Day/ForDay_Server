@@ -54,4 +54,10 @@ public class HobbyController implements HobbyControllerDocs {
     public RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return activityService.recordActivity(activityId, reqDto, user);
     }
+
+    @Override
+    @GetMapping("/home")
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getHomeHobbyInfo(hobbyId, user);
+    }
 }

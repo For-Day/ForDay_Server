@@ -7,11 +7,7 @@ import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
-import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
-import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.service.AiActivityService;
-import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -53,6 +49,8 @@ public class ActivityService {
                 .memo(reqDto.getMemo())
                 .visibility(reqDto.getVisibility())
                 .build();
+
+        activity.record();
 
         // 해당 이미지가 s3에 업로드 되었는지 확인
         if (reqDto.getImages() != null) {

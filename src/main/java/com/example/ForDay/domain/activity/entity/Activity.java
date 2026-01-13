@@ -44,5 +44,6 @@ public class Activity extends BaseTimeEntity {
     public void record() {
         this.collectedStickerNum++;
         this.lastRecordedAt = LocalDateTime.now();
+        hobby.record();
     }
 }

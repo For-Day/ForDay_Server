@@ -13,17 +13,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Hobby", description = "취미 및 활동 관련 API")
 public interface HobbyControllerDocs {
 
     @Operation(
-            summary = "취미 루틴 생성",
-            description = "사용자의 취미 정보로 루틴을 생성합니다."
+            summary = "취미 생성",
+            description = "사용자의 취미를 생성합니다."
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -220,4 +217,19 @@ public interface HobbyControllerDocs {
             )
     })
     RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "홈 대시보드 정보 조회",
+            description = "홈 화면에 필요한 취미 리스트, 활동 미리보기, 오늘 기록 여부 등을 조회합니다. <br>" +
+                    "- **hobbyId가 없을 경우**: 가장 최근에 생성된(IN_PROGRESS) 취미를 기준으로 데이터를 조회합니다. <br>" +
+                    "- **hobbyId가 있을 경우**: 해당 ID의 취미를 기준으로 데이터를 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetHomeHobbyInfoResDto.class))
+            )
+    })
+    GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @AuthenticationPrincipal CustomUserDetails user);
 }

@@ -6,7 +6,6 @@ import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,5 +70,9 @@ public class Hobby extends BaseTimeEntity {
     public void removePurpose(HobbyPurpose purpose) {
         purposes.remove(purpose);
         purpose.setHobby(null);
+    }
+
+    public void record() {
+        this.currentStickerNum++;
     }
 }
