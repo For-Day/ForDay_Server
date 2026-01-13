@@ -44,6 +44,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.addActivity(hobbyId, reqDto, user);
     }
 
+    @Override
     @GetMapping("/{hobbyId}/activities")
     public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getHobbyActivities(hobbyId, user);
