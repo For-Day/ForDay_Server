@@ -6,6 +6,5 @@ import com.example.ForDay.domain.user.entity.User;
 
 public interface HobbyRepositoryCustom {
     GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, User currentUser);
-
     MyHobbySettingResDto myHobbySetting(User user);
 }
