@@ -37,7 +37,7 @@ public enum ErrorCode {
     // 취미 관련
     HOBBY_CARD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미 카드입니다."),
     INVALID_USER_ROLE(HttpStatus.FORBIDDEN, "해당 작업을 수행할 수 있는 권한이 없습니다."),
- ;
+    HOBBY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미입니다.");
 
     private final HttpStatus status;
     private final String message;

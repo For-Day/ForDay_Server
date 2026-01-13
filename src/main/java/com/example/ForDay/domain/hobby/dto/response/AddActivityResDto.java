@@ -5,9 +5,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class ActivityCreateResDto {
+@AllArgsConstructor
+public class AddActivityResDto {
     private String message;
-    private Long hobbyId;
+    private Integer createdActivityNum;
 }
