@@ -223,4 +223,10 @@ public class HobbyService {
 
         return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
     }
+
+    public MyHobbySettingResDto myHobbySetting(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        return hobbyRepository.myHobbySetting(currentUser);
+    }
 }

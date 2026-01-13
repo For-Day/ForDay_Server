@@ -60,4 +60,10 @@ public class HobbyController implements HobbyControllerDocs {
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getHomeHobbyInfo(hobbyId, user);
     }
+
+    @Override
+    @GetMapping("/setting")
+    public MyHobbySettingResDto myHobbySetting(@AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.myHobbySetting(user);
+    }
 }

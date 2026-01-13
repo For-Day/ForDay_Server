@@ -232,4 +232,18 @@ public interface HobbyControllerDocs {
             )
     })
     GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "내 취미 설정 조회",
+            description = "현재 진행 중인(IN_PROGRESS) 모든 취미의 설정 값들을 조회합니다. <br>" +
+                    "취미 관리 페이지에서 각 취미의 시간, 목표 일수 등을 확인할 때 사용합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = MyHobbySettingResDto.class))
+            )
+    })
+    MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user);
 }

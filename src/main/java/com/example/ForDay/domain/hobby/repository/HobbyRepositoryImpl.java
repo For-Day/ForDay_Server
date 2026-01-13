@@ -3,10 +3,12 @@ package com.example.ForDay.domain.hobby.repository;
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.activity.entity.QActivityRecord;
 import com.example.ForDay.domain.hobby.dto.response.GetHomeHobbyInfoResDto;
+import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.util.RedisUtil;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -94,6 +96,27 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .activityRecordedToday(activityRecordedToday)
                 .collectedStickers(collectedStickers)
                 .build();
+    }
+
+    @Override
+    public MyHobbySettingResDto myHobbySetting(User user) {
+        List<MyHobbySettingResDto.HobbyDto> hobbyDtos = queryFactory
+                .select(Projections.constructor(MyHobbySettingResDto.HobbyDto.class,
+                        hobby.id,
+                        hobby.hobbyName,
+                        hobby.hobbyTimeMinutes,
+                        hobby.executionCount,
+                        hobby.goalDays
+                ))
+                .from(hobby)
+                .where(
+                        hobby.user.eq(user),
+                        hobby.status.eq(HobbyStatus.IN_PROGRESS)
+                )
+                .orderBy(hobby.createdAt.desc())
+                .fetch();
+
+        return new MyHobbySettingResDto(hobbyDtos);
     }
 
     private OrderSpecifier<Integer> hobbyIdPriority(Long hobbyId) {
