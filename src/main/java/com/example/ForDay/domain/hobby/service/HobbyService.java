@@ -2,12 +2,11 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -71,24 +70,23 @@ public class HobbyService {
     }
 
     @Transactional
-    public ActivityAIRecommendResDto activityAiRecommend(
-            ActivityAIRecommendReqDto reqDto,
-            CustomUserDetails user) throws Exception {
-        log.info("[AI-RECOMMEND][START] user={}, hobby={}, time={}min, purposes={}, executionCount={}",
-                user.getUsername(),
-                reqDto.getHobbyName(),
-                reqDto.getHobbyTimeMinutes(),
-                reqDto.getHobbyPurpose(),
-                reqDto.getExecutionCount()
+    public ActivityAIRecommendResDto activityAiRecommend(Long hobbyId, CustomUserDetails user) throws Exception {
+        User currentUser = userUtil.getCurrentUser(user);
+        String userId = currentUser.getId();
+        Hobby hobby = getHobby(hobbyId);
+        verifyHobbyOwner(hobby, currentUser);
+
+        log.info("[AI-RECOMMEND][START] user={}: ",
+                userId
         );
 
-        int aiCallCount = aiCallCountService.increaseAndGet(user.getUsername());
-        log.info("[AI-RECOMMEND][COUNT] user={}, aiCallCount={}", user.getUsername(), aiCallCount);
+        int aiCallCount = aiCallCountService.increaseAndGet(userId, hobbyId);
+        log.info("[AI-RECOMMEND][COUNT] user={}, aiCallCount={}", userId, aiCallCount);
 
-        log.info("[AI-RECOMMEND][CALL] user={} calling AI model", user.getUsername());
+        log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
 
 
-        AiActivityResult aiResult = aiActivityService.activityRecommend(reqDto);
+        AiActivityResult aiResult = aiActivityService.activityRecommend(hobby);
 
         if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
             throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
@@ -96,7 +94,7 @@ public class HobbyService {
 
 
         log.info("[AI-RECOMMEND][RESULT] user={}, activitySize={}",
-                user.getUsername(),
+                userId,
                 aiResult.getActivities().size()
         );
 
@@ -129,24 +127,29 @@ public class HobbyService {
     }
 
     @Transactional
-    public OthersActivityRecommendResDto othersActivityRecommendV1(OthersActivityRecommendReqDto reqDto) {
-        log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}, hobbyName={}",
-                reqDto.getHobbyCardId(), reqDto.getHobbyName());
+    public OthersActivityRecommendResDto othersActivityRecommendV1(Long hobbyId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        Hobby hobby = getHobby(hobbyId);
+        verifyHobbyOwner(hobby, currentUser);
+
+        Long hobbyCardId = hobby.getHobbyCardId();
+
+        log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}", hobbyCardId);
 
         // 1. HobbyCard 존재 여부 검증
-        if (!hobbyCardRepository.existsById(reqDto.getHobbyCardId())) {
-            log.warn("[OTHERS-AI-RECOMMEND][NOT-FOUND] hobbyCardId={} is not exist", reqDto.getHobbyCardId());
+        if (!hobbyCardRepository.existsById(hobbyCardId)) {
+            log.warn("[OTHERS-AI-RECOMMEND][NOT-FOUND] hobbyCardId={} is not exist", hobbyCardId);
             throw new CustomException(ErrorCode.HOBBY_CARD_NOT_FOUND);
         }
 
         // 2. AI 추천 서비스 호출
-        log.info("[OTHERS-AI-RECOMMEND][AI-CALL] Calling AI service for hobby: {}", reqDto.getHobbyName());
-        AiOthersActivityResult aiResult = aiActivityService.othersActivityRecommend(reqDto);
+        log.info("[OTHERS-AI-RECOMMEND][AI-CALL] Calling AI service for hobby: {}", hobbyCardId);
+        AiOthersActivityResult aiResult = aiActivityService.othersActivityRecommend(hobby);
 
         // 3. 응답 결과 검증
         if (aiResult.getOtherActivities() == null || aiResult.getOtherActivities().isEmpty()) {
             log.error("[OTHERS-AI-RECOMMEND][INVALID-RESPONSE] AI returned null or empty result for hobby: {}",
-                    reqDto.getHobbyName());
+                    hobbyCardId);
             throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
         }
 
@@ -163,7 +166,7 @@ public class HobbyService {
 
         // 5. 성공 로그 및 반환
         log.info("[OTHERS-AI-RECOMMEND][SUCCESS] Successfully generated activities for hobbyCardId={}, count={}",
-                reqDto.getHobbyCardId(),
+                hobbyCardId,
                 activities.size()
         );
 

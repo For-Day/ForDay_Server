@@ -1,7 +1,6 @@
 package com.example.ForDay.global.ai.service;
 
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
+import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.global.ai.builder.ActivityPromptBuilder;
 import com.example.ForDay.global.ai.client.OpenAiClient;
 import com.example.ForDay.global.ai.dto.response.AiActivityResult;
@@ -24,10 +23,10 @@ public class AiActivityService {
     private final ActivityPromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
 
-    public AiActivityResult activityRecommend(ActivityAIRecommendReqDto reqDto) {
+    public AiActivityResult activityRecommend(Hobby hobby) {
         try {
             String systemPrompt = promptBuilder.buildSystemPrompt();
-            String userPrompt = promptBuilder.buildUserPrompt(reqDto);
+            String userPrompt = promptBuilder.buildUserPrompt(hobby);
 
             // 1. AI 호출
             String rawResponse = openAiClient.call(systemPrompt, userPrompt);
@@ -64,10 +63,10 @@ public class AiActivityService {
         }
     }
 
-    public AiOthersActivityResult othersActivityRecommend(OthersActivityRecommendReqDto reqDto) {
+    public AiOthersActivityResult othersActivityRecommend(Hobby hobby) {
         try {
             String systemPrompt = promptBuilder.buildSystemPrompt();
-            String userPrompt = promptBuilder.buildOtherActivityUserPrompt(reqDto);
+            String userPrompt = promptBuilder.buildOtherActivityUserPrompt(hobby);
 
             String rawResponse = openAiClient.call(systemPrompt, userPrompt);
 

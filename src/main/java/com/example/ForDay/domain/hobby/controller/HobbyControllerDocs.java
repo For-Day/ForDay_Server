@@ -63,7 +63,9 @@ public interface HobbyControllerDocs {
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{hobbyName=hobbyName은 필수입니다.}\"}}"))
             )
     })
-    ActivityAIRecommendResDto activityAiRecommend(ActivityAIRecommendReqDto reqDto, CustomUserDetails user) throws Exception;
+    @GetMapping("/activities/ai/recommend")
+    ActivityAIRecommendResDto activityAiRecommend(@RequestParam(name = "hobbyId") Long hobbyId,
+                                                  @AuthenticationPrincipal CustomUserDetails user) throws Exception;
 
     @Operation(
             summary = "다른 포비들의 활동 조회 (AI 기반)",
@@ -97,9 +99,8 @@ public interface HobbyControllerDocs {
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{hobbyName=hobbyName은 필수입니다.}\"}}"))
             )
     })
-    OthersActivityRecommendResDto othersActivityRecommendV1(OthersActivityRecommendReqDto reqDto);
-
-
+    @GetMapping("/activities/others/v1")
+    OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, CustomUserDetails userDetails);
 
     @Operation(
             summary = "취미 활동 추가",
@@ -171,7 +172,7 @@ public interface HobbyControllerDocs {
             )
     })
     GetHobbyActivitiesResDto getHobbyActivities(
-            @Parameter(description = "취미 카드 ID", example = "1") @PathVariable(value = "hobbyId") Long hobbyId,
+            @Parameter(description = "취미 ID", example = "1") @PathVariable(value = "hobbyId") Long hobbyId,
             @AuthenticationPrincipal CustomUserDetails user);
 
 
