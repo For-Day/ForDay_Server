@@ -177,6 +177,8 @@ public class HobbyService {
     public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}",
+                currentUser.getId(), hobbyId, reqDto.getActivities().size());
 
         List<Activity> activities = reqDto.getActivities().stream()
                 .map(activity -> Activity.builder()
@@ -189,6 +191,7 @@ public class HobbyService {
                 .toList();
 
         activityRepository.saveAll(activities);
+        log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
 
         return new AddActivityResDto(
                 "취미 활동이 정상적으로 생성되었습니다.",
@@ -204,28 +207,36 @@ public class HobbyService {
     public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[GetHobbyActivities] 조회 시작 - UserId: {}, HobbyId: {}", currentUser.getId(), hobbyId);
 
         // 현재 사용자가 hobby의 소유자인지 판별
         verifyHobbyOwner(hobby, currentUser);
 
-        return activityRepository.getHobbyActivities(hobby); // 해당 취미에 대한 활동 목록 조회
+        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobby);
+        log.info("[GetHobbyActivities] 조회 완료 - 활동 개수: {}", response.getActivities().size());
+        return response; // 해당 취미에 대한 활동 목록 조회
 
     }
 
     private void verifyHobbyOwner(Hobby hobby, User currentUser) {
         if (!Objects.equals(hobby.getUser(), currentUser)) {
+            log.warn("[HobbyService] 권한 없음 - HobbyOwnerId: {}, CurrentUserId: {}",
+                    hobby.getUser().getId(), currentUser.getId());
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
     }
 
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[GetHomeHobbyInfo] 대시보드 조회 - UserId: {}, TargetHobbyId: {}",
+                currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
 
         return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
     }
 
     public MyHobbySettingResDto myHobbySetting(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[MyHobbySetting] 취미 설정 목록 조회 - UserId: {}", currentUser.getId());
 
         return hobbyRepository.myHobbySetting(currentUser);
     }

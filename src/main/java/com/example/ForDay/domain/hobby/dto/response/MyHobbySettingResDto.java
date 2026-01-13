@@ -13,7 +13,9 @@ import java.util.List;
 public class MyHobbySettingResDto {
     private List<HobbyDto> hobbies;
 
-
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class HobbyDto {
         private Long hobbyId;
         private String hobbyName;
