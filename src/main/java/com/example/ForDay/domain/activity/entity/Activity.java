@@ -30,9 +30,6 @@ public class Activity extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String content;
 
-    @Column(length = 255)
-    private String description;
-
     private boolean aiRecommended;
 
     @Column(name = "collected_sticker_num")
