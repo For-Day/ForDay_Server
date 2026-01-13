@@ -47,6 +47,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.getHobbyActivities(hobbyId, user);
     }
 
+    @Override
     @PostMapping("/activities/{activityId}/record")
     public RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.recordActivity(activityId, reqDto, user);

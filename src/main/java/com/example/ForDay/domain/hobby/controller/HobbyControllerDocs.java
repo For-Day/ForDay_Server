@@ -1,9 +1,6 @@
 package com.example.ForDay.domain.hobby.controller;
 
-import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityAIRecommendReqDto;
-import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
-import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
+import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +15,7 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "Hobby", description = "취미 및 활동 관련 API")
@@ -178,4 +176,48 @@ public interface HobbyControllerDocs {
     GetHobbyActivitiesResDto getHobbyActivities(
             @Parameter(description = "취미 카드 ID", example = "1") @PathVariable(value = "hobbyId") Long hobbyId,
             @AuthenticationPrincipal CustomUserDetails user);
+
+
+
+
+    @Operation(
+            summary = "활동 기록 작성",
+            description = "특정 활동에 대한 기록(스티커, 메모, 이미지)을 작성합니다. <br>" +
+                    "**제약사항:** <br>" +
+                    "1. 해당 취미 카드의 소유자만 작성 가능합니다. <br>" +
+                    "2. 특정 취미에 대해 **하루에 단 한 번만** 기록할 수 있습니다. (Redis 체크) <br>" +
+                    "3. 이미지는 최대 3개까지 등록 가능하며, S3에 실제 업로드된 상태여야 합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "기록 작성 성공",
+                    content = @Content(schema = @Schema(implementation = RecordActivityResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "중복 기록 시도",
+                    content = @Content(examples = @ExampleObject(value = "{\n  \"status\": 400,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"ALREADY_RECORDED_TODAY\",\n    \"message\": \"오늘 해당 취미에 대한 활동 기록을 이미 작성하였습니다.\"\n  }\n}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\n  \"status\": 403,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"NOT_ACTIVITY_OWNER\",\n    \"message\": \"활동 소유자가 아닙니다.\"\n  }\n}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "리소스 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "활동 없음",
+                            value = "{\n  \"status\": 404,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"ACTIVITY_NOT_FOUND\",\n    \"message\": \"존재하지 않는 활동입니다.\"\n  }\n}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "S3 이미지 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "이미지 없음",
+                            value = "{\n  \"status\": 404,\n  \"success\": false,\n  \"data\": {\n    \"errorClassName\": \"S3_IMAGE_NOT_FOUND\",\n    \"message\": \"S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.\"\n  }\n}"))
+            )
+    })
+    RecordActivityResDto recordActivity(@PathVariable(value = "activityId") Long activityId, @RequestBody @Valid RecordActivityReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
 }
