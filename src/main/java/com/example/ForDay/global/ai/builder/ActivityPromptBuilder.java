@@ -88,7 +88,7 @@ public class ActivityPromptBuilder {
         """,
                 req.getHobbyName(),
                 req.getHobbyTimeMinutes(),
-                String.join(", ", req.getHobbyPurposes()),
+                req.getHobbyPurpose(),
                 req.getExecutionCount(),
                 durationText
         );
@@ -96,7 +96,6 @@ public class ActivityPromptBuilder {
 
     public String buildOtherActivityUserPrompt(OthersActivityRecommendReqDto reqDto) {
         String durationText = Boolean.TRUE.equals(reqDto.getIsDurationSet()) ? "목표 기간 66일" : "기간 설정 없음";
-        String purposesText = String.join(", ", reqDto.getHobbyPurposes());
 
         return String.format("""
         [맥락]
@@ -131,7 +130,7 @@ public class ActivityPromptBuilder {
                 reqDto.getHobbyName(),
                 reqDto.getHobbyName(),
                 reqDto.getHobbyTimeMinutes(),
-                purposesText,
+                reqDto.getHobbyPurpose(),
                 reqDto.getExecutionCount(),
                 durationText,
                 reqDto.getHobbyTimeMinutes()

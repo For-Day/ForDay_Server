@@ -32,6 +32,9 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "hobby_name", nullable = false, length = 50)
     private String hobbyName;
 
+    @Column(name = "hobbyPurpose", nullable = false, length = 50)
+    private String hobbyPurpose;
+
     @Column(name = "hobby_time_minutes", nullable = false)
     private Integer hobbyTimeMinutes;
 
@@ -54,23 +57,6 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "status", nullable = false, length = 20)
     private HobbyStatus status;
 
-    @OneToMany(
-            mappedBy = "hobby",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
-    @Builder.Default
-    private List<HobbyPurpose> purposes = new ArrayList<>();
-
-    public void addPurpose(HobbyPurpose purpose) {
-        purposes.add(purpose);
-        purpose.setHobby(this);
-    }
-
-    public void removePurpose(HobbyPurpose purpose) {
-        purposes.remove(purpose);
-        purpose.setHobby(null);
-    }
 
     public void record() {
         this.currentStickerNum++;

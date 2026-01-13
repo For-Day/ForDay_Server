@@ -8,7 +8,6 @@ import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.request.OthersActivityRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.entity.HobbyPurpose;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -56,19 +55,12 @@ public class HobbyService {
                 .user(currentUser)
                 .hobbyCardId(reqDto.getHobbyCardId())
                 .hobbyName(reqDto.getHobbyName())
+                .hobbyPurpose(reqDto.getHobbyPurpose())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
                 .executionCount(reqDto.getExecutionCount())
                 .goalDays(reqDto.getIsDurationSet() ? 66 : null)
                 .status(HobbyStatus.IN_PROGRESS)
                 .build();
-
-        reqDto.getHobbyPurposes().forEach(purpose ->
-                hobby.addPurpose(
-                        HobbyPurpose.builder()
-                                .content(purpose)
-                                .build()
-                )
-        );
 
         hobbyRepository.save(hobby);
         log.info("[ActivityCreate] Hobby 생성 완료 - hobbyId={}, userId={}",
@@ -86,7 +78,7 @@ public class HobbyService {
                 user.getUsername(),
                 reqDto.getHobbyName(),
                 reqDto.getHobbyTimeMinutes(),
-                reqDto.getHobbyPurposes(),
+                reqDto.getHobbyPurpose(),
                 reqDto.getExecutionCount()
         );
 
