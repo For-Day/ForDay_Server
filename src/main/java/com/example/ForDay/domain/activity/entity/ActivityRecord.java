@@ -42,14 +42,5 @@ public class ActivityRecord extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private RecordVisibility visibility;
 
-    @Builder.Default
-    @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ActivityRecordImage> images = new ArrayList<>();
-
-    public void addImage(ActivityRecordImage image) {
-        this.images.add(image);
-        if (image.getActivityRecord() != this) {
-            image.setActivityRecord(this);
-        }
-    }
+    private String imageUrl;
 }

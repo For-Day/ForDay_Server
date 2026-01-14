@@ -11,6 +11,6 @@ public class RecordActivityResDto {
     private String message;
     private Long activityRecordId;
     private String activityContent;
-    private String thumbnailImage;
+    private String imageUrl;
     private String sticker;
 }

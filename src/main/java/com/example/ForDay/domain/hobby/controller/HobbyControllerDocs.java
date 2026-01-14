@@ -378,27 +378,6 @@ public interface HobbyControllerDocs {
                     description = "기록 작성 성공",
                     content = @Content(schema = @Schema(implementation = RecordActivityResDto.class))
             ),
-
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "요청값 유효성 검사 실패 (사진 개수 초과)",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "VALIDATION_ERROR",
-                                    value = """
-                                {
-                                  "status": 400,
-                                  "success": false,
-                                  "data": {
-                                    "errorClassName": "VALIDATION_ERROR",
-                                    "message": "{images=이미지는 최대 3개까지 등록 가능합니다.}"
-                                  }
-                                }
-                                """
-                            )
-                    )
-            ),
-
             @ApiResponse(
                     responseCode = "400",
                     description = "중복 기록 시도",
