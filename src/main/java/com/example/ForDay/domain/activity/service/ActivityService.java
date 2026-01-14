@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.activity.service;
 
+import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.ActivityRecord;
 import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
@@ -11,10 +12,12 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.RedisUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.S3Service;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -97,5 +100,14 @@ public class ActivityService {
                     activity.getUser().getId(), currentUser.getId());
             throw new CustomException(ErrorCode.NOT_ACTIVITY_OWNER);
         }
+    }
+
+    public MessageResDto updateActivity(Long activityId, UpdateActivityReqDto reqDto, CustomUserDetails user) {
+        Activity activity = getActivity(activityId);
+        User currentUser = userUtil.getCurrentUser(user);
+        verifyActivityOwner(activity, currentUser);
+
+        activity.updateContent(reqDto.getContent());
+        return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
 }

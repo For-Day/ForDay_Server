@@ -50,4 +50,8 @@ public class Activity extends BaseTimeEntity {
         this.lastRecordedAt = LocalDateTime.now();
         hobby.record();
     }
+
+    public void updateContent(String content) {
+        this.content = content;
+    }
 }
