@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.controller;
 
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,6 +33,25 @@ public interface HobbyControllerDocs {
                     responseCode = "400",
                     description = "입력값 유효성 검사 실패",
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{hobbyName=hobbyName은 필수입니다.}\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "진행 중인 취미 개수 초과",
+                    content = @Content(
+                            examples = @ExampleObject(
+                                    name = "MAX_IN_PROGRESS_HOBBY_EXCEEDED",
+                                    value = """
+                        {
+                          "status": 400,
+                          "success": false,
+                          "data": {
+                            "errorClassName": "MAX_IN_PROGRESS_HOBBY_EXCEEDED",
+                            "message": "이미 진행 중인 취미는 최대 2개까지 등록할 수 있습니다."
+                          }
+                        }
+                        """
+                            )
+                    )
             )
     })
     ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user);
@@ -359,27 +379,6 @@ public interface HobbyControllerDocs {
                     description = "기록 작성 성공",
                     content = @Content(schema = @Schema(implementation = RecordActivityResDto.class))
             ),
-
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "요청값 유효성 검사 실패 (사진 개수 초과)",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "VALIDATION_ERROR",
-                                    value = """
-                                {
-                                  "status": 400,
-                                  "success": false,
-                                  "data": {
-                                    "errorClassName": "VALIDATION_ERROR",
-                                    "message": "{images=이미지는 최대 3개까지 등록 가능합니다.}"
-                                  }
-                                }
-                                """
-                            )
-                    )
-            ),
-
             @ApiResponse(
                     responseCode = "400",
                     description = "중복 기록 시도",
@@ -490,5 +489,5 @@ public interface HobbyControllerDocs {
                     content = @Content(schema = @Schema(implementation = MyHobbySettingResDto.class))
             )
     })
-    MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user);
+    MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user, HobbyStatus hobbyStatus);
 }

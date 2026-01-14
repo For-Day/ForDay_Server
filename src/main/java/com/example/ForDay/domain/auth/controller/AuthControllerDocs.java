@@ -7,6 +7,7 @@ import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
+import com.example.ForDay.domain.auth.dto.response.TokenValidateResDto;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +18,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "Auth", description = "인증 / 로그인 API")
@@ -186,4 +189,93 @@ public interface AuthControllerDocs {
             content = @Content(examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"성공적으로 로그아웃 되었습니다.\"}}"))
     )
     MessageResDto logout(CustomUserDetails user);
+
+
+    @Operation(
+            summary = "토큰 유효성 검사",
+            description = "Access 토큰은 Security Filter에서 검증되며, 본 API에서는 Refresh 토큰의 유효성을 검사한다. Refresh 토큰이 만료되었을 경우 로그인 만료로 처리된다."
+    )
+    @ApiResponses(value = {
+
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "토큰 유효",
+                    content = @Content(
+                            schema = @Schema(implementation = TokenValidateResDto.class),
+                            examples = @ExampleObject(
+                                    value = """
+                                {
+                                  "status": 200,
+                                  "success": true,
+                                  "data": {
+                                    "accessValid": true,
+                                    "refreshValid": true
+                                  }
+                                }
+                                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access 토큰 만료",
+                    content = @Content(
+                            examples = @ExampleObject(
+                                    name = "TOKEN_EXPIRED",
+                                    value = """
+                                {
+                                  "status": 401,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "TOKEN_EXPIRED",
+                                    "message": "토큰이 만료되었습니다."
+                                  }
+                                }
+                                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "유효하지 않은 Access 토큰",
+                    content = @Content(
+                            examples = @ExampleObject(
+                                    name = "INVALID_TOKEN",
+                                    value = """
+                                {
+                                  "status": 401,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "INVALID_TOKEN",
+                                    "message": "유효하지 않은 토큰입니다."
+                                  }
+                                }
+                                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Refresh 토큰 만료 (로그인 만료)",
+                    content = @Content(
+                            examples = @ExampleObject(
+                                    name = "LOGIN_EXPIRED",
+                                    value = """
+                                {
+                                  "status": 401,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "LOGIN_EXPIRED",
+                                    "message": "로그인이 만료되었습니다. 다시 로그인해주세요."
+                                  }
+                                }
+                                """
+                            )
+                    )
+            )
+    })
+    TokenValidateResDto tokenValidate(@AuthenticationPrincipal CustomUserDetails user);
 }
