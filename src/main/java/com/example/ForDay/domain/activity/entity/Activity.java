@@ -6,6 +6,8 @@ import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "user_activities")
 @Getter
@@ -35,4 +37,13 @@ public class Activity extends BaseTimeEntity {
     @Column(name = "collected_sticker_num")
     @Builder.Default
     private Integer collectedStickerNum = 0;
+
+    @Column(name = "last_recorded_at")
+    private LocalDateTime lastRecordedAt;
+
+    public void record() {
+        this.collectedStickerNum++;
+        this.lastRecordedAt = LocalDateTime.now();
+        hobby.record();
+    }
 }

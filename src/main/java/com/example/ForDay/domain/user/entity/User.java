@@ -46,10 +46,6 @@ public class User extends BaseTimeEntity {
     @Column(name = "social_id", length = 255, unique = true, nullable = false)
     private String socialId;
 
-    @Column(name = "last_routine_recorded_at")
-    @Builder.Default
-    private LocalDateTime lastRoutineRecordedAt = null;
-
     @Column(name = "last_activity_at")
     @Builder.Default
     private LocalDateTime lastActivityAt = null; // 게스트용 마지막 활동일시 저장
@@ -62,11 +58,6 @@ public class User extends BaseTimeEntity {
     // 닉네임 변경
     public void changeNickname(String nickname) {
         this.nickname = nickname.trim();
-    }
-
-    // 최근 루틴 기록 일시 업데이트
-    public void updateLastRoutineRecordedAt() {
-        this.lastRoutineRecordedAt = LocalDateTime.now();
     }
 
 }
