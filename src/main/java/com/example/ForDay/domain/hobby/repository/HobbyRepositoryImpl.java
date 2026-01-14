@@ -8,7 +8,6 @@ import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.util.RedisUtil;
-import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -99,7 +98,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     }
 
     @Override
-    public MyHobbySettingResDto myHobbySetting(User user) {
+    public MyHobbySettingResDto myHobbySetting(User user, HobbyStatus hobbyStatus) {
         List<MyHobbySettingResDto.HobbyDto> hobbyDtos = queryFactory
                 .select(Projections.constructor(MyHobbySettingResDto.HobbyDto.class,
                         hobby.id,
@@ -111,12 +110,26 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .from(hobby)
                 .where(
                         hobby.user.eq(user),
-                        hobby.status.eq(HobbyStatus.IN_PROGRESS)
+                        hobby.status.eq(hobbyStatus)
                 )
                 .orderBy(hobby.createdAt.desc())
                 .fetch();
 
-        return new MyHobbySettingResDto(hobbyDtos);
+        Long inProgressHobbyCount = queryFactory
+                .select(hobby.count())
+                .from(hobby)
+                .where(hobby.user.eq(user),
+                        hobby.status.eq(HobbyStatus.IN_PROGRESS))
+                .fetchOne();
+
+        Long archivedHobbyCount = queryFactory
+                .select(hobby.count())
+                .from(hobby)
+                .where(hobby.user.eq(user),
+                        hobby.status.eq(HobbyStatus.ARCHIVED))
+                .fetchOne();
+
+        return new MyHobbySettingResDto(hobbyStatus, inProgressHobbyCount, archivedHobbyCount ,hobbyDtos);
     }
 
     private OrderSpecifier<Integer> hobbyIdPriority(Long hobbyId) {

@@ -7,6 +7,7 @@ import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
 import com.example.ForDay.domain.auth.dto.response.LoginResDto;
 import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
+import com.example.ForDay.domain.auth.dto.response.TokenValidateResDto;
 import com.example.ForDay.domain.auth.service.AuthService;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -54,5 +55,11 @@ public class AuthController implements AuthControllerDocs {
     public MessageResDto logout(@AuthenticationPrincipal CustomUserDetails user) {
         log.info("[LOGOUT] 사용자={}", user.getUsername());
         return authService.logout(user);
+    }
+
+    @Override
+    @GetMapping("/validate")
+    public TokenValidateResDto tokenValidate(@AuthenticationPrincipal CustomUserDetails user) {
+        return authService.tokenValidate(user);
     }
 }

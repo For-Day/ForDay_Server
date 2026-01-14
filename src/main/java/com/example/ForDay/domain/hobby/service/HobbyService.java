@@ -6,7 +6,6 @@ import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -49,6 +48,12 @@ public class HobbyService {
                 user.getUsername(), reqDto.getHobbyCardId());
 
         User currentUser = userUtil.getCurrentUser(user);
+
+        // 이미 진행 중인 취미가 두개인지 검사
+        long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
+        if(hobbyCount >= 2) {
+            throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
+        }
 
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
@@ -237,10 +242,10 @@ public class HobbyService {
         return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
     }
 
-    public MyHobbySettingResDto myHobbySetting(CustomUserDetails user) {
+    public MyHobbySettingResDto myHobbySetting(CustomUserDetails user, HobbyStatus hobbyStatus) {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[MyHobbySetting] 취미 설정 목록 조회 - UserId: {}", currentUser.getId());
 
-        return hobbyRepository.myHobbySetting(currentUser);
+        return hobbyRepository.myHobbySetting(currentUser, hobbyStatus);
     }
 }
