@@ -5,6 +5,7 @@ import com.example.ForDay.domain.auth.dto.response.*;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
+import com.example.ForDay.domain.auth.entity.RefreshToken;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
@@ -177,4 +178,20 @@ public class AuthService {
         refreshTokenRepository.deleteById(username);
         return new MessageResDto("로그아웃 되었습니다.");
     }
+
+    @Transactional
+    public TokenValidateResDto tokenValidate(CustomUserDetails user) {
+
+        RefreshToken refreshToken = refreshTokenRepository.findById(user.getUsername())
+                .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_EXPIRED));
+
+        String token = refreshToken.getToken();
+
+        if (!jwtUtil.validate(token) || jwtUtil.isExpired(token)) {
+            throw new CustomException(ErrorCode.LOGIN_EXPIRED);
+        }
+
+        return new TokenValidateResDto(true, true);
+    }
+
 }
