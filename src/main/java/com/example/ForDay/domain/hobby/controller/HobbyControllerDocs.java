@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.controller;
 
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -488,5 +489,5 @@ public interface HobbyControllerDocs {
                     content = @Content(schema = @Schema(implementation = MyHobbySettingResDto.class))
             )
     })
-    MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user);
+    MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user, HobbyStatus hobbyStatus);
 }

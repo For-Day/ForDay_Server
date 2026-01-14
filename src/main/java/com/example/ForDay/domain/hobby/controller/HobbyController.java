@@ -4,6 +4,7 @@ import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.HobbyService;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +64,7 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @GetMapping("/setting")
-    public MyHobbySettingResDto myHobbySetting(@AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.myHobbySetting(user);
+    public MyHobbySettingResDto myHobbySetting(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "hobbyStatus", defaultValue = "IN_PROGRESS") HobbyStatus hobbyStatus) {
+        return hobbyService.myHobbySetting(user, hobbyStatus);
     }
 }
