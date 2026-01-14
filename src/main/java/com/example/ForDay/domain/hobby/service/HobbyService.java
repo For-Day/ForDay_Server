@@ -248,4 +248,14 @@ public class HobbyService {
 
         return hobbyRepository.myHobbySetting(currentUser, hobbyStatus);
     }
+
+
+    public GetActivityListResDto getActivityList(Long hobbyId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        Hobby hobby = getHobby(hobbyId);
+        verifyHobbyOwner(hobby, currentUser);
+
+        return activityRepository.getActivityList(hobby, currentUser);
+    }
+
 }

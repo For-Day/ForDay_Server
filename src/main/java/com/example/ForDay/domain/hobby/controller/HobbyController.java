@@ -67,4 +67,9 @@ public class HobbyController implements HobbyControllerDocs {
     public MyHobbySettingResDto myHobbySetting(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "hobbyStatus", defaultValue = "IN_PROGRESS") HobbyStatus hobbyStatus) {
         return hobbyService.myHobbySetting(user, hobbyStatus);
     }
+
+    @GetMapping("/{hobbyId}/activities/list")
+    public GetActivityListResDto getActivityList(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getActivityList(hobbyId, user);
+    }
 }

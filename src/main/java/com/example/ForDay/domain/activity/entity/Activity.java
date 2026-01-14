@@ -41,7 +41,11 @@ public class Activity extends BaseTimeEntity {
     @Column(name = "last_recorded_at")
     private LocalDateTime lastRecordedAt;
 
+    @Builder.Default
+    private boolean deletable = true;
+
     public void record() {
+        if(this.deletable) this.deletable = false;
         this.collectedStickerNum++;
         this.lastRecordedAt = LocalDateTime.now();
         hobby.record();
