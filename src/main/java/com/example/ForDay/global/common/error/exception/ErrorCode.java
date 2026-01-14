@@ -46,6 +46,7 @@ public enum ErrorCode {
     // 활동 관련
     ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."),
     NOT_ACTIVITY_OWNER(HttpStatus.FORBIDDEN, "활동 소유자가 아닙니다."),
+    ACTIVITY_NOT_DELETABLE(HttpStatus.BAD_REQUEST, "삭제할 수 없는 활동입니다."),
 
     // 활동 기록 관련
     ALREADY_RECORDED_TODAY(HttpStatus.BAD_REQUEST, "오늘 해당 취미에 대한 활동 기록을 이미 작성하였습니다."),

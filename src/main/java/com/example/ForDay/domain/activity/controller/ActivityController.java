@@ -21,4 +21,10 @@ public class ActivityController {
                                         @AuthenticationPrincipal CustomUserDetails user) {
         return activityService.updateActivity(activityId, reqDto, user);
     }
+
+    @DeleteMapping("/{activityId}")
+    public MessageResDto deleteActivity(@PathVariable(name = "activityId") Long activityId,
+                                        @AuthenticationPrincipal CustomUserDetails user) {
+        return activityService.deleteActivity(activityId, user);
+    }
 }

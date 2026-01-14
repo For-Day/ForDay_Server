@@ -110,4 +110,15 @@ public class ActivityService {
         activity.updateContent(reqDto.getContent());
         return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
+
+    public MessageResDto deleteActivity(Long activityId, CustomUserDetails user) {
+        Activity activity = getActivity(activityId);
+        User currentUser = userUtil.getCurrentUser(user);
+        verifyActivityOwner(activity, currentUser);
+
+        if(!activity.isDeletable()) throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
+
+        activityRepository.delete(activity);
+        return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
+    }
 }
