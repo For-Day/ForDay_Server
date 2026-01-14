@@ -72,4 +72,9 @@ public class HobbyController implements HobbyControllerDocs {
     public GetActivityListResDto getActivityList(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getActivityList(hobbyId, user);
     }
+
+    @PatchMapping("/{hobbyId}")
+    public UpdateHobbyInfoResDto updateHobbyInfo(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyInfoReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.updateHobbyInfo(hobbyId, reqDto, user);
+    }
 }

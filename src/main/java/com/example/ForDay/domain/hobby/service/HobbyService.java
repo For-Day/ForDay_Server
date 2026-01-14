@@ -2,8 +2,7 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
-import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
-import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
+import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
@@ -16,6 +15,7 @@ import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
@@ -258,4 +258,29 @@ public class HobbyService {
         return activityRepository.getActivityList(hobby, currentUser);
     }
 
+    public MessageResDto updateHobbyInfo(Long hobbyId, UpdateHobbyInfoReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        Hobby hobby = getHobby(hobbyId);
+        verifyHobbyOwner(hobby, currentUser);
+
+        switch (reqDto.getType()) {
+            case HOBBY_TIME -> {
+                HobbyTimePayload payload = (HobbyTimePayload) reqDto.getPayload();
+                hobby.updateHobbyTimeMinutes(payload.getMinutes());
+            }
+            case EXECUTION_COUNT -> {
+                ExecutionCountPayload payload = (ExecutionCountPayload) reqDto.getPayload();
+                hobby.updateExecutionCount(payload.getExecutionCount());
+            }
+            case GOAL_DAYS -> {
+                GoalDaysPayload payload = (GoalDaysPayload) reqDto.getPayload();
+                if (payload.getIsDurationSet()) {
+                    hobby.updateGoalDays(66);
+                } else {
+                    hobby.updateGoalDays(null);
+                }
+            }
+        }
+        return new MessageResDto("취미 정보가 성공적으로 수정되었습니다.");
+    }
 }

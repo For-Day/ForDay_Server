@@ -61,4 +61,16 @@ public class Hobby extends BaseTimeEntity {
     public void record() {
         this.currentStickerNum++;
     }
+
+    public void updateHobbyTimeMinutes(Integer hobbyTimeMinutes) {
+        this.hobbyTimeMinutes = hobbyTimeMinutes;
+    }
+
+    public void updateExecutionCount(Integer executionCount) {
+        this.executionCount = executionCount;
+    }
+
+    public void updateGoalDays(Integer goalDays) {
+        this.goalDays = goalDays;
+    }
 }
