@@ -32,6 +32,25 @@ public interface HobbyControllerDocs {
                     responseCode = "400",
                     description = "입력값 유효성 검사 실패",
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{hobbyName=hobbyName은 필수입니다.}\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "진행 중인 취미 개수 초과",
+                    content = @Content(
+                            examples = @ExampleObject(
+                                    name = "MAX_IN_PROGRESS_HOBBY_EXCEEDED",
+                                    value = """
+                        {
+                          "status": 400,
+                          "success": false,
+                          "data": {
+                            "errorClassName": "MAX_IN_PROGRESS_HOBBY_EXCEEDED",
+                            "message": "이미 진행 중인 취미는 최대 2개까지 등록할 수 있습니다."
+                          }
+                        }
+                        """
+                            )
+                    )
             )
     })
     ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user);

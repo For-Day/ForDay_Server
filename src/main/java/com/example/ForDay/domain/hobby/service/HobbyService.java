@@ -50,6 +50,12 @@ public class HobbyService {
 
         User currentUser = userUtil.getCurrentUser(user);
 
+        // 이미 진행 중인 취미가 두개인지 검사
+        long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
+        if(hobbyCount >= 2) {
+            throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
+        }
+
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
                 .hobbyCardId(reqDto.getHobbyCardId())
