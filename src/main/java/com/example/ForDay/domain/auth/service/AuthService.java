@@ -5,7 +5,6 @@ import com.example.ForDay.domain.auth.dto.response.*;
 import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
-import com.example.ForDay.domain.auth.entity.RefreshToken;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.user.entity.User;
@@ -67,9 +66,9 @@ public class AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), Role.USER, SocialType.KAKAO);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
-        boolean isNicknameSet = isNicknameSet(user); // 닉네임 설정 여부
+        boolean isNicknameSet = hasNickname(user); // 닉네임 설정 여부
         boolean onboardingCompleted = user.isOnboardingCompleted(); // 온보딩 완료 여부
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet(user), onboardingCompleted);
+        OnboardingDataDto dataDto = getOnboardingData(user, hasNickname(user), onboardingCompleted);
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
@@ -110,9 +109,9 @@ public class AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), Role.USER, SocialType.APPLE);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
-        boolean isNicknameSet = isNicknameSet(user);
+        boolean isNicknameSet = hasNickname(user);
         boolean onboardingCompleted = user.isOnboardingCompleted();
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet(user), onboardingCompleted);
+        OnboardingDataDto dataDto = getOnboardingData(user, hasNickname(user), onboardingCompleted);
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
@@ -152,24 +151,18 @@ public class AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), SocialType.GUEST);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
-        boolean isNicknameSet = isNicknameSet(user);
+        boolean isNicknameSet = hasNickname(user);
         boolean onboardingCompleted = user.isOnboardingCompleted();
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet(user), onboardingCompleted);
+        OnboardingDataDto dataDto = getOnboardingData(user, hasNickname(user), onboardingCompleted);
 
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
         return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, user.getSocialId(), onboardingCompleted, isNicknameSet, dataDto);
     }
 
-    private static boolean isNicknameSet(User user) {
-        boolean isNicknameSet = false;
-        // 닉네임 설정 완료 여부
-        if (StringUtils.hasText(user.getNickname())) {
-            isNicknameSet = true;
-        }
-        return isNicknameSet;
+    private static boolean hasNickname(User user) {
+        return StringUtils.hasText(user.getNickname());
     }
-
 
     @Transactional
     public RefreshResDto refresh(@Valid RefreshReqDto reqDto) {
