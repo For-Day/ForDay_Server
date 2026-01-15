@@ -9,6 +9,8 @@ import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -35,6 +37,7 @@ public class ActivityService {
     private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
+    private final HobbyRepository hobbyRepository;
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -106,7 +109,16 @@ public class ActivityService {
         Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
         verifyActivityOwner(activity, currentUser);
+        Hobby hobby = activity.getHobby();
 
+        boolean isInProgress = hobbyRepository.existsByIdAndStatus(
+                hobby.getId(),
+                HobbyStatus.IN_PROGRESS
+        );
+
+        if (!isInProgress) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
         activity.updateContent(reqDto.getContent());
         return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
