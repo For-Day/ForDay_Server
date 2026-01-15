@@ -12,9 +12,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/activities")
-public class ActivityController {
+public class ActivityController implements ActivityControllerDocs{
     private final ActivityService activityService;
 
+    @Override
     @PatchMapping("/{activityId}")
     public MessageResDto updateActivity(@PathVariable(name = "activityId") Long activityId,
                                         @RequestBody @Valid UpdateActivityReqDto reqDto,
