@@ -41,6 +41,9 @@ public enum ErrorCode {
     HOBBY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미입니다."),
     NOT_HOBBY_OWNER(HttpStatus.FORBIDDEN, "취미 소유자가 아닙니다."),
     MAX_IN_PROGRESS_HOBBY_EXCEEDED(HttpStatus.BAD_REQUEST, "이미 진행 중인 취미는 최대 2개까지 등록할 수 있습니다."),
+    INVALID_HOBBY_STATUS(HttpStatus.BAD_REQUEST, "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."),
+    INVALID_HOBBY_UPDATE_PAYLOAD(HttpStatus.BAD_REQUEST, "수정 타입에 맞지 않는 요청 데이터입니다."),
+    INVALID_HOBBY_UPDATE_TYPE(HttpStatus.BAD_REQUEST,"지원하지 않는 취미 수정 유형입니다."),
 
 
     // 활동 관련
@@ -54,6 +57,7 @@ public enum ErrorCode {
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
     ;
+
 
     private final HttpStatus status;
     private final String message;

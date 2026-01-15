@@ -32,6 +32,8 @@ import java.util.stream.IntStream;
 @Service
 @RequiredArgsConstructor
 public class HobbyService {
+    private static final Integer DEFAULT_GOAL_DAYS = 66;
+
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;
 
@@ -258,29 +260,92 @@ public class HobbyService {
         return activityRepository.getActivityList(hobby, currentUser);
     }
 
-    public MessageResDto updateHobbyInfo(Long hobbyId, UpdateHobbyInfoReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    public MessageResDto updateHobbyInfo(
+            Long hobbyId,
+            UpdateHobbyInfoReqDto reqDto,
+            CustomUserDetails user
+    ) {
         Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+
         verifyHobbyOwner(hobby, currentUser);
 
+        // 진행 중인 취미만 수정 가능
+        if (!hobby.isUpdatable()) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+
         switch (reqDto.getType()) {
+
             case HOBBY_TIME -> {
-                HobbyTimePayload payload = (HobbyTimePayload) reqDto.getPayload();
+                if (!(reqDto.getPayload() instanceof HobbyTimePayload payload)) {
+                    throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_PAYLOAD);
+                }
                 hobby.updateHobbyTimeMinutes(payload.getMinutes());
             }
+
             case EXECUTION_COUNT -> {
-                ExecutionCountPayload payload = (ExecutionCountPayload) reqDto.getPayload();
+                if (!(reqDto.getPayload() instanceof ExecutionCountPayload payload)) {
+                    throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_PAYLOAD);
+                }
                 hobby.updateExecutionCount(payload.getExecutionCount());
             }
+
             case GOAL_DAYS -> {
-                GoalDaysPayload payload = (GoalDaysPayload) reqDto.getPayload();
+                if (!(reqDto.getPayload() instanceof GoalDaysPayload payload)) {
+                    throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_PAYLOAD);
+                }
+
                 if (payload.getIsDurationSet()) {
-                    hobby.updateGoalDays(66);
+                    hobby.updateGoalDays(DEFAULT_GOAL_DAYS);
                 } else {
                     hobby.updateGoalDays(null);
                 }
             }
+
+            default -> throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_TYPE);
         }
+
         return new MessageResDto("취미 정보가 성공적으로 수정되었습니다.");
     }
+
+
+    public MessageResDto updateHobbyStatus(Long hobbyId, UpdateHobbyStatusReqDto reqDto, CustomUserDetails user) {
+        Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+        verifyHobbyOwner(hobby, currentUser);
+
+        HobbyStatus targetStatus = reqDto.getHobbyStatus();
+
+        // 1. 동일 상태 요청 방어
+        if (hobby.getStatus() == targetStatus) {
+            return new MessageResDto("이미 해당 상태입니다.");
+        }
+
+        switch (targetStatus) {
+            case IN_PROGRESS -> {
+                // 2. 이미 진행 중인 취미 개수 검사 (자기 자신 제외)
+                long inProgressCount =
+                        hobbyRepository.countByStatusAndUser(
+                                HobbyStatus.IN_PROGRESS,
+                                currentUser
+                        );
+
+                if (inProgressCount >= 2) {
+                    throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
+                }
+
+                hobby.updateHobbyStatus(HobbyStatus.IN_PROGRESS);
+            }
+
+            case ARCHIVED -> {
+                hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
+            }
+
+            default -> throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+
+        return new MessageResDto("취미 상태가 성공적으로 수정되었습니다.");
+    }
+
 }

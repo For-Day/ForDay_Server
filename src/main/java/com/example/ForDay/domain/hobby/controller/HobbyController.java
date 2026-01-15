@@ -5,6 +5,7 @@ import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.HobbyService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -74,7 +75,12 @@ public class HobbyController implements HobbyControllerDocs {
     }
 
     @PatchMapping("/{hobbyId}")
-    public UpdateHobbyInfoResDto updateHobbyInfo(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyInfoReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+    public MessageResDto updateHobbyInfo(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyInfoReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.updateHobbyInfo(hobbyId, reqDto, user);
+    }
+
+    @PatchMapping("/{hobbyId}/status")
+    public MessageResDto updateHobbyStatus(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyStatusReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.updateHobbyStatus(hobbyId, reqDto, user);
     }
 }
