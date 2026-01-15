@@ -6,9 +6,6 @@ import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
 @Table(name = "user_hobbies")
 @Getter
@@ -60,5 +57,25 @@ public class Hobby extends BaseTimeEntity {
 
     public void record() {
         this.currentStickerNum++;
+    }
+
+    public void updateHobbyTimeMinutes(Integer hobbyTimeMinutes) {
+        this.hobbyTimeMinutes = hobbyTimeMinutes;
+    }
+
+    public void updateExecutionCount(Integer executionCount) {
+        this.executionCount = executionCount;
+    }
+
+    public void updateGoalDays(Integer goalDays) {
+        this.goalDays = goalDays;
+    }
+
+    public void updateHobbyStatus(HobbyStatus hobbyStatus) {
+        this.status = hobbyStatus;
+    }
+
+    public boolean isUpdatable() {
+        return this.status == HobbyStatus.IN_PROGRESS;
     }
 }

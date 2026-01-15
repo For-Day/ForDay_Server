@@ -2,10 +2,14 @@ package com.example.ForDay.domain.app.service;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
 import com.example.ForDay.domain.app.dto.response.PresignedUrlResDto;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.infra.s3.S3Properties;
 import com.example.ForDay.infra.s3.S3Service;
 import jakarta.validation.Valid;
@@ -68,5 +72,14 @@ public class AppService {
                     );
                 })
                 .toList();
+    }
+
+    public MessageResDto deleteS3Image(DeleteS3ImageReqDto reqDto) {
+        String key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl());
+
+        // 이미지가 존재하는지 먼저 확인
+        if(!s3Service.existsByKey(key)) throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+        s3Service.deleteByKey(key);
+        return new MessageResDto("이미지가 성공적으로 삭제되었습니다.");
     }
 }
