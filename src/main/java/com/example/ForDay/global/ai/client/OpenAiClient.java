@@ -1,10 +1,15 @@
 package com.example.ForDay.global.ai.client;
 
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -28,12 +33,31 @@ public class OpenAiClient {
                 "temperature", 0.7
         );
 
-        return webClient.post()
-                .uri("/chat/completions")
-                .header("Authorization", "Bearer " + apiKey)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        try {
+            return webClient.post()
+                    .uri("/chat/completions")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .bodyValue(body)
+                    .retrieve()
+                    // 🔴 429 명확히 분리
+                    .onStatus(
+                            HttpStatus.TOO_MANY_REQUESTS::equals,
+                            response -> response.bodyToMono(String.class)
+                                    .map(errorBody -> new CustomException(ErrorCode.AI_RATE_LIMIT_EXCEEDED))
+                    )
+                    .bodyToMono(String.class)
+                    .delaySubscription(Duration.ofMillis(500))
+                    .retryWhen(
+                            Retry.fixedDelay(3, Duration.ofSeconds(1))
+                                    .filter(ex -> ex instanceof CustomException &&
+                                            ((CustomException) ex).getErrorCode() == ErrorCode.AI_RATE_LIMIT_EXCEEDED)
+                    )
+                    .block();
+
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
+        }
     }
 }
