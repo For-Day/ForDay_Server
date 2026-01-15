@@ -1,18 +1,25 @@
 package com.example.ForDay.domain.activity.service;
 
+import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.ActivityRecord;
 import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
+import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
+import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.RedisUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.S3Service;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +37,7 @@ public class ActivityService {
     private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
+    private final HobbyRepository hobbyRepository;
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -43,6 +51,9 @@ public class ActivityService {
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
 
         verifyActivityOwner(activity, currentUser);
+
+        // 진행 중인 취미에 대해서만 활동 기록 가능
+        checkHobbyInProgressStatus(activity.getHobby());
 
         String redisKey = redisUtil.createRecordKey(currentUser.getId(), activity.getHobby().getId());
 
@@ -94,6 +105,70 @@ public class ActivityService {
             log.warn("[RecordActivity] 소유권 검증 실패 - ActivityOwnerId: {}, CurrentUserId: {}",
                     activity.getUser().getId(), currentUser.getId());
             throw new CustomException(ErrorCode.NOT_ACTIVITY_OWNER);
+        }
+    }
+
+    @Transactional
+    public MessageResDto updateActivity(
+            Long activityId,
+            UpdateActivityReqDto reqDto,
+            CustomUserDetails user
+    ) {
+        log.info("[ActivityService] 활동 수정 요청 - activityId={}, content={}",
+                activityId, reqDto.getContent());
+
+        Activity activity = getActivity(activityId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        verifyActivityOwner(activity, currentUser);
+
+        // 진행 중인 취미가 아니면 활동 수정 불가
+        checkHobbyInProgressStatus(activity.getHobby());
+
+        String beforeContent = activity.getContent();
+        activity.updateContent(reqDto.getContent());
+
+        log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'",
+                activityId,
+                currentUser.getId(),
+                beforeContent,
+                reqDto.getContent()
+        );
+
+        return new MessageResDto("활동이 정상적으로 수정되었습니다.");
+    }
+
+    @Transactional
+    public MessageResDto deleteActivity(Long activityId, CustomUserDetails user) {
+        log.info("[ActivityService] 활동 삭제 요청 - activityId={}", activityId);
+
+        Activity activity = getActivity(activityId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        verifyActivityOwner(activity, currentUser);
+
+        if (!activity.isDeletable()) {
+            log.warn("[ActivityService] 활동 삭제 불가 (deletable=false) - activityId={}, userId={}",
+                    activityId, currentUser.getId());
+            throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
+        }
+
+        // 진행 중인 취미가 아니면 활동 삭제 불가
+        checkHobbyInProgressStatus(activity.getHobby());
+
+        activityRepository.delete(activity);
+
+        log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}",
+                activityId, currentUser.getId()
+        );
+
+        return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
+    }
+
+
+    private void checkHobbyInProgressStatus(Hobby hobby) {
+        if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
     }
 }

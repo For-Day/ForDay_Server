@@ -5,6 +5,7 @@ import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.HobbyService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @GetMapping("/activities/others/v1")
-    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId,  @AuthenticationPrincipal CustomUserDetails user) {
+    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.othersActivityRecommendV1(hobbyId, user);
     }
 
@@ -66,5 +67,47 @@ public class HobbyController implements HobbyControllerDocs {
     @GetMapping("/setting")
     public MyHobbySettingResDto myHobbySetting(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "hobbyStatus", defaultValue = "IN_PROGRESS") HobbyStatus hobbyStatus) {
         return hobbyService.myHobbySetting(user, hobbyStatus);
+    }
+
+    @Override
+    @GetMapping("/{hobbyId}/activities/list")
+    public GetActivityListResDto getActivityList(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getActivityList(hobbyId, user);
+    }
+
+    @Override
+    @PatchMapping("/{hobbyId}/time")
+    public MessageResDto updateHobbyTime(
+            @PathVariable Long hobbyId,
+            @RequestBody @Valid HobbyTimePayload reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return hobbyService.updateHobbyTime(hobbyId, reqDto, user);
+    }
+
+    @Override
+    @PatchMapping("/{hobbyId}/execution-count")
+    public MessageResDto updateExecutionCount(
+            @PathVariable Long hobbyId,
+            @RequestBody @Valid ExecutionCountPayload reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return hobbyService.updateExecutionCount(hobbyId, reqDto, user);
+    }
+
+    @Override
+    @PatchMapping("/{hobbyId}/goal-days")
+    public MessageResDto updateGoalDays(
+            @PathVariable Long hobbyId,
+            @RequestBody @Valid GoalDaysPayload reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return hobbyService.updateGoalDays(hobbyId, reqDto, user);
+    }
+
+    @Override
+    @PatchMapping("/{hobbyId}/status")
+    public MessageResDto updateHobbyStatus(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyStatusReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.updateHobbyStatus(hobbyId, reqDto, user);
     }
 }

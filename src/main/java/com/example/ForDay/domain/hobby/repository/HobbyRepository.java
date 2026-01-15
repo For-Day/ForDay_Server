@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyRepositoryCustom {
     long countByStatusAndUser(HobbyStatus hobbyStatus, User currentUser);
+    boolean existsByIdAndStatus(Long id, HobbyStatus hobbyStatus);
 }
