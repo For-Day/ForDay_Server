@@ -75,10 +75,31 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.getActivityList(hobbyId, user);
     }
 
-    @Override
-    @PatchMapping("/{hobbyId}")
-    public MessageResDto updateHobbyInfo(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyInfoReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.updateHobbyInfo(hobbyId, reqDto, user);
+    @PatchMapping("/{hobbyId}/time")
+    public MessageResDto updateHobbyTime(
+            @PathVariable Long hobbyId,
+            @RequestBody @Valid HobbyTimePayload reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return hobbyService.updateHobbyTime(hobbyId, reqDto, user);
+    }
+
+    @PatchMapping("/{hobbyId}/execution-count")
+    public MessageResDto updateExecutionCount(
+            @PathVariable Long hobbyId,
+            @RequestBody @Valid ExecutionCountPayload reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return hobbyService.updateExecutionCount(hobbyId, reqDto, user);
+    }
+
+    @PatchMapping("/{hobbyId}/goal-days")
+    public MessageResDto updateGoalDays(
+            @PathVariable Long hobbyId,
+            @RequestBody @Valid GoalDaysPayload reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return hobbyService.updateGoalDays(hobbyId, reqDto, user);
     }
 
     @Override

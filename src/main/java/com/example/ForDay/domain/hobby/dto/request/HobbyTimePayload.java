@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HobbyTimePayload implements HobbyUpdatePayload {
+public class HobbyTimePayload {
 
     @NotNull(message = "시간(minutes)은 필수입니다.")
     private Integer minutes;

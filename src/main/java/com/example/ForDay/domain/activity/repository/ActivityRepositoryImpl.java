@@ -47,7 +47,6 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
     @Override
     public GetActivityListResDto getActivityList(Hobby hobby, User currentUser) {
 
-        // 1. Activity 목록 조회
         List<GetActivityListResDto.ActivityDto> activities =
                 queryFactory
                         .select(
@@ -56,8 +55,8 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                                         activity.id,
                                         activity.content,
                                         activity.aiRecommended,
-                                        activity.deletable,            // deletable (임시 false)
-                                        Expressions.nullExpression()  // stickers (나중에 세팅)
+                                        activity.deletable,
+                                        Expressions.nullExpression(List.class)
                                 )
                         )
                         .from(activity)
@@ -71,6 +70,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                                 activity.content.asc()
                         )
                         .fetch();
+
 
         if (activities.isEmpty()) {
             return new GetActivityListResDto(List.of());

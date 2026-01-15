@@ -266,53 +266,39 @@ public class HobbyService {
     }
 
     @Transactional
-    public MessageResDto updateHobbyInfo(
-            Long hobbyId,
-            UpdateHobbyInfoReqDto reqDto,
-            CustomUserDetails user
-    ) {
+    public MessageResDto updateHobbyTime(Long hobbyId, HobbyTimePayload dto, CustomUserDetails user) {
+        Hobby hobby = checkHobbyUpdateable(hobbyId, user);
+        hobby.updateHobbyTimeMinutes(dto.getMinutes());
+
+        return new MessageResDto("취미 시간이 수정되었습니다.");
+    }
+
+    @Transactional
+    public MessageResDto updateExecutionCount(Long hobbyId, ExecutionCountPayload dto, CustomUserDetails user) {
+        Hobby hobby = checkHobbyUpdateable(hobbyId, user);
+
+        hobby.updateExecutionCount(dto.getExecutionCount());
+        return new MessageResDto("실행 횟수가 수정되었습니다.");
+    }
+
+    private Hobby checkHobbyUpdateable(Long hobbyId, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
 
         verifyHobbyOwner(hobby, currentUser);
 
-        // 진행 중인 취미만 수정 가능
         if (!hobby.isUpdatable()) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
+        return hobby;
+    }
 
-        switch (reqDto.getType()) {
+    @Transactional
+    public MessageResDto updateGoalDays(Long hobbyId, GoalDaysPayload dto, CustomUserDetails user) {
+        Hobby hobby = checkHobbyUpdateable(hobbyId, user);
 
-            case HOBBY_TIME -> {
-                if (!(reqDto.getPayload() instanceof HobbyTimePayload payload)) {
-                    throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_PAYLOAD);
-                }
-                hobby.updateHobbyTimeMinutes(payload.getMinutes());
-            }
-
-            case EXECUTION_COUNT -> {
-                if (!(reqDto.getPayload() instanceof ExecutionCountPayload payload)) {
-                    throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_PAYLOAD);
-                }
-                hobby.updateExecutionCount(payload.getExecutionCount());
-            }
-
-            case GOAL_DAYS -> {
-                if (!(reqDto.getPayload() instanceof GoalDaysPayload payload)) {
-                    throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_PAYLOAD);
-                }
-
-                if (payload.getIsDurationSet()) {
-                    hobby.updateGoalDays(DEFAULT_GOAL_DAYS);
-                } else {
-                    hobby.updateGoalDays(null);
-                }
-            }
-
-            default -> throw new CustomException(ErrorCode.INVALID_HOBBY_UPDATE_TYPE);
-        }
-
-        return new MessageResDto("취미 정보가 성공적으로 수정되었습니다.");
+        hobby.updateGoalDays(dto.getIsDurationSet() ? 66 : null);
+        return new MessageResDto("목표 기간 설정이 수정되었습니다.");
     }
 
     @Transactional

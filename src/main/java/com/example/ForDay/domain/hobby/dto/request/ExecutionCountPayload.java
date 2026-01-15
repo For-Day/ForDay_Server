@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ExecutionCountPayload implements HobbyUpdatePayload{
+public class ExecutionCountPayload {
 
     @Min(value = 1, message = "실행횟수는 최소 1 이상이어야 합니다.")
     @Max(value = 7, message = "실행횟수는 최대 7 이하만 가능합니다.")
