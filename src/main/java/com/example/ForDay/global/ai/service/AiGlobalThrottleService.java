@@ -13,10 +13,12 @@ public class AiGlobalThrottleService {
     private static final long MIN_INTERVAL_MS = 2000;
     private static final String KEY = "openai:last-call";
 
-    private final RedisTemplate<String, Long> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     public void check() {
-        Long last = redisTemplate.opsForValue().get(KEY);
+        Object value = redisTemplate.opsForValue().get(KEY);
+        Long last = value != null ? (Long) value : null;
+
         long now = System.currentTimeMillis();
 
         if (last != null && now - last < MIN_INTERVAL_MS) {
