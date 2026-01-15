@@ -35,7 +35,7 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @GetMapping("/activities/others/v1")
-    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId,  @AuthenticationPrincipal CustomUserDetails user) {
+    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.othersActivityRecommendV1(hobbyId, user);
     }
 
@@ -75,6 +75,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.getActivityList(hobbyId, user);
     }
 
+    @Override
     @PatchMapping("/{hobbyId}/time")
     public MessageResDto updateHobbyTime(
             @PathVariable Long hobbyId,
@@ -84,6 +85,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.updateHobbyTime(hobbyId, reqDto, user);
     }
 
+    @Override
     @PatchMapping("/{hobbyId}/execution-count")
     public MessageResDto updateExecutionCount(
             @PathVariable Long hobbyId,
@@ -93,6 +95,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.updateExecutionCount(hobbyId, reqDto, user);
     }
 
+    @Override
     @PatchMapping("/{hobbyId}/goal-days")
     public MessageResDto updateGoalDays(
             @PathVariable Long hobbyId,

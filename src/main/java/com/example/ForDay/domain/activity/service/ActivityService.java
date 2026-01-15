@@ -52,6 +52,9 @@ public class ActivityService {
 
         verifyActivityOwner(activity, currentUser);
 
+        // 진행 중인 취미에 대해서만 활동 기록 가능
+        checkHobbyInProgressStatus(activity.getHobby());
+
         String redisKey = redisUtil.createRecordKey(currentUser.getId(), activity.getHobby().getId());
 
         if (redisUtil.hasKey(redisKey)) {
@@ -109,16 +112,10 @@ public class ActivityService {
         Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
         verifyActivityOwner(activity, currentUser);
-        Hobby hobby = activity.getHobby();
 
-        boolean isInProgress = hobbyRepository.existsByIdAndStatus(
-                hobby.getId(),
-                HobbyStatus.IN_PROGRESS
-        );
+        // 진행 중인 취미가 아니면 활동 수정 불가
+        checkHobbyInProgressStatus(activity.getHobby());
 
-        if (!isInProgress) {
-            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
-        }
         activity.updateContent(reqDto.getContent());
         return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
@@ -130,18 +127,17 @@ public class ActivityService {
 
         if(!activity.isDeletable()) throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
 
-        Hobby hobby = activity.getHobby();
+        // 진행 중인 취미가 아니면 활동 삭제 불가
+        checkHobbyInProgressStatus(activity.getHobby());
 
-        boolean isInProgress = hobbyRepository.existsByIdAndStatus(
-                hobby.getId(),
-                HobbyStatus.IN_PROGRESS
-        );
-
-        if (!isInProgress) {
-            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
-        }
 
         activityRepository.delete(activity);
         return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
+    }
+
+    private void checkHobbyInProgressStatus(Hobby hobby) {
+        if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
     }
 }

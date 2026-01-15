@@ -82,6 +82,7 @@ public class HobbyService {
         String userId = currentUser.getId();
         Hobby hobby = getHobby(hobbyId);
         verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
 
         log.info("[AI-RECOMMEND][START] user={}: ",
                 userId
@@ -138,6 +139,7 @@ public class HobbyService {
         User currentUser = userUtil.getCurrentUser(user);
         Hobby hobby = getHobby(hobbyId);
         verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
 
         Long hobbyCardId = hobby.getHobbyCardId();
 
@@ -187,6 +189,9 @@ public class HobbyService {
     public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+        verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
+
         log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}",
                 currentUser.getId(), hobbyId, reqDto.getActivities().size());
 
@@ -222,6 +227,7 @@ public class HobbyService {
 
         // 현재 사용자가 hobby의 소유자인지 판별
         verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
 
         GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobby);
         log.info("[GetHobbyActivities] 조회 완료 - 활동 개수: {}", response.getActivities().size());
@@ -259,6 +265,7 @@ public class HobbyService {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
         verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
 
         if(!hobby.isReadable()) throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
 
@@ -338,6 +345,12 @@ public class HobbyService {
         }
 
         return new MessageResDto("취미 상태가 성공적으로 수정되었습니다.");
+    }
+
+    private void checkHobbyInProgressStatus(Hobby hobby) {
+        if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
     }
 
 }
