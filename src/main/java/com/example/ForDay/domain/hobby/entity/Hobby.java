@@ -6,9 +6,6 @@ import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
 @Table(name = "user_hobbies")
 @Getter
@@ -79,10 +76,6 @@ public class Hobby extends BaseTimeEntity {
     }
 
     public boolean isUpdatable() {
-        return this.status == HobbyStatus.IN_PROGRESS;
-    }
-
-    public boolean isReadable() {
         return this.status == HobbyStatus.IN_PROGRESS;
     }
 }

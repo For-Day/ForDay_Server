@@ -262,31 +262,68 @@ public class HobbyService {
 
     @Transactional(readOnly = true)
     public GetActivityListResDto getActivityList(Long hobbyId, CustomUserDetails user) {
+        log.info("[HobbyService] 활동 목록 조회 요청 - hobbyId={}", hobbyId);
+
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+
         verifyHobbyOwner(hobby, currentUser);
         checkHobbyInProgressStatus(hobby);
 
-        if(!hobby.isReadable()) throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        GetActivityListResDto result =
+                activityRepository.getActivityList(hobby, currentUser);
 
-        return activityRepository.getActivityList(hobby, currentUser);
+        log.info("[HobbyService] 활동 목록 조회 완료 - hobbyId={}, userId={}, activityCount={}",
+                hobbyId,
+                currentUser.getId(),
+                result.getActivities().size()
+        );
+
+        return result;
     }
+
 
     @Transactional
     public MessageResDto updateHobbyTime(Long hobbyId, HobbyTimePayload dto, CustomUserDetails user) {
+        log.info("[HobbyService] 취미 시간 수정 요청 - hobbyId={}, minutes={}",
+                hobbyId, dto.getMinutes());
+
         Hobby hobby = checkHobbyUpdateable(hobbyId, user);
+
+        Integer before = hobby.getHobbyTimeMinutes();
         hobby.updateHobbyTimeMinutes(dto.getMinutes());
+
+        log.info("[HobbyService] 취미 시간 수정 완료 - hobbyId={}, userId={}, before={}, after={}",
+                hobbyId,
+                hobby.getUser().getId(),
+                before,
+                dto.getMinutes()
+        );
 
         return new MessageResDto("취미 시간이 수정되었습니다.");
     }
 
+
     @Transactional
     public MessageResDto updateExecutionCount(Long hobbyId, ExecutionCountPayload dto, CustomUserDetails user) {
+        log.info("[HobbyService] 취미 실행 횟수 수정 요청 - hobbyId={}, executionCount={}",
+                hobbyId, dto.getExecutionCount());
+
         Hobby hobby = checkHobbyUpdateable(hobbyId, user);
 
+        Integer before = hobby.getExecutionCount();
         hobby.updateExecutionCount(dto.getExecutionCount());
+
+        log.info("[HobbyService] 취미 실행 횟수 수정 완료 - hobbyId={}, userId={}, before={}, after={}",
+                hobbyId,
+                hobby.getUser().getId(),
+                before,
+                dto.getExecutionCount()
+        );
+
         return new MessageResDto("실행 횟수가 수정되었습니다.");
     }
+
 
     private Hobby checkHobbyUpdateable(Long hobbyId, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
@@ -302,28 +339,53 @@ public class HobbyService {
 
     @Transactional
     public MessageResDto updateGoalDays(Long hobbyId, GoalDaysPayload dto, CustomUserDetails user) {
+        log.info("[HobbyService] 취미 목표 기간 수정 요청 - hobbyId={}, isDurationSet={}",
+                hobbyId, dto.getIsDurationSet());
+
         Hobby hobby = checkHobbyUpdateable(hobbyId, user);
 
-        hobby.updateGoalDays(dto.getIsDurationSet() ? 66 : null);
+        Integer before = hobby.getGoalDays();
+        Integer after = dto.getIsDurationSet() ? 66 : null;
+
+        hobby.updateGoalDays(after);
+
+        log.info("[HobbyService] 취미 목표 기간 수정 완료 - hobbyId={}, userId={}, before={}, after={}",
+                hobbyId,
+                hobby.getUser().getId(),
+                before,
+                after
+        );
+
         return new MessageResDto("목표 기간 설정이 수정되었습니다.");
     }
 
+
     @Transactional
-    public MessageResDto updateHobbyStatus(Long hobbyId, UpdateHobbyStatusReqDto reqDto, CustomUserDetails user) {
+    public MessageResDto updateHobbyStatus(
+            Long hobbyId,
+            UpdateHobbyStatusReqDto reqDto,
+            CustomUserDetails user
+    ) {
+        log.info("[HobbyService] 취미 상태 변경 요청 - hobbyId={}, targetStatus={}",
+                hobbyId, reqDto.getHobbyStatus());
+
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+
         verifyHobbyOwner(hobby, currentUser);
 
+        HobbyStatus currentStatus = hobby.getStatus();
         HobbyStatus targetStatus = reqDto.getHobbyStatus();
 
-        // 1. 동일 상태 요청 방어
-        if (hobby.getStatus() == targetStatus) {
+        // 동일 상태 요청
+        if (currentStatus == targetStatus) {
+            log.info("[HobbyService] 취미 상태 변경 요청 무시 (동일 상태) - hobbyId={}, status={}",
+                    hobbyId, currentStatus);
             return new MessageResDto("이미 해당 상태입니다.");
         }
 
         switch (targetStatus) {
             case IN_PROGRESS -> {
-                // 2. 이미 진행 중인 취미 개수 검사
                 long inProgressCount =
                         hobbyRepository.countByStatusAndUser(
                                 HobbyStatus.IN_PROGRESS,
@@ -331,21 +393,33 @@ public class HobbyService {
                         );
 
                 if (inProgressCount >= 2) {
+                    log.warn("[HobbyService] 진행 중 취미 개수 초과 - userId={}, count={}",
+                            currentUser.getId(), inProgressCount);
                     throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
                 }
 
                 hobby.updateHobbyStatus(HobbyStatus.IN_PROGRESS);
             }
 
-            case ARCHIVED -> {
-                hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
-            }
+            case ARCHIVED -> hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
 
-            default -> throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+            default -> {
+                log.warn("[HobbyService] 잘못된 취미 상태 요청 - hobbyId={}, status={}",
+                        hobbyId, targetStatus);
+                throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+            }
         }
+
+        log.info("[HobbyService] 취미 상태 변경 완료 - hobbyId={}, userId={}, from={}, to={}",
+                hobbyId,
+                currentUser.getId(),
+                currentStatus,
+                targetStatus
+        );
 
         return new MessageResDto("취미 상태가 성공적으로 수정되었습니다.");
     }
+
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
         if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {

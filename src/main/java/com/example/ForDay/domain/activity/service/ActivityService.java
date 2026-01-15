@@ -108,32 +108,63 @@ public class ActivityService {
         }
     }
 
-    public MessageResDto updateActivity(Long activityId, UpdateActivityReqDto reqDto, CustomUserDetails user) {
+    @Transactional
+    public MessageResDto updateActivity(
+            Long activityId,
+            UpdateActivityReqDto reqDto,
+            CustomUserDetails user
+    ) {
+        log.info("[ActivityService] 활동 수정 요청 - activityId={}, content={}",
+                activityId, reqDto.getContent());
+
         Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
+
         verifyActivityOwner(activity, currentUser);
 
         // 진행 중인 취미가 아니면 활동 수정 불가
         checkHobbyInProgressStatus(activity.getHobby());
 
+        String beforeContent = activity.getContent();
         activity.updateContent(reqDto.getContent());
+
+        log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'",
+                activityId,
+                currentUser.getId(),
+                beforeContent,
+                reqDto.getContent()
+        );
+
         return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
 
+    @Transactional
     public MessageResDto deleteActivity(Long activityId, CustomUserDetails user) {
+        log.info("[ActivityService] 활동 삭제 요청 - activityId={}", activityId);
+
         Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
+
         verifyActivityOwner(activity, currentUser);
 
-        if(!activity.isDeletable()) throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
+        if (!activity.isDeletable()) {
+            log.warn("[ActivityService] 활동 삭제 불가 (deletable=false) - activityId={}, userId={}",
+                    activityId, currentUser.getId());
+            throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
+        }
 
         // 진행 중인 취미가 아니면 활동 삭제 불가
         checkHobbyInProgressStatus(activity.getHobby());
 
-
         activityRepository.delete(activity);
+
+        log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}",
+                activityId, currentUser.getId()
+        );
+
         return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
     }
+
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
         if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
