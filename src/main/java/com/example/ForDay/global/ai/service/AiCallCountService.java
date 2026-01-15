@@ -38,6 +38,14 @@ public class AiCallCountService {
         return count;
     }
 
+    public int getCurrentCount(String userSocialId, Long hobbyId) {
+        String key = generateKey(userSocialId, hobbyId);
+
+        Integer count = redisTemplate.opsForValue().get(key);
+
+        return count != null ? count : 0;
+    }
+
     private String generateKey(String userId, Long hobbyId) {
         String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         return "ai:activity:recommend:" + userId + ":" + hobbyId + ":" + today;

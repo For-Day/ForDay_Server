@@ -2,11 +2,13 @@ package com.example.ForDay.domain.hobby.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.activity.entity.QActivityRecord;
+import com.example.ForDay.domain.auth.dto.response.OnboardingDataDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHomeHobbyInfoResDto;
 import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.util.RedisUtil;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -21,6 +23,7 @@ import java.util.List;
 public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private final RedisUtil redisUtil;
+    private final AiCallCountService aiCallCountService;
 
     QHobby hobby = QHobby.hobby;
     QActivity activity = QActivity.activity;
@@ -88,12 +91,17 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .where(hobby.id.eq(targetHobbyId))
                 .fetchOne();
 
+        boolean isAiCallRemaining = true;
+        int currentCount = aiCallCountService.getCurrentCount(currentUser.getSocialId(), targetHobbyId);
+        if(currentCount >= 3) isAiCallRemaining = false;
+
         return GetHomeHobbyInfoResDto.builder()
                 .inProgressHobbies(hobbyList)
                 .activityPreview(activityPreview)
                 .totalStickerNum(totalStickerNum != null ? totalStickerNum : 0)
                 .activityRecordedToday(activityRecordedToday)
                 .collectedStickers(collectedStickers)
+                .aiCallRemaining(isAiCallRemaining)
                 .build();
     }
 
@@ -130,6 +138,25 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .fetchOne();
 
         return new MyHobbySettingResDto(hobbyStatus, inProgressHobbyCount, archivedHobbyCount ,hobbyDtos);
+    }
+
+    @Override
+    public OnboardingDataDto getOnboardingDate(User user) {
+        return queryFactory
+                .select(Projections.constructor(OnboardingDataDto.class,
+                        hobby.id,
+                        hobby.hobbyCardId,
+                        hobby.hobbyName,
+                        hobby.hobbyPurpose,
+                        hobby.hobbyTimeMinutes,
+                        hobby.executionCount,
+                        hobby.goalDays
+                        )
+                )
+                .from(hobby)
+                .where(hobby.user.eq(user))
+                .orderBy(hobby.createdAt.asc())
+                .fetchFirst();
     }
 
     private OrderSpecifier<Integer> hobbyIdPriority(Long hobbyId) {

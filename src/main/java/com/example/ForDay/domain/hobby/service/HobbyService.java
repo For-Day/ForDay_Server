@@ -13,6 +13,7 @@ import com.example.ForDay.global.ai.dto.response.AiActivityResult;
 import com.example.ForDay.global.ai.dto.response.AiOthersActivityResult;
 import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
+import com.example.ForDay.global.ai.service.AiCallLimiter;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -43,6 +44,7 @@ public class HobbyService {
     private final AiActivityService aiActivityService;
     private final AiCallCountService aiCallCountService;
     private final HobbyCardRepository hobbyCardRepository;
+    private final AiCallLimiter aiCallLimiter;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -72,67 +74,69 @@ public class HobbyService {
         log.info("[ActivityCreate] Hobby 생성 완료 - hobbyId={}, userId={}",
                 hobby.getId(), currentUser.getId());
 
+        // 온보딩이 완료되지 않은 경우에만 완료로 전환되도록 설정
+        if(!currentUser.isOnboardingCompleted()) {
+            currentUser.completeOnboarding();
+        }
 
         return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
     }
 
     @Transactional
-    public ActivityAIRecommendResDto activityAiRecommend(Long hobbyId, CustomUserDetails user) throws Exception {
+    public ActivityAIRecommendResDto activityAiRecommend(
+            Long hobbyId,
+            CustomUserDetails user
+    ) {
         User currentUser = userUtil.getCurrentUser(user);
         String userId = currentUser.getId();
+
         Hobby hobby = getHobby(hobbyId);
         verifyHobbyOwner(hobby, currentUser);
         checkHobbyInProgressStatus(hobby);
 
-        log.info("[AI-RECOMMEND][START] user={}: ",
-                userId
-        );
-
-        int aiCallCount = aiCallCountService.increaseAndGet(userId, hobbyId);
-        log.info("[AI-RECOMMEND][COUNT] user={}, aiCallCount={}", userId, aiCallCount);
-
-        log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
-
-
-        AiActivityResult aiResult = aiActivityService.activityRecommend(hobby);
-
-        if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
-            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
+        // 사전 차단 (UX)
+        int currentCount = aiCallCountService.getCurrentCount(userId, hobbyId);
+        if (currentCount >= maxCallLimit) {
+            throw new CustomException(ErrorCode.AI_CALL_LIMIT_EXCEEDED);
         }
 
+        // 동시성 제한 + 호출
+        return aiCallLimiter.execute(() -> {
 
-        log.info("[AI-RECOMMEND][RESULT] user={}, activitySize={}",
-                userId,
-                aiResult.getActivities().size()
-        );
+            // 호출 시도 즉시 카운트 증가
+            int aiCallCount = aiCallCountService.increaseAndGet(userId, hobbyId);
 
-        List<ActivityAIRecommendResDto.ActivityDto> activities =
-                IntStream.range(0, aiResult.getActivities().size())
-                        .mapToObj(i -> {
-                            AiActivityResult.ActivityCard a =
-                                    aiResult.getActivities().get(i);
+            log.info("[AI-RECOMMEND][CALL] user={}, count={}", userId, aiCallCount);
 
-                            return new ActivityAIRecommendResDto.ActivityDto(
-                                    (long) (i + 1),
-                                    a.getTopic(),
-                                    a.getContent(),
-                                    a.getDescription()
-                            );
-                        })
-                        .toList();
+            // AI 호출
+            AiActivityResult aiResult = aiActivityService.activityRecommend(hobby);
 
-        log.info("[AI-RECOMMEND][SUCCESS] user={}, returnedActivities={}",
-                user.getUsername(),
-                activities.size()
-        );
+            if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
+                throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
+            }
 
-        return new ActivityAIRecommendResDto(
-                "AI가 취미 활동을 추천했습니다.",
-                aiCallCount,
-                maxCallLimit,
-                activities
-        );
+            List<ActivityAIRecommendResDto.ActivityDto> activities =
+                    IntStream.range(0, aiResult.getActivities().size())
+                            .mapToObj(i -> {
+                                var a = aiResult.getActivities().get(i);
+                                return new ActivityAIRecommendResDto.ActivityDto(
+                                        (long) (i + 1),
+                                        a.getTopic(),
+                                        a.getContent(),
+                                        a.getDescription()
+                                );
+                            })
+                            .toList();
+
+            return new ActivityAIRecommendResDto(
+                    "AI가 취미 활동을 추천했습니다.",
+                    aiCallCount,
+                    maxCallLimit,
+                    activities
+            );
+        });
     }
+
 
     @Transactional
     public OthersActivityRecommendResDto othersActivityRecommendV1(Long hobbyId, CustomUserDetails user) {

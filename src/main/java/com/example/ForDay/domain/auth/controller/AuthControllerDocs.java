@@ -168,8 +168,22 @@ public interface AuthControllerDocs {
             @ApiResponse(responseCode = "200", description = "토큰 재발급 성공"),
             @ApiResponse(
                     responseCode = "401",
-                    description = "유효하지 않거나 만료된 리프레시 토큰",
-                    content = @Content(examples = @ExampleObject(value = "{\"status\": 401, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_REFRESH_TOKEN\", \"message\": \"유효하지 않은 리프레시 토큰입니다.\"}}"))
+                    description = "Refresh 토큰 만료 (로그인 만료)",
+                    content = @Content(
+                            examples = @ExampleObject(
+                                    name = "LOGIN_EXPIRED",
+                                    value = """
+                                {
+                                  "status": 401,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "LOGIN_EXPIRED",
+                                    "message": "로그인이 만료되었습니다. 다시 로그인해주세요."
+                                  }
+                                }
+                                """
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "400",
@@ -208,8 +222,7 @@ public interface AuthControllerDocs {
                                   "status": 200,
                                   "success": true,
                                   "data": {
-                                    "accessValid": true,
-                                    "refreshValid": true
+                                    "tokenValid": true
                                   }
                                 }
                                 """
@@ -250,26 +263,6 @@ public interface AuthControllerDocs {
                                   "data": {
                                     "errorClassName": "INVALID_TOKEN",
                                     "message": "유효하지 않은 토큰입니다."
-                                  }
-                                }
-                                """
-                            )
-                    )
-            ),
-
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Refresh 토큰 만료 (로그인 만료)",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "LOGIN_EXPIRED",
-                                    value = """
-                                {
-                                  "status": 401,
-                                  "success": false,
-                                  "data": {
-                                    "errorClassName": "LOGIN_EXPIRED",
-                                    "message": "로그인이 만료되었습니다. 다시 로그인해주세요."
                                   }
                                 }
                                 """

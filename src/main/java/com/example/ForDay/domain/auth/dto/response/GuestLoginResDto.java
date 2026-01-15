@@ -24,4 +24,12 @@ public class GuestLoginResDto {
     private SocialType socialType;
 
     private String guestUserId;
+
+    @Schema(description = "온보딩 완료 여부", example = "true")
+    private boolean onboardingCompleted;
+
+    @Schema(description = "닉네임 설정 완료 여부", example = "true")
+    private boolean nicknameSet;
+
+    private OnboardingDataDto onboardingData;
 }

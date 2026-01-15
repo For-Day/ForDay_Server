@@ -16,6 +16,7 @@ public class GetHomeHobbyInfoResDto {
     private ActivityPreviewDto activityPreview;
     private Integer totalStickerNum;
     private boolean activityRecordedToday;
+    private boolean aiCallRemaining;
     private List<StickerDto> collectedStickers;
 
     @Data
