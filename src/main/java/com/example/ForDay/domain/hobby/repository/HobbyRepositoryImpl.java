@@ -7,6 +7,7 @@ import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.util.RedisUtil;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -21,6 +22,7 @@ import java.util.List;
 public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private final RedisUtil redisUtil;
+    private final AiCallCountService aiCallCountService;
 
     QHobby hobby = QHobby.hobby;
     QActivity activity = QActivity.activity;
@@ -88,12 +90,17 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .where(hobby.id.eq(targetHobbyId))
                 .fetchOne();
 
+        boolean isAiCallRemaining = true;
+        int currentCount = aiCallCountService.getCurrentCount(currentUser.getSocialId(), targetHobbyId);
+        if(currentCount >= 3) isAiCallRemaining = false;
+
         return GetHomeHobbyInfoResDto.builder()
                 .inProgressHobbies(hobbyList)
                 .activityPreview(activityPreview)
                 .totalStickerNum(totalStickerNum != null ? totalStickerNum : 0)
                 .activityRecordedToday(activityRecordedToday)
                 .collectedStickers(collectedStickers)
+                .aiCallRemaining(isAiCallRemaining)
                 .build();
     }
 
