@@ -82,7 +82,7 @@ public class HobbyService {
         return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ActivityAIRecommendResDto activityAiRecommend(
             Long hobbyId,
             CustomUserDetails user
@@ -138,7 +138,7 @@ public class HobbyService {
     }
 
 
-    @Transactional
+    @Transactional(readOnly = true)
     public OthersActivityRecommendResDto othersActivityRecommendV1(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         Hobby hobby = getHobby(hobbyId);
