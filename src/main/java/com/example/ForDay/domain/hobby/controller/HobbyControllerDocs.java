@@ -836,5 +836,142 @@ public interface HobbyControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+    @Operation(
+            summary = "취미 활동 목록 조회",
+            description = """
+        특정 취미에 등록된 활동(Activity) 목록을 조회합니다.<br><br>
+
+        <b>비즈니스 규칙</b><br>
+        - 스티커가 있는 활동: 수정 가능 / 삭제 불가<br>
+        - 스티커가 없는 활동: 수정 가능 / 삭제 가능<br><br>
+
+        ⚠️ 취미 소유자만 조회할 수 있습니다.
+        """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "활동 목록 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GetActivityListResDto.class),
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 200,
+                  "success": true,
+                  "data": {
+                    "activities": [
+                      {
+                        "activityId": 1,
+                        "content": "미라클 모닝 아침 독서",
+                        "aiRecommended": false,
+                        "deletable": false,
+                        "stickers": [
+                          {
+                            "activityRecordId": 1,
+                            "sticker": "smile.jpg"
+                          },
+                          {
+                            "activityRecordId": 2,
+                            "sticker": "smile.jpg"
+                          }
+                        ]
+                      },
+                      {
+                        "activityId": 2,
+                        "content": "미라클 모닝 아침 독서",
+                        "aiRecommended": false,
+                        "deletable": true,
+                        "stickers": []
+                      },
+                      {
+                        "activityId": 3,
+                        "content": "미라클 모닝 아침 독서",
+                        "aiRecommended": true,
+                        "deletable": false,
+                        "stickers": [
+                          {
+                            "activityRecordId": 3,
+                            "sticker": "smile.jpg"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "취미 소유자가 아님",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 403,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "NOT_HOBBY_OWNER",
+                    "message": "취미 소유자가 아닙니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "취미를 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 404,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "HOBBY_NOT_FOUND",
+                    "message": "존재하지 않는 취미입니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "현재 취미 상태에서는 작업을 수행할 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "INVALID_HOBBY_STATUS",
+                                    summary = "유효하지 않은 취미 상태",
+                                    value = """
+            {
+              "status": 400,
+              "success": false,
+              "data": {
+                "errorClassName": "INVALID_HOBBY_STATUS",
+                "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+              }
+            }
+            """
+                            )
+                    )
+            )
+    })
+    @GetMapping("/{hobbyId}/activities/list")
+    public GetActivityListResDto getActivityList(
+            @Parameter(description = "취미 ID", example = "1")
+            @PathVariable(value = "hobbyId") Long hobbyId,
+
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+
 
 }

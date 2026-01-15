@@ -214,6 +214,7 @@ public class HobbyService {
         return hobbyRepository.findById(hobbyId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
     }
 
+    @Transactional(readOnly = true)
     public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
@@ -236,6 +237,7 @@ public class HobbyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[GetHomeHobbyInfo] 대시보드 조회 - UserId: {}, TargetHobbyId: {}",
@@ -244,6 +246,7 @@ public class HobbyService {
         return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
     }
 
+    @Transactional(readOnly = true)
     public MyHobbySettingResDto myHobbySetting(CustomUserDetails user, HobbyStatus hobbyStatus) {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[MyHobbySetting] 취미 설정 목록 조회 - UserId: {}", currentUser.getId());
@@ -251,15 +254,18 @@ public class HobbyService {
         return hobbyRepository.myHobbySetting(currentUser, hobbyStatus);
     }
 
-
+    @Transactional(readOnly = true)
     public GetActivityListResDto getActivityList(Long hobbyId, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
         Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
         verifyHobbyOwner(hobby, currentUser);
+
+        if(!hobby.isReadable()) throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
 
         return activityRepository.getActivityList(hobby, currentUser);
     }
 
+    @Transactional
     public MessageResDto updateHobbyInfo(
             Long hobbyId,
             UpdateHobbyInfoReqDto reqDto,
@@ -309,7 +315,7 @@ public class HobbyService {
         return new MessageResDto("취미 정보가 성공적으로 수정되었습니다.");
     }
 
-
+    @Transactional
     public MessageResDto updateHobbyStatus(Long hobbyId, UpdateHobbyStatusReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);

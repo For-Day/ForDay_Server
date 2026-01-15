@@ -81,4 +81,8 @@ public class Hobby extends BaseTimeEntity {
     public boolean isUpdatable() {
         return this.status == HobbyStatus.IN_PROGRESS;
     }
+
+    public boolean isReadable() {
+        return this.status == HobbyStatus.IN_PROGRESS;
+    }
 }
