@@ -8,6 +8,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TokenValidateResDto {
-    private boolean accessValid;
-    private boolean refreshValid;
+    private boolean tokenValid;
 }

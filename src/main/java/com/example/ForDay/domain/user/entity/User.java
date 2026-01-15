@@ -50,6 +50,9 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private LocalDateTime lastActivityAt = null; // 게스트용 마지막 활동일시 저장
 
+    @Builder.Default
+    private boolean onboardingCompleted = false;
+
     // 게스트 마지막 활동일시 업데이트
     public void updateLastActivity() {
         this.lastActivityAt = LocalDateTime.now();

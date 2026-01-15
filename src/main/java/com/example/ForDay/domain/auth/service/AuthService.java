@@ -146,7 +146,7 @@ public class AuthService {
 
         // 리프레시 토큰 유효성 검사
         if (!jwtUtil.validate(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+            throw new CustomException(ErrorCode.LOGIN_EXPIRED);
         }
 
         String username = jwtUtil.getUsername(refreshToken);
@@ -155,7 +155,7 @@ public class AuthService {
         String storedToken = refreshTokenService.get(username);
 
         if (storedToken == null || !storedToken.equals(refreshToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+            throw new CustomException(ErrorCode.LOGIN_EXPIRED);
         }
 
         // 토큰 재발급
@@ -181,17 +181,7 @@ public class AuthService {
 
     @Transactional
     public TokenValidateResDto tokenValidate(CustomUserDetails user) {
-
-        RefreshToken refreshToken = refreshTokenRepository.findById(user.getUsername())
-                .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_EXPIRED));
-
-        String token = refreshToken.getToken();
-
-        if (!jwtUtil.validate(token) || jwtUtil.isExpired(token)) {
-            throw new CustomException(ErrorCode.LOGIN_EXPIRED);
-        }
-
-        return new TokenValidateResDto(true, true);
+        return new TokenValidateResDto(true);
     }
 
 }
