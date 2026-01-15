@@ -3,6 +3,7 @@ package com.example.ForDay.domain.hobby.controller;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -490,4 +491,187 @@ public interface HobbyControllerDocs {
             )
     })
     MyHobbySettingResDto myHobbySetting(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user, HobbyStatus hobbyStatus);
+
+
+
+    @Operation(
+            summary = "취미 정보 수정",
+            description = """
+        취미의 특정 정보를 수정합니다.<br><br>
+
+        <b>수정 가능 항목</b><br>
+        - HOBBY_TIME : 취미 시간 변경<br>
+        - EXECUTION_COUNT : 실행 횟수 변경<br>
+        - GOAL_DAYS : 여정일 설정 여부 변경<br><br>
+
+        ⚠️ 진행 중(IN_PROGRESS) 상태의 취미만 수정 가능합니다.
+        """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "취미 정보 수정 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = MessageResDto.class),
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 200,
+                  "success": true,
+                  "data": {
+                    "message": "취미 정보가 성공적으로 수정되었습니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "INVALID_HOBBY_STATUS",
+                                            summary = "진행 중이 아닌 취미 수정 시",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "INVALID_HOBBY_STATUS",
+                        "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+                      }
+                    }
+                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "INVALID_HOBBY_UPDATE_PAYLOAD",
+                                            summary = "type과 payload 불일치",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "INVALID_HOBBY_UPDATE_PAYLOAD",
+                        "message": "수정 타입에 맞지 않는 요청 데이터입니다."
+                      }
+                    }
+                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "INVALID_HOBBY_UPDATE_TYPE",
+                                            summary = "지원하지 않는 hobby type",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "INVALID_HOBBY_UPDATE_TYPE",
+                        "message": "지원하지 않는 취미 수정 유형입니다."
+                      }
+                    }
+                    """
+                                    )
+                            }
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "취미 소유자가 아님",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 403,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "NOT_HOBBY_OWNER",
+                    "message": "취미 소유자가 아닙니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "취미를 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 404,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "HOBBY_NOT_FOUND",
+                    "message": "존재하지 않는 취미입니다."
+                  }
+                }
+                """
+                            )
+                    )
+            )
+    })
+    @PatchMapping("/{hobbyId}")
+    public MessageResDto updateHobbyInfo(
+            @Parameter(description = "취미 ID", example = "1")
+            @PathVariable(value = "hobbyId") Long hobbyId,
+
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "취미 수정 요청 데이터",
+                    required = true,
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "HOBBY_TIME",
+                                            summary = "취미 시간 변경",
+                                            value = """
+                        {
+                          "type": "HOBBY_TIME",
+                          "payload": {
+                            "minutes": 3
+                          }
+                        }
+                        """
+                                    ),
+                                    @ExampleObject(
+                                            name = "EXECUTION_COUNT",
+                                            summary = "실행 횟수 변경",
+                                            value = """
+                        {
+                          "type": "EXECUTION_COUNT",
+                          "payload": {
+                            "executionCount": 3
+                          }
+                        }
+                        """
+                                    ),
+                                    @ExampleObject(
+                                            name = "GOAL_DAYS",
+                                            summary = "여정일 설정 여부 변경",
+                                            value = """
+                        {
+                          "type": "GOAL_DAYS",
+                          "payload": {
+                            "isDurationSet": true
+                          }
+                        }
+                        """
+                                    )
+                            }
+                    )
+            )
+            @RequestBody @Valid UpdateHobbyInfoReqDto reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
 }
