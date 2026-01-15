@@ -324,7 +324,7 @@ public class HobbyService {
 
         switch (targetStatus) {
             case IN_PROGRESS -> {
-                // 2. 이미 진행 중인 취미 개수 검사 (자기 자신 제외)
+                // 2. 이미 진행 중인 취미 개수 검사
                 long inProgressCount =
                         hobbyRepository.countByStatusAndUser(
                                 HobbyStatus.IN_PROGRESS,

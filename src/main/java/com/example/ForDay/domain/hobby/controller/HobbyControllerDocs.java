@@ -674,4 +674,167 @@ public interface HobbyControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+    @Operation(
+            summary = "취미 상태 변경",
+            description = """
+        취미의 상태를 변경합니다.<br><br>
+
+        <b>변경 가능 상태</b><br>
+        - IN_PROGRESS : 진행 중<br>
+        - ARCHIVED : 보관됨<br><br>
+
+        ⚠️ 이미 동일한 상태인 경우에도 성공(200) 응답을 반환합니다.<br>
+        ⚠️ 진행 중 상태로 변경 시, 이미 진행 중인 취미가 2개라면 실패합니다.
+        """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "취미 상태 변경 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = MessageResDto.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "STATUS_CHANGED",
+                                            summary = "취미 상태 변경 성공",
+                                            value = """
+                    {
+                      "status": 200,
+                      "success": true,
+                      "data": {
+                        "message": "취미 상태가 성공적으로 수정되었습니다."
+                      }
+                    }
+                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "ALREADY_SAME_STATUS",
+                                            summary = "이미 동일한 상태",
+                                            value = """
+                    {
+                      "status": 200,
+                      "success": true,
+                      "data": {
+                        "message": "이미 해당 상태입니다."
+                      }
+                    }
+                    """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "MAX_IN_PROGRESS_HOBBY_EXCEEDED",
+                                            summary = "진행 중 취미 개수 초과",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "MAX_IN_PROGRESS_HOBBY_EXCEEDED",
+                        "message": "이미 진행 중인 취미는 최대 2개까지 등록할 수 있습니다."
+                      }
+                    }
+                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "INVALID_HOBBY_STATUS",
+                                            summary = "유효하지 않은 취미 상태",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "INVALID_HOBBY_STATUS",
+                        "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+                      }
+                    }
+                    """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "취미 소유자가 아님",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 403,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "NOT_HOBBY_OWNER",
+                    "message": "취미 소유자가 아닙니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "취미를 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 404,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "HOBBY_NOT_FOUND",
+                    "message": "존재하지 않는 취미입니다."
+                  }
+                }
+                """
+                            )
+                    )
+            )
+    })
+    @PatchMapping("/{hobbyId}/status")
+    MessageResDto updateHobbyStatus(
+            @Parameter(description = "취미 ID", example = "1")
+            @PathVariable(value = "hobbyId") Long hobbyId,
+
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "변경할 취미 상태",
+                    required = true,
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "IN_PROGRESS",
+                                            summary = "취미 진행 상태로 변경",
+                                            value = """
+                        {
+                          "hobbyStatus": "IN_PROGRESS"
+                        }
+                        """
+                                    ),
+                                    @ExampleObject(
+                                            name = "ARCHIVED",
+                                            summary = "취미 보관 상태로 변경",
+                                            value = """
+                        {
+                          "hobbyStatus": "ARCHIVED"
+                        }
+                        """
+                                    )
+                            }
+                    )
+            )
+            @RequestBody @Valid UpdateHobbyStatusReqDto reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+
 }

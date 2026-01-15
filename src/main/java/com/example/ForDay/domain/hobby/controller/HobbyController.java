@@ -80,6 +80,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.updateHobbyInfo(hobbyId, reqDto, user);
     }
 
+    @Override
     @PatchMapping("/{hobbyId}/status")
     public MessageResDto updateHobbyStatus(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyStatusReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.updateHobbyStatus(hobbyId, reqDto, user);
