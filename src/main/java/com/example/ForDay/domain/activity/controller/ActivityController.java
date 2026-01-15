@@ -23,6 +23,7 @@ public class ActivityController implements ActivityControllerDocs{
         return activityService.updateActivity(activityId, reqDto, user);
     }
 
+    @Override
     @DeleteMapping("/{activityId}")
     public MessageResDto deleteActivity(@PathVariable(name = "activityId") Long activityId,
                                         @AuthenticationPrincipal CustomUserDetails user) {

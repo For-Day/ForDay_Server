@@ -130,6 +130,17 @@ public class ActivityService {
 
         if(!activity.isDeletable()) throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
 
+        Hobby hobby = activity.getHobby();
+
+        boolean isInProgress = hobbyRepository.existsByIdAndStatus(
+                hobby.getId(),
+                HobbyStatus.IN_PROGRESS
+        );
+
+        if (!isInProgress) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+
         activityRepository.delete(activity);
         return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
     }

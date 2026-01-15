@@ -125,5 +125,107 @@ public interface ActivityControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+    @Operation(
+            summary = "활동 삭제",
+            description = """
+                특정 활동(Activity)을 삭제합니다.
+
+                ❗ 삭제 조건
+                - 활동 소유자만 삭제할 수 있습니다.
+                - 스티커가 없는 활동만 삭제 가능합니다.
+                - 진행 중(IN_PROGRESS)인 취미의 활동만 삭제 가능합니다.
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "활동 삭제 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = MessageResDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "삭제할 수 없는 상태",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "INVALID_HOBBY_STATUS",
+                                            value = """
+                                        {
+                                          "status": 400,
+                                          "success": false,
+                                          "data": {
+                                            "errorClassName": "INVALID_HOBBY_STATUS",
+                                            "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+                                          }
+                                        }
+                                        """
+                                    ),
+                                    @ExampleObject(
+                                            name = "ACTIVITY_NOT_DELETABLE",
+                                            value = """
+                                        {
+                                          "status": 400,
+                                          "success": false,
+                                          "data": {
+                                            "errorClassName": "ACTIVITY_NOT_DELETABLE",
+                                            "message": "해당 활동은 삭제할 수 없습니다."
+                                          }
+                                        }
+                                        """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "활동 소유자가 아님",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                {
+                                  "status": 403,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "NOT_ACTIVITY_OWNER",
+                                    "message": "활동 소유자가 아닙니다."
+                                  }
+                                }
+                                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "활동이 존재하지 않음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                {
+                                  "status": 404,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "ACTIVITY_NOT_FOUND",
+                                    "message": "존재하지 않는 활동입니다."
+                                  }
+                                }
+                                """
+                            )
+                    )
+            )
+    })
+    @DeleteMapping("/{activityId}")
+    public MessageResDto deleteActivity(
+            @PathVariable
+            @Parameter(description = "삭제할 활동 ID", example = "1")
+            Long activityId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
 
 }
