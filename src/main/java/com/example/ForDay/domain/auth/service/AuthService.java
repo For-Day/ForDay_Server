@@ -7,6 +7,7 @@ import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
 import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.entity.RefreshToken;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.service.UserService;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.UUID;
 
@@ -38,6 +40,7 @@ public class AuthService {
     private final UserService userService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppleService appleService;
+    private final HobbyRepository hobbyRepository;
 
     @Transactional
     public LoginResDto kakaoLogin(@Valid KakaoLoginReqDto reqDto) {
@@ -51,7 +54,7 @@ public class AuthService {
         boolean isNewUser = false;
         // 회원가입이 되어 있지 않다면 회원가입
         User user = userService.getUserBySocialId(kakaoProfileDto.getId());
-        if(user == null) {
+        if (user == null) {
             log.info("[LOGIN] New Kakao user registered. kakaoId={}", kakaoProfileDto.getId());
             isNewUser = true;
             // 회원가입
@@ -64,13 +67,24 @@ public class AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), Role.USER, SocialType.KAKAO);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
+        boolean isNicknameSet = isNicknameSet(user); // 닉네임 설정 여부
+        boolean onboardingCompleted = user.isOnboardingCompleted(); // 온보딩 완료 여부
+        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet(user), onboardingCompleted);
+
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO);
+        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO, onboardingCompleted, isNicknameSet, dataDto);
+    }
+
+    private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {
+        if(onboardingCompleted && !isNicknameSet) {
+            return hobbyRepository.getOnboardingDate(user);
+        }
+        return null;
     }
 
     @Transactional
-    public LoginResDto appleLogin(@Valid AppleLoginReqDto reqDto) {
+    public LoginResDto appleLogin(AppleLoginReqDto reqDto) {
         // 프론트에서 code값을 보내면서 로그인/회원가입 요청을 한다.
         // code와 애플 설정값을 이용하여 직접 JWT 토큰 생성후 apple api에 유저 정보 요청을 보낸다. -> 응답으로 idToken과 accessToken을 받는다.
         AppleTokenResDto appleTokenResDto = appleService.getAppleToken(reqDto.getCode());
@@ -84,7 +98,7 @@ public class AuthService {
         User user = userRepository.findBySocialId(socialId);
 
         boolean isNewUser = false;
-        if(user == null) {
+        if (user == null) {
             // 처음 회원가입 하는 유저
             log.info("[LOGIN] New Apple user registered. appleId={}", socialId);
             isNewUser = true;
@@ -96,9 +110,13 @@ public class AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), Role.USER, SocialType.APPLE);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
+        boolean isNicknameSet = isNicknameSet(user);
+        boolean onboardingCompleted = user.isOnboardingCompleted();
+        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet(user), onboardingCompleted);
+
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.APPLE);
+        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.APPLE, onboardingCompleted, isNicknameSet, dataDto);
     }
 
     @Transactional
@@ -107,7 +125,7 @@ public class AuthService {
         String guestUserId = reqDto.getGuestUserId();
         boolean newUser;
 
-        if(guestUserId == null || guestUserId.isBlank()) {
+        if (guestUserId == null || guestUserId.isBlank()) {
             String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
             user = userRepository.save(User.builder()
@@ -120,8 +138,8 @@ public class AuthService {
             log.info("[GUEST] New guest created id={}", user.getId());
 
         } else {
-             user = userRepository.findBySocialId(guestUserId);
-             if(user == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
+            user = userRepository.findBySocialId(guestUserId);
+            if (user == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
 
             if (user.getRole() != Role.GUEST) {
                 throw new CustomException(ErrorCode.INVALID_USER_ROLE);
@@ -134,9 +152,22 @@ public class AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), SocialType.GUEST);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
 
+        boolean isNicknameSet = isNicknameSet(user);
+        boolean onboardingCompleted = user.isOnboardingCompleted();
+        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet(user), onboardingCompleted);
+
         refreshTokenService.save(user.getSocialId(), refreshToken);
 
-        return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, user.getSocialId());
+        return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, user.getSocialId(), onboardingCompleted, isNicknameSet, dataDto);
+    }
+
+    private static boolean isNicknameSet(User user) {
+        boolean isNicknameSet = false;
+        // 닉네임 설정 완료 여부
+        if (StringUtils.hasText(user.getNickname())) {
+            isNicknameSet = true;
+        }
+        return isNicknameSet;
     }
 
 

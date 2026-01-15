@@ -22,4 +22,12 @@ public class LoginResDto {
 
     @Schema(description = "가입 유형", example = "KAKAO")
     private SocialType socialType;
+
+    @Schema(description = "온보딩 완료 여부", example = "true")
+    private boolean onboardingCompleted;
+
+    @Schema(description = "닉네임 설정 완료 여부", example = "true")
+    private boolean nicknameSet;
+
+    private OnboardingDataDto onboardingData;
 }

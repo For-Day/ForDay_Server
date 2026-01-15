@@ -63,4 +63,8 @@ public class User extends BaseTimeEntity {
         this.nickname = nickname.trim();
     }
 
+    public void completeOnboarding() {
+        this.onboardingCompleted = true;
+    }
+
 }

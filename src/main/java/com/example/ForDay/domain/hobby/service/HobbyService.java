@@ -72,6 +72,10 @@ public class HobbyService {
         log.info("[ActivityCreate] Hobby 생성 완료 - hobbyId={}, userId={}",
                 hobby.getId(), currentUser.getId());
 
+        // 온보딩이 완료되지 않은 경우에만 완료로 전환되도록 설정
+        if(!currentUser.isOnboardingCompleted()) {
+            currentUser.completeOnboarding();
+        }
 
         return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
     }

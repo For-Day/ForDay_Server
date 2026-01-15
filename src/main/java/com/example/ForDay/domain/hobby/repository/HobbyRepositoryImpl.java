@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.activity.entity.QActivityRecord;
+import com.example.ForDay.domain.auth.dto.response.OnboardingDataDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHomeHobbyInfoResDto;
 import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
@@ -137,6 +138,25 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .fetchOne();
 
         return new MyHobbySettingResDto(hobbyStatus, inProgressHobbyCount, archivedHobbyCount ,hobbyDtos);
+    }
+
+    @Override
+    public OnboardingDataDto getOnboardingDate(User user) {
+        return queryFactory
+                .select(Projections.constructor(OnboardingDataDto.class,
+                        hobby.id,
+                        hobby.hobbyCardId,
+                        hobby.hobbyName,
+                        hobby.hobbyPurpose,
+                        hobby.hobbyTimeMinutes,
+                        hobby.executionCount,
+                        hobby.goalDays
+                        )
+                )
+                .from(hobby)
+                .where(hobby.user.eq(user))
+                .orderBy(hobby.createdAt.asc())
+                .fetchFirst();
     }
 
     private OrderSpecifier<Integer> hobbyIdPriority(Long hobbyId) {
