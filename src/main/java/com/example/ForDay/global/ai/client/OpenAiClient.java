@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +37,17 @@ public class OpenAiClient {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(String.class)
-                .retry(2) // 에러 발생 시 최대 2번 더 시도
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)) // 최대 3번 시도, 2초부터 시작해 대기 시간 증가
+                        .filter(this::isRetryable) // 재시도할 에러 필터링
+                        .doBeforeRetry(retrySignal ->
+                                System.out.println("AI 요청 재시도 중... 사유: " + retrySignal.failure().getMessage()))
+                )
                 .block();
+    }
+
+    // 재시도 대상 에러 판단 (429 에러 및 네트워크 연결 끊김)
+    private boolean isRetryable(Throwable throwable) {
+        return throwable instanceof WebClientResponseException.TooManyRequests ||
+                throwable instanceof java.io.IOException;
     }
 }
