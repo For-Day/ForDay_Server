@@ -13,7 +13,6 @@ import com.example.ForDay.global.ai.dto.response.AiActivityResult;
 import com.example.ForDay.global.ai.dto.response.AiOthersActivityResult;
 import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.global.ai.service.AiCallLimiter;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -44,7 +43,6 @@ public class HobbyService {
     private final AiActivityService aiActivityService;
     private final AiCallCountService aiCallCountService;
     private final HobbyCardRepository hobbyCardRepository;
-    private final AiCallLimiter aiCallLimiter;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -92,49 +90,52 @@ public class HobbyService {
 
         Hobby hobby = getHobby(hobbyId);
         verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
+        checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미에 대해서만 ai 추천 가능
 
         // 사전 차단 (UX)
-        int currentCount = aiCallCountService.getCurrentCount(userId, hobbyId);
-        if (currentCount >= maxCallLimit) {
-            throw new CustomException(ErrorCode.AI_CALL_LIMIT_EXCEEDED);
+        int currentCount = aiCallCountService.increaseAndGet(currentUser.getSocialId(), hobbyId);
+
+        log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
+
+
+        AiActivityResult aiResult = aiActivityService.activityRecommend(hobby);
+
+        if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
+            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
         }
 
-        // 동시성 제한 + 호출
-        return aiCallLimiter.execute(() -> {
 
-            // 호출 시도 즉시 카운트 증가
-            int aiCallCount = aiCallCountService.increaseAndGet(userId, hobbyId);
+        log.info("[AI-RECOMMEND][RESULT] user={}, activitySize={}",
+                userId,
+                aiResult.getActivities().size()
+        );
 
-            log.info("[AI-RECOMMEND][CALL] user={}, count={}", userId, aiCallCount);
+        List<ActivityAIRecommendResDto.ActivityDto> activities =
+                IntStream.range(0, aiResult.getActivities().size())
+                        .mapToObj(i -> {
+                            AiActivityResult.ActivityCard a =
+                                    aiResult.getActivities().get(i);
 
-            // AI 호출
-            AiActivityResult aiResult = aiActivityService.activityRecommend(hobby);
+                            return new ActivityAIRecommendResDto.ActivityDto(
+                                    (long) (i + 1),
+                                    a.getTopic(),
+                                    a.getContent(),
+                                    a.getDescription()
+                            );
+                        })
+                        .toList();
 
-            if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
-                throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
-            }
+        log.info("[AI-RECOMMEND][SUCCESS] user={}, returnedActivities={}",
+                user.getUsername(),
+                activities.size()
+        );
 
-            List<ActivityAIRecommendResDto.ActivityDto> activities =
-                    IntStream.range(0, aiResult.getActivities().size())
-                            .mapToObj(i -> {
-                                var a = aiResult.getActivities().get(i);
-                                return new ActivityAIRecommendResDto.ActivityDto(
-                                        (long) (i + 1),
-                                        a.getTopic(),
-                                        a.getContent(),
-                                        a.getDescription()
-                                );
-                            })
-                            .toList();
-
-            return new ActivityAIRecommendResDto(
-                    "AI가 취미 활동을 추천했습니다.",
-                    aiCallCount,
-                    maxCallLimit,
-                    activities
-            );
-        });
+        return new ActivityAIRecommendResDto(
+                "AI가 취미 활동을 추천했습니다.",
+                currentCount,
+                maxCallLimit,
+                activities
+        );
     }
 
 
