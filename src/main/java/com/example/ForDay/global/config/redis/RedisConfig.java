@@ -24,12 +24,24 @@ public class RedisConfig {
     private int port;
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, Object> redisObjectTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         return template;
     }
 
+    @Bean
+    public RedisTemplate<String, Long> redisLongTemplate(
+            RedisConnectionFactory connectionFactory
+    ) {
+        RedisTemplate<String, Long> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericToStringSerializer<>(Long.class));
+
+        return template;
+    }
 
     @Bean
     public LettuceConnectionFactory redisConnectionFactory(
