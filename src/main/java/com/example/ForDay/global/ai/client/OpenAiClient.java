@@ -34,6 +34,7 @@ public class OpenAiClient {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(String.class)
+                .retry(2) // 에러 발생 시 최대 2번 더 시도
                 .block();
     }
 }
