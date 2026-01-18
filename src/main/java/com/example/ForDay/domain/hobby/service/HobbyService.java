@@ -67,7 +67,7 @@ public class HobbyService {
                 .hobbyPurpose(reqDto.getHobbyPurpose())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
                 .executionCount(reqDto.getExecutionCount())
-                .goalDays(reqDto.getIsDurationSet() ? 66 : null)
+                .goalDays(reqDto.getIsDurationSet() ? DEFAULT_GOAL_DAYS : null)
                 .status(HobbyStatus.IN_PROGRESS)
                 .build();
 
