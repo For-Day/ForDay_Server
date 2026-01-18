@@ -27,12 +27,12 @@ public class UserService {
     }
 
     @Transactional
-    public User createOauth(String id, String email, SocialType socialType) {
+    public User createOauth(String socialId, String email, SocialType socialType) {
         return userRepository.save(User.builder()
                 .role(Role.USER)
                 .email(email)
                 .socialType(socialType)
-                .socialId(socialType.toString().toLowerCase() + "_" + id)
+                .socialId(socialType.toString().toLowerCase() + "_" + socialId) // "kakao_adiec;DIOW" 형식으로 socialId 저장 형식 변경
                 .build());
     }
 
