@@ -21,8 +21,10 @@ import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Objects;
@@ -37,12 +39,16 @@ public class HobbyService {
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;
 
+    @Value("${fastapi.url}")
+    private String fastApiBaseUrl;
+
     private final HobbyRepository hobbyRepository;
     private final UserUtil userUtil;
     private final ActivityRepository activityRepository;
     private final AiActivityService aiActivityService;
     private final AiCallCountService aiCallCountService;
     private final HobbyCardRepository hobbyCardRepository;
+    private final RestTemplate restTemplate;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -98,44 +104,35 @@ public class HobbyService {
         log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
 
 
-        AiActivityResult aiResult = aiActivityService.activityRecommend(hobby);
+        // 2. FastAPI 요청 객체 생성
+        FastAPIRecommendReq requestDto = FastAPIRecommendReq.builder()
+                .userId(currentUser.getId())
+                .userHobbyId(hobby.getId().intValue())
+                .hobbyName(hobby.getHobbyName())
+                .hobbyPurpose(hobby.getHobbyPurpose())
+                .hobbyTimeMinutes(hobby.getHobbyTimeMinutes())
+                .executionCount(hobby.getExecutionCount())
+                .goalDays(hobby.getGoalDays())
+                .build();
 
-        if (aiResult.getActivities() == null || aiResult.getActivities().isEmpty()) {
-            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
+        // 3. FastAPI 호출
+        String url = fastApiBaseUrl + "/ai/activities/recommend";
+        try {
+            // FastAPI 응답 타입이 ActivityAIRecommendResDto와 동일하므로 바로 매핑
+            ActivityAIRecommendResDto response = restTemplate.postForObject(url, requestDto, ActivityAIRecommendResDto.class);
+
+            if (response == null || response.getActivities().isEmpty()) {
+                throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
+            }
+
+            // 응답 값 내의 count 정보만 현재 트래킹 값으로 업데이트하여 반환
+            response.setAiCallCount(currentCount);
+            return response;
+
+        } catch (Exception e) {
+            log.error("[AI-RECOMMEND][ERROR] FastAPI 호출 실패: {}", e.getMessage());
+            throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
         }
-
-
-        log.info("[AI-RECOMMEND][RESULT] user={}, activitySize={}",
-                userId,
-                aiResult.getActivities().size()
-        );
-
-        List<ActivityAIRecommendResDto.ActivityDto> activities =
-                IntStream.range(0, aiResult.getActivities().size())
-                        .mapToObj(i -> {
-                            AiActivityResult.ActivityCard a =
-                                    aiResult.getActivities().get(i);
-
-                            return new ActivityAIRecommendResDto.ActivityDto(
-                                    (long) (i + 1),
-                                    a.getTopic(),
-                                    a.getContent(),
-                                    a.getDescription()
-                            );
-                        })
-                        .toList();
-
-        log.info("[AI-RECOMMEND][SUCCESS] user={}, returnedActivities={}",
-                user.getUsername(),
-                activities.size()
-        );
-
-        return new ActivityAIRecommendResDto(
-                "AI가 취미 활동을 추천했습니다.",
-                currentCount,
-                maxCallLimit,
-                activities
-        );
     }
 
 
