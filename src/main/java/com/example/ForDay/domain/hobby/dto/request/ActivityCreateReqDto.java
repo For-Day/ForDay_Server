@@ -23,7 +23,6 @@ public class ActivityCreateReqDto {
     private String hobbyPurpose;
 
     @NotNull(message = "hobbyTimeMinutes는 필수입니다.")
-    @Min(value = 1, message = "hobbyTimeMinutes는 1분 이상이어야 합니다.")
     private Integer hobbyTimeMinutes;
 
 

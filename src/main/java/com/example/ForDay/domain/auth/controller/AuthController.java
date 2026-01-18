@@ -59,7 +59,7 @@ public class AuthController implements AuthControllerDocs {
 
     @Override
     @GetMapping("/validate")
-    public TokenValidateResDto tokenValidate(@AuthenticationPrincipal CustomUserDetails user) {
-        return authService.tokenValidate(user);
+    public TokenValidateResDto tokenValidate() {
+        return authService.tokenValidate();
     }
 }

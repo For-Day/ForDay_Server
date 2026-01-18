@@ -11,6 +11,7 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
+    // username -> socialId로 사용
     public void save(String username, String refreshToken) {
         refreshTokenRepository.save(new RefreshToken(username, refreshToken));
     }
