@@ -5,7 +5,7 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
-import com.example.ForDay.domain.app.dto.response.PresignedUrlResDto;
+import com.example.ForDay.domain.app.dto.response.GeneratePresignedUrlResDto;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -15,6 +15,7 @@ import com.example.ForDay.infra.s3.S3Service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,6 +27,7 @@ public class AppService {
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
 
+    @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
         List<AppMetaDataResDto.HobbyCardDto> hobbyCardDtos =
                 hobbyCardRepository.findAll()
@@ -44,7 +46,8 @@ public class AppService {
         );
     }
 
-    public List<PresignedUrlResDto> generatePresignedUrls(@Valid GeneratePresignedReqDto reqDto) {
+    @Transactional
+    public List<GeneratePresignedUrlResDto> generatePresignedUrls(@Valid GeneratePresignedReqDto reqDto) {
         return reqDto.getImages().stream()
                 .map(img -> {
                     String key = s3Service.generateKey(
@@ -65,7 +68,7 @@ public class AppService {
 
                     String fileUrl = s3Service.createFileUrl(key);
 
-                    return new PresignedUrlResDto(
+                    return new GeneratePresignedUrlResDto(
                             uploadUrl,
                             fileUrl,
                             img.getOrder()
@@ -74,6 +77,7 @@ public class AppService {
                 .toList();
     }
 
+    @Transactional
     public MessageResDto deleteS3Image(DeleteS3ImageReqDto reqDto) {
         String key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl());
 
