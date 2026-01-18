@@ -112,7 +112,7 @@ public class HobbyService {
                 .hobbyPurpose(hobby.getHobbyPurpose())
                 .hobbyTimeMinutes(hobby.getHobbyTimeMinutes())
                 .executionCount(hobby.getExecutionCount())
-                .goalDays(hobby.getGoalDays())
+                .goalDays(hobby.getGoalDays() != null ? hobby.getGoalDays() : 0)
                 .build();
 
         // 3. FastAPI 호출
