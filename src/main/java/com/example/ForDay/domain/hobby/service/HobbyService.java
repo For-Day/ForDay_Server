@@ -187,8 +187,8 @@ public class HobbyService {
     public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
-        verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
+        verifyHobbyOwner(hobby, currentUser); // 취미 소유자인지 검증
+        checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지
 
         log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}",
                 currentUser.getId(), hobbyId, reqDto.getActivities().size());
@@ -332,6 +332,7 @@ public class HobbyService {
     }
 
 
+    // 진행중 -> 보관, 보관 -> 진행중
     @Transactional
     public MessageResDto updateHobbyStatus(
             Long hobbyId,
@@ -346,8 +347,8 @@ public class HobbyService {
 
         verifyHobbyOwner(hobby, currentUser);
 
-        HobbyStatus currentStatus = hobby.getStatus();
-        HobbyStatus targetStatus = reqDto.getHobbyStatus();
+        HobbyStatus currentStatus = hobby.getStatus(); // 현재 상태
+        HobbyStatus targetStatus = reqDto.getHobbyStatus(); // 바꾸려는 상태
 
         // 동일 상태 요청
         if (currentStatus == targetStatus) {
@@ -357,11 +358,11 @@ public class HobbyService {
         }
 
         switch (targetStatus) {
-            case IN_PROGRESS -> {
+            case IN_PROGRESS -> { // 보관 -> 진행
                 long inProgressCount =
                         hobbyRepository.countByStatusAndUser(
                                 HobbyStatus.IN_PROGRESS,
-                                currentUser
+                                currentUser // 현재 유저의 진행 중인 취미가 이미 2개이면 꺼낼 수 없다.
                         );
 
                 if (inProgressCount >= 2) {
@@ -416,7 +417,6 @@ public class HobbyService {
         }
         return hobby;
     }
-
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
         if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
