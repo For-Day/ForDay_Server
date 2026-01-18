@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class PresignedUrlResDto {
+public class GeneratePresignedUrlResDto {
     private String uploadUrl; // presigned PUT url
     private String fileUrl;   // 실제 접근/저장할 URL
     private int order;

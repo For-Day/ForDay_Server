@@ -3,7 +3,7 @@ package com.example.ForDay.domain.app.controller;
 import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
-import com.example.ForDay.domain.app.dto.response.PresignedUrlResDto;
+import com.example.ForDay.domain.app.dto.response.GeneratePresignedUrlResDto;
 import com.example.ForDay.domain.app.service.AppService;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import jakarta.validation.Valid;
@@ -24,7 +24,7 @@ public class AppController {
     }
 
     @PostMapping(value = "/presign")
-    public List<PresignedUrlResDto> generatePresignedUrl(@RequestBody @Valid GeneratePresignedReqDto reqDto) {
+    public List<GeneratePresignedUrlResDto> generatePresignedUrl(@RequestBody @Valid GeneratePresignedReqDto reqDto) {
         return appService.generatePresignedUrls(reqDto);
     }
 

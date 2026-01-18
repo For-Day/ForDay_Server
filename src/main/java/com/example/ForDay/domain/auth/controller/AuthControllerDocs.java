@@ -270,5 +270,5 @@ public interface AuthControllerDocs {
                     )
             )
     })
-    TokenValidateResDto tokenValidate(@AuthenticationPrincipal CustomUserDetails user);
+    TokenValidateResDto tokenValidate();
 }

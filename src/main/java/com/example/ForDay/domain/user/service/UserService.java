@@ -27,12 +27,12 @@ public class UserService {
     }
 
     @Transactional
-    public User createOauth(String id, String email, SocialType socialType) {
+    public User createOauth(String socialId, String email, SocialType socialType) {
         return userRepository.save(User.builder()
                 .role(Role.USER)
                 .email(email)
                 .socialType(socialType)
-                .socialId(socialType.toString().toLowerCase() + "_" + id)
+                .socialId(socialType.toString().toLowerCase() + "_" + socialId) // "kakao_adiec;DIOW" 형식으로 socialId 저장 형식 변경
                 .build());
     }
 
@@ -77,10 +77,7 @@ public class UserService {
     }
 
     @Transactional
-    public NicknameRegisterResDto nicknameRegister(@NotBlank(message = "닉네임을 입력해주세요.") @Size(max = 10, message = "닉네임은 10자 이내로 입력해주세요.") @Pattern(
-            regexp = "^[가-힣a-zA-Z0-9]+$",
-            message = "닉네임은 한글, 영어, 숫자만 사용할 수 있습니다."
-    ) String nickname, CustomUserDetails user) {
+    public NicknameRegisterResDto nicknameRegister(String nickname, CustomUserDetails user) {
         boolean exists = userRepository.existsByNickname(nickname);
         if(exists) {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);

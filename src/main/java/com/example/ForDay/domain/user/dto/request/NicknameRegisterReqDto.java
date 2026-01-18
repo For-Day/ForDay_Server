@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.user.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "닉네임 등록 요청 DTO 입니다.")
 public class NicknameRegisterReqDto {
 
     @NotBlank(message = "닉네임을 입력해주세요.")

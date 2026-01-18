@@ -50,24 +50,21 @@ public class ActivityService {
 
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
 
-        verifyActivityOwner(activity, currentUser);
-
-        // 진행 중인 취미에 대해서만 활동 기록 가능
-        checkHobbyInProgressStatus(activity.getHobby());
+        verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
+        checkHobbyInProgressStatus(activity.getHobby()); // 진행 중인 취미에 대해서만 활동 기록 가능
 
         String redisKey = redisUtil.createRecordKey(currentUser.getId(), activity.getHobby().getId());
-
-        if (redisUtil.hasKey(redisKey)) {
+        if (redisUtil.hasKey(redisKey)) { // 해당 취미에 대해 오늘 기록한 활동이 있는지 확인
             log.warn("[RecordActivity] 중복 기록 시도 - UserId: {}, HobbyId: {}",
                     currentUser.getId(), activity.getHobby().getId());
             throw new CustomException(ErrorCode.ALREADY_RECORDED_TODAY);
         }
 
-        if (StringUtils.hasText(reqDto.getImageUrl())) {
-            String s3Key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl());
-            if (!s3Service.existsByKey(s3Key)) {
+        if (StringUtils.hasText(reqDto.getImageUrl())) {  // 이미지를 등록하고자 한다면 해당 이미지가 s3상에 잘 업로드 되었는지 확인
+            String s3Key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl()); // 이미지url에서 key를 추출
+            if (!s3Service.existsByKey(s3Key)) { // 해당 key를 가진 객체가 존재하는지 확인
                 log.error("[RecordActivity] S3 이미지 부재 - Key: {}", s3Key);
-                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND); // 존재하지 않으면 예외 발생
             }
         }
 
@@ -81,7 +78,6 @@ public class ActivityService {
                 .build();
 
         activity.record();
-
         activityRecordRepository.save(activityRecord);
 
         redisUtil.setDataExpire(redisKey, "recorded", 86400);
@@ -93,19 +89,6 @@ public class ActivityService {
                 activityRecord.getImageUrl(),
                 reqDto.getSticker()
         );
-    }
-
-
-    private Activity getActivity(Long activityId) {
-        return activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
-    }
-
-    private void verifyActivityOwner(Activity activity, User currentUser) {
-        if (!Objects.equals(activity.getUser(), currentUser)) {
-            log.warn("[RecordActivity] 소유권 검증 실패 - ActivityOwnerId: {}, CurrentUserId: {}",
-                    activity.getUser().getId(), currentUser.getId());
-            throw new CustomException(ErrorCode.NOT_ACTIVITY_OWNER);
-        }
     }
 
     @Transactional
@@ -144,9 +127,9 @@ public class ActivityService {
 
         Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
-
         verifyActivityOwner(activity, currentUser);
 
+        // 삭제 가능 여부
         if (!activity.isDeletable()) {
             log.warn("[ActivityService] 활동 삭제 불가 (deletable=false) - activityId={}, userId={}",
                     activityId, currentUser.getId());
@@ -155,7 +138,6 @@ public class ActivityService {
 
         // 진행 중인 취미가 아니면 활동 삭제 불가
         checkHobbyInProgressStatus(activity.getHobby());
-
         activityRepository.delete(activity);
 
         log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}",
@@ -165,6 +147,19 @@ public class ActivityService {
         return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
     }
 
+    // 유틸 클래스
+
+    private Activity getActivity(Long activityId) {
+        return activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+    }
+
+    private void verifyActivityOwner(Activity activity, User currentUser) {
+        if (!Objects.equals(activity.getUser(), currentUser)) {
+            log.warn("[RecordActivity] 소유권 검증 실패 - ActivityOwnerId: {}, CurrentUserId: {}",
+                    activity.getUser().getId(), currentUser.getId());
+            throw new CustomException(ErrorCode.NOT_ACTIVITY_OWNER);
+        }
+    }
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
         if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {

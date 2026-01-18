@@ -55,8 +55,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                                         activity.id,
                                         activity.content,
                                         activity.aiRecommended,
-                                        activity.deletable,
-                                        Expressions.nullExpression(List.class)
+                                        activity.collectedStickerNum
                                 )
                         )
                         .from(activity)

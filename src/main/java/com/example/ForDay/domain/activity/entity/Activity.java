@@ -41,11 +41,7 @@ public class Activity extends BaseTimeEntity {
     @Column(name = "last_recorded_at")
     private LocalDateTime lastRecordedAt;
 
-    @Builder.Default
-    private boolean deletable = true;
-
     public void record() {
-        if(this.deletable) this.deletable = false;
         this.collectedStickerNum++;
         this.lastRecordedAt = LocalDateTime.now();
         hobby.record();
@@ -53,5 +49,9 @@ public class Activity extends BaseTimeEntity {
 
     public void updateContent(String content) {
         this.content = content;
+    }
+
+    public boolean isDeletable() {
+        return collectedStickerNum == 0; // 해당 활동에 대한 활동 기록이 없으면 삭제 가능
     }
 }

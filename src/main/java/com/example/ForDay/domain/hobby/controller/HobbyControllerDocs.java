@@ -53,7 +53,21 @@ public interface HobbyControllerDocs {
                                             """
                             )
                     )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "중복 취미 요청 (닉네임 미설정 포함)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(example = "{\n" +
+                                    "  \"status\": 409,\n" +
+                                    "  \"success\": false,\n" +
+                                    "  \"data\": {\n" +
+                                    "    \"errorClassName\": \"DUPLICATE_HOBBY_REQUEST\",\n" +
+                                    "    \"message\": \"같은 취미에 대한 중복 요청입니다. (닉네임 설정을 완료하세요.)\"\n" +
+                                    "  }\n" +
+                                    "}"))
             )
+
     })
     ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user);
 
