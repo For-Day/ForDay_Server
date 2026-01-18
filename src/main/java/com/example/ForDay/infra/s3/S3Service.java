@@ -21,19 +21,27 @@ public class S3Service {
     private final S3Properties s3Properties;
 
     public String generateKey(ImageUsageType usage, String originalFilename) {
-        String extension = extractExtension(originalFilename); // 확장자만 추출
+        // profile/temp/550e8400-e29b-41d4-a716-446655440000_mongsil.jpg
+        String extension = extractExtension(originalFilename); // 활장자
+        String baseName = originalFilename.substring(0, originalFilename.lastIndexOf(".")); // 이미지명
         return usage.name().toLowerCase()
                 + "/temp/"
                 + UUID.randomUUID()
+                + "_" + baseName
                 + extension;
     }
 
+    // 파일 이름에서 확장자 추출 .jpg
     private String extractExtension(String filename) {
         int idx = filename.lastIndexOf(".");
         return idx != -1 ? filename.substring(idx) : "";
     }
 
     // s3에 presigned url을 만들어달라고 요청 (bucket 이름, key, contentType이 필요)
+    // profile/temp/550e8400-e29b-41d4-a716-446655440000_mongsil.jpg
+    /* https://my-bucket.s3.ap-northeast-2.amazonaws.com/profile/temp/550e8400-e29b-41d4-a716-446655440000_mongsil.jpg
+    ?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...&X-Amz-Date=...&X-Amz-Expires=600&X-Amz-Signature=...
+    */
     public GeneratePresignedUrlRequest createPresignedPutRequest(
             String bucket,
             String key,
@@ -42,7 +50,7 @@ public class S3Service {
         GeneratePresignedUrlRequest request =
                 new GeneratePresignedUrlRequest(bucket, key)
                         .withMethod(HttpMethod.PUT)
-                        .withExpiration(getExpiration());
+                        .withExpiration(getExpiration()); // presignedUrl 유효시간 5분 설정
 
         request.addRequestParameter(
                 Headers.CONTENT_TYPE,

@@ -60,12 +60,11 @@ public class ActivityService {
             throw new CustomException(ErrorCode.ALREADY_RECORDED_TODAY);
         }
 
-        // 업로드하는 이미지가 있다면 유효한 url인지 확인
-        if (StringUtils.hasText(reqDto.getImageUrl())) {
-            String s3Key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl());
-            if (!s3Service.existsByKey(s3Key)) {
+        if (StringUtils.hasText(reqDto.getImageUrl())) {  // 이미지를 등록하고자 한다면 해당 이미지가 s3상에 잘 업로드 되었는지 확인
+            String s3Key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl()); // 이미지url에서 key를 추출
+            if (!s3Service.existsByKey(s3Key)) { // 해당 key를 가진 객체가 존재하는지 확인
                 log.error("[RecordActivity] S3 이미지 부재 - Key: {}", s3Key);
-                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND); // 존재하지 않으면 예외 발생
             }
         }
 
