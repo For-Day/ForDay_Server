@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -56,6 +57,14 @@ public class HobbyService {
                 user.getUsername(), reqDto.getHobbyCardId());
 
         User currentUser = userUtil.getCurrentUser(user);
+
+        boolean isNicknameSet = StringUtils.hasText(currentUser.getNickname()); // 닉네임 설정 여부
+        boolean onboardingCompleted = currentUser.isOnboardingCompleted(); // 온보딩 완료 여부
+
+        if(onboardingCompleted && !isNicknameSet) {
+            // 온보딩은 완료 닉네임은 미설정시 (같은 취미에 대한 중복 요청이 있을 것임
+            throw new CustomException(ErrorCode.DUPLICATE_HOBBY_REQUEST);
+        }
 
         // 이미 진행 중인 취미가 두개인지 검사
         long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
