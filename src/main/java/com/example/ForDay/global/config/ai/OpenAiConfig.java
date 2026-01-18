@@ -20,7 +20,7 @@ public class OpenAiConfig {
         // 1. 커넥션 풀 설정: Idle 상태의 연결을 NAT 제한(350초)보다 훨씬 짧은 30초 후 폐기
         ConnectionProvider provider = ConnectionProvider.builder("openai-connection-pool")
                 .maxConnections(50)
-                .maxIdleTime(Duration.ofSeconds(30)) // 핵심 설정
+                .maxIdleTime(Duration.ofSeconds(30))
                 .maxLifeTime(Duration.ofSeconds(60))
                 .evictInBackground(Duration.ofSeconds(30))
                 .build();
