@@ -47,21 +47,21 @@ public class AuthService {
 
         // 카카오 accessToken을 활용하여 카카오 사용자 정보 얻기
         KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getKakaoAccessToken());
+        String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
 
         log.info("[LOGIN] Kakao userId={}", kakaoProfileDto.getId());
 
         boolean isNewUser = false;
 
-        User user = userService.getUserBySocialId(kakaoProfileDto.getId());
+        User user = userRepository.findBySocialId(socialId);
         if (user == null) {
             // 회원가입이 되어 있지 않다면 회원가입
             log.info("[LOGIN] New Kakao user registered. kakaoId={}", kakaoProfileDto.getId());
             isNewUser = true;
             // 회원가입 (유저 엔티티 생성)
-            user = userService.createOauth(kakaoProfileDto.getId(), kakaoProfileDto.getKakao_account().getEmail(), SocialType.KAKAO);
+            user = userService.createOauth(socialId, kakaoProfileDto.getKakao_account().getEmail(), SocialType.KAKAO);
         }
 
-        String socialId = user.getSocialId();
         log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
         // 회원 가입 되어 있는 경우 -> 토큰 발급
@@ -87,8 +87,10 @@ public class AuthService {
         Claims claims = appleService.verifyAndParseAppleIdToken(appleTokenResDto);
 
         // 사용자 정보에서 socialId와 email 추출
-        String socialId = claims.getSubject();
-        String email = claims.get("email", String.class);
+        String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
+        String email = claims.containsKey("email")
+                ? claims.get("email", String.class)
+                : null;
         User user = userRepository.findBySocialId(socialId);
 
         boolean isNewUser = false;

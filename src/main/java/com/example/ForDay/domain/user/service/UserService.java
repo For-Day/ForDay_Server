@@ -32,7 +32,7 @@ public class UserService {
                 .role(Role.USER)
                 .email(email)
                 .socialType(socialType)
-                .socialId(socialType.toString().toLowerCase() + "_" + socialId) // "kakao_adiec;DIOW" 형식으로 socialId 저장 형식 변경
+                .socialId(socialId)
                 .build());
     }
 
