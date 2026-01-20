@@ -459,7 +459,7 @@ public interface HobbyControllerDocs {
     })
     GetHobbyActivitiesResDto getHobbyActivities(
             @Parameter(description = "취미 ID", example = "1") @PathVariable(value = "hobbyId") Long hobbyId,
-            @AuthenticationPrincipal CustomUserDetails user);
+            @AuthenticationPrincipal CustomUserDetails user, Integer size);
 
 
     @Operation(

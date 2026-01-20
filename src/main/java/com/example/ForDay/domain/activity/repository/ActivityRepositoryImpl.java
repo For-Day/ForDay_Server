@@ -8,8 +8,7 @@ import com.example.ForDay.domain.hobby.dto.response.GetHobbyActivitiesResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -25,24 +24,31 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
     QActivityRecord activityRecord = QActivityRecord.activityRecord;
 
     @Override
-    public GetHobbyActivitiesResDto getHobbyActivities(Hobby hobby) {
-        List<GetHobbyActivitiesResDto.ActivityDto> activities = queryFactory
-                .select(Projections.constructor(GetHobbyActivitiesResDto.ActivityDto.class,
+    public GetHobbyActivitiesResDto getHobbyActivities(Hobby hobby, Integer size) {
+
+        JPAQuery<GetHobbyActivitiesResDto.ActivityDto> query = queryFactory
+                .select(Projections.constructor(
+                        GetHobbyActivitiesResDto.ActivityDto.class,
                         activity.id,
                         activity.content,
                         activity.aiRecommended
                 ))
                 .from(activity)
                 .where(activity.hobby.eq(hobby))
-                .orderBy(activity.lastRecordedAt.desc().nullsLast(),
+                .orderBy(
+                        activity.lastRecordedAt.desc().nullsLast(),
                         activity.lastRecordedAt.desc(),
                         activity.collectedStickerNum.desc(),
                         activity.content.asc()
-                )
-                .fetch();
+                );
 
-        return new GetHobbyActivitiesResDto(activities);
+        if (size != null) {
+            query.limit(size);
+        }
+
+        return new GetHobbyActivitiesResDto(query.fetch());
     }
+
 
     @Override
     public GetActivityListResDto getActivityList(Hobby hobby, User currentUser) {

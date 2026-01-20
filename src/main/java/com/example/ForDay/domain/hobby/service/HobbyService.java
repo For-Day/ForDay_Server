@@ -223,7 +223,7 @@ public class HobbyService {
 
 
     @Transactional(readOnly = true)
-    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user) {
+    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user, Integer size) {
         Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[GetHobbyActivities] 조회 시작 - UserId: {}, HobbyId: {}", currentUser.getId(), hobbyId);
@@ -232,7 +232,7 @@ public class HobbyService {
         verifyHobbyOwner(hobby, currentUser);
         checkHobbyInProgressStatus(hobby);
 
-        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobby);
+        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobby, size);
         log.info("[GetHobbyActivities] 조회 완료 - 활동 개수: {}", response.getActivities().size());
         return response; // 해당 취미에 대한 활동 목록 조회
 

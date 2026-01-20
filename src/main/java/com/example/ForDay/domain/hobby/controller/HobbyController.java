@@ -47,8 +47,8 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @GetMapping("/{hobbyId}/activities")
-    public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.getHobbyActivities(hobbyId, user);
+    public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "size", required = false) Integer size) {
+        return hobbyService.getHobbyActivities(hobbyId, user, size);
     }
 
     @Override

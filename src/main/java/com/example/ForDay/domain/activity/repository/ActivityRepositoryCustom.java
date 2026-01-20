@@ -6,6 +6,6 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 
 public interface ActivityRepositoryCustom {
-    GetHobbyActivitiesResDto getHobbyActivities(Hobby hobby);
+    GetHobbyActivitiesResDto getHobbyActivities(Hobby hobby, Integer size);
     GetActivityListResDto getActivityList(Hobby hobby, User currentUser);
 }
