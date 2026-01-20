@@ -17,6 +17,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -433,4 +434,7 @@ public class HobbyService {
         }
     }
 
+    public SetHobbyExtensionResDto setHobbyExtension(Long hobbyId, @Valid SetHobbyExtensionReqDto reqDto, CustomUserDetails user) {
+        return null;
+    }
 }

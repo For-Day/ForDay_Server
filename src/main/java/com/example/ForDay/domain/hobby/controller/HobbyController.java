@@ -110,4 +110,9 @@ public class HobbyController implements HobbyControllerDocs {
     public MessageResDto updateHobbyStatus(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyStatusReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.updateHobbyStatus(hobbyId, reqDto, user);
     }
+
+    @PatchMapping("/{hobbyId}/extension")
+    public SetHobbyExtensionResDto setHobbyExtension(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid SetHobbyExtensionReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.setHobbyExtension(hobbyId, reqDto, user);
+    }
 }
