@@ -459,7 +459,7 @@ public interface HobbyControllerDocs {
     })
     GetHobbyActivitiesResDto getHobbyActivities(
             @Parameter(description = "취미 ID", example = "1") @PathVariable(value = "hobbyId") Long hobbyId,
-            @AuthenticationPrincipal CustomUserDetails user);
+            @AuthenticationPrincipal CustomUserDetails user, Integer size);
 
 
     @Operation(
@@ -1143,4 +1143,126 @@ public interface HobbyControllerDocs {
     );
 
 
+    @Operation(
+            summary = "취미 기간 연장 또는 아카이브",
+            description = """
+        취미 기간을 연장하거나 아카이브 처리합니다.
+
+        - CONTINUE: 스티커 66개 이상인 경우에만 연장 가능
+        - ARCHIVE: 취미를 아카이브 처리
+        """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "취미 기간 설정 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = SetHobbyExtensionResDto.class),
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 200,
+                  "success": true,
+                  "data": {
+                    "hobbyId": 18,
+                    "type": "CONTINUE",
+                    "message": "취미 기간 설정이 정상적으로 처리되었습니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "기간 설정 없는 취미",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "HOBBY_PERIOD_NOT_SET",
+                        "message": "기간 설정이 없는 취미입니다."
+                      }
+                    }
+                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "스티커 부족",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "HOBBY_STICKER_NOT_ENOUGH",
+                        "message": "스티커가 66개 이상 채워지지 않았습니다."
+                      }
+                    }
+                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "잘못된 타입",
+                                            value = """
+                    {
+                      "status": 400,
+                      "success": false,
+                      "data": {
+                        "errorClassName": "INVALID_HOBBY_EXTENSION_TYPE",
+                        "message": "유효하지 않은 취미 기간 설정 타입입니다."
+                      }
+                    }
+                    """
+                                    )
+                            }
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "취미 소유자가 아님",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 403,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "NOT_HOBBY_OWNER",
+                    "message": "취미 소유자가 아닙니다."
+                  }
+                }
+                """
+                            )
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "취미를 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "status": 404,
+                  "success": false,
+                  "data": {
+                    "errorClassName": "HOBBY_NOT_FOUND",
+                    "message": "존재하지 않는 취미입니다."
+                  }
+                }
+                """
+                            )
+                    )
+            )
+    })
+    SetHobbyExtensionResDto setHobbyExtension(Long hobbyId, SetHobbyExtensionReqDto reqDto, CustomUserDetails user);
 }

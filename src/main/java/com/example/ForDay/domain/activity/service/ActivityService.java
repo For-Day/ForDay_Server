@@ -6,7 +6,6 @@ import com.example.ForDay.domain.activity.entity.ActivityRecord;
 import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
-import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
@@ -19,7 +18,6 @@ import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.RedisUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.S3Service;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +30,7 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class ActivityService {
+    private static final Integer STICKER_COMPLETE_COUNT = 66;
     private final UserUtil userUtil;
     private final ActivityRepository activityRepository;
     private final S3Service s3Service;
@@ -51,12 +50,16 @@ public class ActivityService {
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
 
         verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
-        checkHobbyInProgressStatus(activity.getHobby()); // 진행 중인 취미에 대해서만 활동 기록 가능
+        Hobby hobby = activity.getHobby();
 
-        String redisKey = redisUtil.createRecordKey(currentUser.getId(), activity.getHobby().getId());
+        if(isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
+
+        checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
+
+        String redisKey = redisUtil.createRecordKey(currentUser.getId(), hobby.getId());
         if (redisUtil.hasKey(redisKey)) { // 해당 취미에 대해 오늘 기록한 활동이 있는지 확인
             log.warn("[RecordActivity] 중복 기록 시도 - UserId: {}, HobbyId: {}",
-                    currentUser.getId(), activity.getHobby().getId());
+                    currentUser.getId(), hobby.getId());
             throw new CustomException(ErrorCode.ALREADY_RECORDED_TODAY);
         }
 
@@ -82,13 +85,22 @@ public class ActivityService {
 
         redisUtil.setDataExpire(redisKey, "recorded", 86400);
 
+        boolean extensionCheckRequired = isCheckStickerFull(hobby);
+
         return new RecordActivityResDto(
                 "오늘의 활동 기록이 정상적으로 작성되었습니다",
+                hobby.getId(),
                 activityRecord.getId(),
                 activity.getContent(),
                 activityRecord.getImageUrl(),
-                reqDto.getSticker()
+                reqDto.getSticker(),
+                activityRecord.getMemo(),
+                extensionCheckRequired
         );
+    }
+
+    private static boolean isCheckStickerFull(Hobby hobby) {
+        return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
     }
 
     @Transactional

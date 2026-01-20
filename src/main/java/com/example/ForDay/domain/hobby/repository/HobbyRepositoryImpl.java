@@ -41,7 +41,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 ))
                 .from(hobby)
                 .where(hobby.user.eq(currentUser), hobby.status.eq(HobbyStatus.IN_PROGRESS))
-                .orderBy(hobbyIdPriority(hobbyId), hobby.createdAt.desc())
+                .orderBy(hobby.createdAt.desc())
                 .fetch();
 
         if (hobbyList.isEmpty()) return null;
@@ -157,15 +157,5 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .where(hobby.user.eq(user))
                 .orderBy(hobby.createdAt.asc())
                 .fetchFirst();
-    }
-
-    private OrderSpecifier<Integer> hobbyIdPriority(Long hobbyId) {
-        if (hobbyId == null) {
-            return new CaseBuilder().when(hobby.id.isNotNull()).then(0).otherwise(1).asc();
-        }
-        return new CaseBuilder()
-                .when(hobby.id.eq(hobbyId)).then(0)
-                .otherwise(1)
-                .asc();
     }
 }

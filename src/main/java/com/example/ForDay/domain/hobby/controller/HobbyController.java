@@ -47,8 +47,8 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @GetMapping("/{hobbyId}/activities")
-    public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.getHobbyActivities(hobbyId, user);
+    public GetHobbyActivitiesResDto getHobbyActivities(@PathVariable(value = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "size", required = false) Integer size) {
+        return hobbyService.getHobbyActivities(hobbyId, user, size);
     }
 
     @Override
@@ -109,5 +109,11 @@ public class HobbyController implements HobbyControllerDocs {
     @PatchMapping("/{hobbyId}/status")
     public MessageResDto updateHobbyStatus(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid UpdateHobbyStatusReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.updateHobbyStatus(hobbyId, reqDto, user);
+    }
+
+    @Override
+    @PatchMapping("/{hobbyId}/extension")
+    public SetHobbyExtensionResDto setHobbyExtension(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid SetHobbyExtensionReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.setHobbyExtension(hobbyId, reqDto, user);
     }
 }
