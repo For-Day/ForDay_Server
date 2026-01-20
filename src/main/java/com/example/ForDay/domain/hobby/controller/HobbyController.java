@@ -111,6 +111,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.updateHobbyStatus(hobbyId, reqDto, user);
     }
 
+    @Override
     @PatchMapping("/{hobbyId}/extension")
     public SetHobbyExtensionResDto setHobbyExtension(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid SetHobbyExtensionReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.setHobbyExtension(hobbyId, reqDto, user);

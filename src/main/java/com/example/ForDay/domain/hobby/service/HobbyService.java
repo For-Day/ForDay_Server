@@ -34,6 +34,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class HobbyService {
     private static final Integer DEFAULT_GOAL_DAYS = 66;
+    private static final Integer STICKER_COMPLETE_COUNT = 66;
 
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;
@@ -59,14 +60,14 @@ public class HobbyService {
         boolean isNicknameSet = StringUtils.hasText(currentUser.getNickname()); // 닉네임 설정 여부
         boolean onboardingCompleted = currentUser.isOnboardingCompleted(); // 온보딩 완료 여부
 
-        if(onboardingCompleted && !isNicknameSet) {
+        if (onboardingCompleted && !isNicknameSet) {
             // 온보딩은 완료 닉네임은 미설정시 (같은 취미에 대한 중복 요청이 있을 것임
             throw new CustomException(ErrorCode.DUPLICATE_HOBBY_REQUEST);
         }
 
         // 이미 진행 중인 취미가 두개인지 검사
         long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
-        if(hobbyCount >= 2) {
+        if (hobbyCount >= 2) {
             throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
         }
 
@@ -86,7 +87,7 @@ public class HobbyService {
                 hobby.getId(), currentUser.getId());
 
         // 온보딩이 완료되지 않은 경우에만 완료로 전환되도록 설정
-        if(!currentUser.isOnboardingCompleted()) {
+        if (!currentUser.isOnboardingCompleted()) {
             currentUser.completeOnboarding();
         }
 
@@ -319,6 +320,7 @@ public class HobbyService {
 
         return new MessageResDto("실행 횟수가 수정되었습니다.");
     }
+
     @Transactional
     public MessageResDto updateGoalDays(Long hobbyId, GoalDaysPayload dto, CustomUserDetails user) {
         log.info("[HobbyService] 취미 목표 기간 수정 요청 - hobbyId={}, isDurationSet={}",
@@ -429,12 +431,38 @@ public class HobbyService {
     }
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
-        if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
+        if (!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
     }
 
-    public SetHobbyExtensionResDto setHobbyExtension(Long hobbyId, @Valid SetHobbyExtensionReqDto reqDto, CustomUserDetails user) {
-        return null;
+    @Transactional
+    public SetHobbyExtensionResDto setHobbyExtension(Long hobbyId, SetHobbyExtensionReqDto reqDto, CustomUserDetails user) {
+        Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+        verifyHobbyOwner(hobby, currentUser);    // 원래 기간 설정이 안된 취미의 경우
+
+        // 기간 미설정 취미
+        if (hobby.getGoalDays() == null) {
+            throw new CustomException(ErrorCode.HOBBY_PERIOD_NOT_SET);
+        }
+
+        // 스티커 미완성
+        if(hobby.getCurrentStickerNum() < STICKER_COMPLETE_COUNT) {
+            throw new CustomException(ErrorCode.HOBBY_STICKER_NOT_ENOUGH);
+        }
+
+        switch (reqDto.getType()) {
+            case CONTINUE -> hobby.setGoalDaysExtension();
+            case ARCHIVE -> hobby.setHobbyArchived();
+            default -> throw new CustomException(ErrorCode.INVALID_HOBBY_EXTENSION_TYPE);
+
+        }
+
+        return new SetHobbyExtensionResDto(hobbyId, reqDto.getType(), "취미 기간 설정이 정상적으로 처리되었습니다.");
+    }
+
+    private static boolean isCheckStickerFull(Hobby hobby) {
+        return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
     }
 }

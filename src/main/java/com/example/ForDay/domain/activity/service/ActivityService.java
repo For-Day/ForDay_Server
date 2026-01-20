@@ -89,6 +89,7 @@ public class ActivityService {
 
         return new RecordActivityResDto(
                 "오늘의 활동 기록이 정상적으로 작성되었습니다",
+                hobby.getId(),
                 activityRecord.getId(),
                 activity.getContent(),
                 activityRecord.getImageUrl(),

@@ -78,4 +78,12 @@ public class Hobby extends BaseTimeEntity {
     public boolean isUpdatable() {
         return this.status == HobbyStatus.IN_PROGRESS;
     }
+
+    public void setHobbyArchived() {
+        this.status = HobbyStatus.ARCHIVED;
+    }
+
+    public void setGoalDaysExtension() {
+        this.goalDays = null;
+    }
 }

@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class RecordActivityResDto {
     private String message;
+    private Long hobbyId;
     private Long activityRecordId;
     private String activityContent;
     private String imageUrl;
