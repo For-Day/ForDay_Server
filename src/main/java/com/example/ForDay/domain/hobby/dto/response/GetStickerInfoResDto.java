@@ -10,14 +10,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GetStickerInfoResDto {
-    private boolean durationSet; //
-    private boolean activityRecordedToday; //
-    private Integer currentPage; //
-    private Integer totalPage; //
-    private Integer pageSize; //
-    private Integer totalStickerNum; //
-    private boolean hasPrevious; //
-    private boolean hasNext; //
+    private boolean durationSet;
+    private boolean activityRecordedToday;
+    private Integer currentPage;
+    private Integer totalPage;
+    private Integer pageSize;
+    private Integer totalStickerNum;
+    private boolean hasPrevious;
+    private boolean hasNext;
     private List<StickerDto> stickers;
 
     @Data

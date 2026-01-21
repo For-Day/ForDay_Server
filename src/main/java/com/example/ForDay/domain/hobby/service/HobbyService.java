@@ -510,7 +510,7 @@ public class HobbyService {
 
         // 현재 조회하고자 하는 페이지
         int currentPage = (page == null)
-                ? calculateCurrentPage(totalStickerNum, size) // 현재 진행 중인 페이지가 어디인지
+                ? calculateCurrentPage(totalSlotCount, size) // 현재 진행 중인 페이지가 어디인지
                 : page;
 
         // 전체 페이지
@@ -532,9 +532,9 @@ public class HobbyService {
         return new GetStickerInfoResDto(durationSet, recordedToday, currentPage, totalPage, size, totalStickerNum, currentPage > 1, currentPage < totalPage, stickerDto);
     }
 
-    private int calculateCurrentPage(int totalStickerNum, int size) {
-        if (totalStickerNum <= 0) return 1;
-        return ((totalStickerNum - 1) / size) + 1; // total = 10개 -> 1페이지, total = 29 (28+1) -> 2페이지
+    private int calculateCurrentPage(int totalSlotCount, int size) {
+        if (totalSlotCount <= 0) return 1;
+        return ((totalSlotCount - 1) / size) + 1; // total = 10개 -> 1페이지, total = 29 (28+1) -> 2페이지
     }
 
     private Hobby getLatestInProgressHobby(User user) {
