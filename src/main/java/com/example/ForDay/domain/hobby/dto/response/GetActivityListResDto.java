@@ -20,21 +20,15 @@ public class GetActivityListResDto {
         private String content;
         private boolean aiRecommended;
         private boolean deletable;
-        private List<StickerDto> stickers;
+        private Integer collectedStickerNum;
 
         public ActivityDto(Long activityId, String content, boolean aiRecommended, Integer collectedStickerNum) {
             this.activityId = activityId;
             this.content = content;
             this.aiRecommended = aiRecommended;
-            this.deletable = (collectedStickerNum != null && collectedStickerNum == 0);;
+            this.deletable = (collectedStickerNum != null && collectedStickerNum == 0);
+            this.collectedStickerNum = collectedStickerNum;
         }
     }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class StickerDto {
-        private Long activityRecordId;
-        private String sticker;
-    }
 }
