@@ -480,8 +480,8 @@ public class HobbyService {
 
         // hobby 조회
         Hobby hobby = (hobbyId != null)
-                ? getHobby(hobbyId)                     // 없으면 예외
-                : getLatestInProgressHobby(currentUser); // 없으면 null
+                ? getHobby(hobbyId)
+                : getLatestInProgressHobby(currentUser);
 
         // 진행 중 취미 자체가 없는 경우
         if (hobby == null) {
