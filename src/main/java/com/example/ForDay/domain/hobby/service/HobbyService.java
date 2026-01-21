@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
@@ -49,6 +50,7 @@ public class HobbyService {
     private final AiCallCountService aiCallCountService;
     private final HobbyCardRepository hobbyCardRepository;
     private final RestTemplate restTemplate;
+    private final ActivityRecordRepository activityRecordRepository;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -464,5 +466,16 @@ public class HobbyService {
 
     private static boolean isCheckStickerFull(Hobby hobby) {
         return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
+    }
+
+    @Transactional(readOnly = true)
+    public GetStickerInfoResDto getStickerInfo(Long hobbyId, Integer page, Integer size, CustomUserDetails user) {
+        Hobby hobby = getHobby(hobbyId);
+        User currentUser = userUtil.getCurrentUser(user);
+        verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
+
+
+        return activityRecordRepository.getStickerInfo(hobbyId, page, size, currentUser);
     }
 }

@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.controller;
 
 import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.domain.hobby.dto.request.*;
+import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.HobbyService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -115,5 +116,10 @@ public class HobbyController implements HobbyControllerDocs {
     @PatchMapping("/{hobbyId}/extension")
     public SetHobbyExtensionResDto setHobbyExtension(@PathVariable(value = "hobbyId") Long hobbyId, @RequestBody @Valid SetHobbyExtensionReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.setHobbyExtension(hobbyId, reqDto, user);
+    }
+
+    @GetMapping("/stickers")
+    public GetStickerInfoResDto getStickerInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @RequestParam(value = "page", required = false) Integer page, @RequestParam(value = "size", required = false, defaultValue = "28") Integer size, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getStickerInfo(hobbyId, page, size, user);
     }
 }
