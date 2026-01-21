@@ -81,51 +81,6 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
             return new GetActivityListResDto(List.of());
         }
 
-        // 2. Activity ID 목록 추출
-        List<Long> activityIds = activities.stream()
-                .map(GetActivityListResDto.ActivityDto::getActivityId)
-                .toList();
-
-        // 3. Sticker 조회 (Activity 기준)
-        List<StickerWithActivityIdDto> stickerResults =
-                queryFactory
-                        .select(
-                                Projections.constructor(
-                                        StickerWithActivityIdDto.class,
-                                        activityRecord.activity.id,
-                                        activityRecord.id,
-                                        activityRecord.sticker
-                                )
-                        )
-                        .from(activityRecord)
-                        .where(
-                                activityRecord.activity.id.in(activityIds),
-                                activityRecord.user.eq(currentUser)
-                        )
-                        .orderBy(activityRecord.createdAt.asc())
-                        .fetch();
-
-        // 4. Activity ID 기준으로 Sticker 그룹핑
-        Map<Long, List<GetActivityListResDto.StickerDto>> stickerMap =
-                stickerResults.stream()
-                        .collect(Collectors.groupingBy(
-                                StickerWithActivityIdDto::getActivityId,
-                                Collectors.mapping(
-                                        s -> new GetActivityListResDto.StickerDto(
-                                                s.getActivityRecordId(),
-                                                s.getSticker()
-                                        ),
-                                        Collectors.toList()
-                                )
-                        ));
-
-        // 5. ActivityDto에 Sticker 주입
-        activities.forEach(activityDto ->
-                activityDto.setStickers(
-                        stickerMap.getOrDefault(activityDto.getActivityId(), List.of())
-                )
-        );
-
         return new GetActivityListResDto(activities);
     }
 }

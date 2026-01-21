@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
@@ -16,8 +17,8 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.RedisUtil;
 import com.example.ForDay.global.util.UserUtil;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,6 +50,8 @@ public class HobbyService {
     private final AiCallCountService aiCallCountService;
     private final HobbyCardRepository hobbyCardRepository;
     private final RestTemplate restTemplate;
+    private final ActivityRecordRepository activityRecordRepository;
+    private final RedisUtil redisUtil;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -465,4 +468,106 @@ public class HobbyService {
     private static boolean isCheckStickerFull(Hobby hobby) {
         return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
     }
+
+    @Transactional(readOnly = true)
+    public GetStickerInfoResDto getStickerInfo(
+            Long hobbyId,
+            Integer page,
+            Integer size,
+            CustomUserDetails user
+    ) {
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("getStickerInfo 호출: hobbyId={}, page={}, size={}, userId={}", hobbyId, page, size, currentUser.getId());
+
+        // hobby 조회
+        Hobby hobby = (hobbyId != null)
+                ? getHobby(hobbyId)
+                : getLatestInProgressHobby(currentUser);
+        log.debug("조회된 hobby: {}", hobby);
+
+        // 진행 중 취미 자체가 없는 경우
+        if (hobby == null) {
+            log.warn("진행 중인 취미가 없음, empty 응답 반환");
+            return null;
+        }
+
+        // 권한 + 상태 체크
+        verifyHobbyOwner(hobby, currentUser);
+        checkHobbyInProgressStatus(hobby);
+
+        // 기간 설정 여부
+        boolean durationSet = hobby.getGoalDays() != null;
+        log.debug("durationSet={}", durationSet);
+
+        // 오늘 기록 여부 (Redis)
+        boolean recordedToday =
+                redisUtil.hasKey(
+                        redisUtil.createRecordKey(currentUser.getId(), hobby.getId())
+                );
+        log.debug("recordedToday={}", recordedToday);
+
+        // 전체 스티커 개수 (빈칸 포함)
+        int totalStickerNum = hobby.getCurrentStickerNum();
+        int totalSlotCount = totalStickerNum;
+        if(!recordedToday) totalSlotCount++; // 오늘 기록한게 없으면 빈칸도 포함
+        log.debug("totalStickerNum={}, totalSlotCount={}", totalStickerNum, totalSlotCount);
+
+        // 현재 조회하고자 하는 페이지
+        int currentPage = (page == null)
+                ? calculateCurrentPage(totalSlotCount, size)
+                : page;
+        log.debug("currentPage={}", currentPage);
+
+        // 전체 페이지
+        int totalPage = ((totalSlotCount - 1) / size) + 1;
+        log.debug("totalPage={}", totalPage);
+
+        if(currentPage <= 0 || currentPage > totalPage) {
+            log.error("유효하지 않은 페이지 요청: currentPage={}, totalPage={}", currentPage, totalPage);
+            throw new CustomException(ErrorCode.INVALID_PAGE_REQUEST);
+        }
+
+        // DB에서 실제 스티커 조회 (빈칸 제외)
+        List<GetStickerInfoResDto.StickerDto> stickerDto =
+                activityRecordRepository.getStickerInfo(
+                        hobby.getId(),
+                        currentPage,
+                        size,
+                        currentUser
+                );
+        log.debug("조회된 스티커 개수={}", stickerDto.size());
+
+        GetStickerInfoResDto result = new GetStickerInfoResDto(
+                hobby.getId(),
+                durationSet,
+                recordedToday,
+                currentPage,
+                totalPage,
+                size,
+                totalStickerNum,
+                currentPage > 1,
+                currentPage < totalPage,
+                stickerDto
+        );
+
+        log.info("getStickerInfo 결과: {}", result);
+        return result;
+    }
+
+    private int calculateCurrentPage(int totalSlotCount, int size) {
+        if (totalSlotCount <= 0) return 1;
+        return ((totalSlotCount - 1) / size) + 1; // total = 10개 -> 1페이지, total = 29 (28+1) -> 2페이지
+    }
+
+    private Hobby getLatestInProgressHobby(User user) {
+        return hobbyRepository
+                .findTopByUserAndStatusOrderByCreatedAtDesc(
+                        user,
+                        HobbyStatus.IN_PROGRESS
+                )
+                .orElse(null);
+    }
+
+
+
 }

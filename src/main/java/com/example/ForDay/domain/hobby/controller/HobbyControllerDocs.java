@@ -1265,4 +1265,68 @@ public interface HobbyControllerDocs {
             )
     })
     SetHobbyExtensionResDto setHobbyExtension(Long hobbyId, SetHobbyExtensionReqDto reqDto, CustomUserDetails user);
+
+    @Operation(summary = "취미 스티커 정보 조회", description = "사용자의 특정 취미에 대한 스티커 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GetStickerInfoResDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (페이지가 존재하지 않거나 취미 상태 오류)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(
+                                    example = "{\n" +
+                                            "  \"status\": 400,\n" +
+                                            "  \"success\": false,\n" +
+                                            "  \"data\": {\n" +
+                                            "    \"errorClassName\": \"INVALID_HOBBY_STATUS\",\n" +
+                                            "    \"message\": \"현재 취미 상태에서는 해당 작업을 수행할 수 없습니다.\"\n" +
+                                            "  }\n" +
+                                            "}"
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "취미 소유자가 아님",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(
+                                    example = "{\n" +
+                                            "  \"status\": 403,\n" +
+                                            "  \"success\": false,\n" +
+                                            "  \"data\": {\n" +
+                                            "    \"errorClassName\": \"NOT_HOBBY_OWNER\",\n" +
+                                            "    \"message\": \"취미 소유자가 아닙니다.\"\n" +
+                                            "  }\n" +
+                                            "}"
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 hobbyId",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(
+                                    example = "{\n" +
+                                            "  \"status\": 404,\n" +
+                                            "  \"success\": false,\n" +
+                                            "  \"data\": {\n" +
+                                            "    \"errorClassName\": \"HOBBY_NOT_FOUND\",\n" +
+                                            "    \"message\": \"존재하지 않는 취미입니다.\"\n" +
+                                            "  }\n" +
+                                            "}"
+                            )
+                    )
+            )
+    })
+    GetStickerInfoResDto getStickerInfo(Long hobbyId, Integer page, Integer size, CustomUserDetails user);
 }
