@@ -72,6 +72,7 @@ public class ActivityService {
         }
 
         ActivityRecord activityRecord = ActivityRecord.builder()
+                .hobby(hobby)
                 .activity(activity)
                 .user(currentUser)
                 .sticker(reqDto.getSticker())
