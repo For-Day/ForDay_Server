@@ -477,15 +477,18 @@ public class HobbyService {
             CustomUserDetails user
     ) {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("getStickerInfo 호출: hobbyId={}, page={}, size={}, userId={}", hobbyId, page, size, currentUser.getId());
 
         // hobby 조회
         Hobby hobby = (hobbyId != null)
                 ? getHobby(hobbyId)
                 : getLatestInProgressHobby(currentUser);
+        log.debug("조회된 hobby: {}", hobby);
 
         // 진행 중 취미 자체가 없는 경우
         if (hobby == null) {
-            return GetStickerInfoResDto.empty();
+            log.warn("진행 중인 취미가 없음, empty 응답 반환");
+            return null;
         }
 
         // 권한 + 상태 체크
@@ -494,29 +497,33 @@ public class HobbyService {
 
         // 기간 설정 여부
         boolean durationSet = hobby.getGoalDays() != null;
+        log.debug("durationSet={}", durationSet);
 
         // 오늘 기록 여부 (Redis)
         boolean recordedToday =
                 redisUtil.hasKey(
                         redisUtil.createRecordKey(currentUser.getId(), hobby.getId())
                 );
-
+        log.debug("recordedToday={}", recordedToday);
 
         // 전체 스티커 개수 (빈칸 포함)
         int totalStickerNum = hobby.getCurrentStickerNum();
-
         int totalSlotCount = totalStickerNum;
-        if(!recordedToday) totalSlotCount++; // 오늘 기록한게 없으면 빈칸도 포함해서 현재 페이지 정하기
+        if(!recordedToday) totalSlotCount++; // 오늘 기록한게 없으면 빈칸도 포함
+        log.debug("totalStickerNum={}, totalSlotCount={}", totalStickerNum, totalSlotCount);
 
         // 현재 조회하고자 하는 페이지
         int currentPage = (page == null)
-                ? calculateCurrentPage(totalSlotCount, size) // 현재 진행 중인 페이지가 어디인지
+                ? calculateCurrentPage(totalSlotCount, size)
                 : page;
+        log.debug("currentPage={}", currentPage);
 
         // 전체 페이지
         int totalPage = ((totalSlotCount - 1) / size) + 1;
+        log.debug("totalPage={}", totalPage);
 
         if(currentPage <= 0 || currentPage > totalPage) {
+            log.error("유효하지 않은 페이지 요청: currentPage={}, totalPage={}", currentPage, totalPage);
             throw new CustomException(ErrorCode.INVALID_PAGE_REQUEST);
         }
 
@@ -528,8 +535,23 @@ public class HobbyService {
                         size,
                         currentUser
                 );
+        log.debug("조회된 스티커 개수={}", stickerDto.size());
 
-        return new GetStickerInfoResDto(durationSet, recordedToday, currentPage, totalPage, size, totalStickerNum, currentPage > 1, currentPage < totalPage, stickerDto);
+        GetStickerInfoResDto result = new GetStickerInfoResDto(
+                hobby.getId(),
+                durationSet,
+                recordedToday,
+                currentPage,
+                totalPage,
+                size,
+                totalStickerNum,
+                currentPage > 1,
+                currentPage < totalPage,
+                stickerDto
+        );
+
+        log.info("getStickerInfo 결과: {}", result);
+        return result;
     }
 
     private int calculateCurrentPage(int totalSlotCount, int size) {

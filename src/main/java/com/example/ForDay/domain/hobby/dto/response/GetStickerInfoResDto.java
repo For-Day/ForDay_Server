@@ -10,6 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GetStickerInfoResDto {
+    private Long hobbyId;
     private boolean durationSet;
     private boolean activityRecordedToday;
     private Integer currentPage;
@@ -26,19 +27,5 @@ public class GetStickerInfoResDto {
     public static class StickerDto {
         private Long activityRecordId;
         private String sticker;
-    }
-
-    public static GetStickerInfoResDto empty() {
-        return new GetStickerInfoResDto(
-                false,     // durationSet
-                false,     // activityRecordedToday
-                null,      // page
-                0,
-                0,         // pageSize
-                0,         // totalStickerNum
-                false,     // hasPrevious
-                false,     // hasNext
-                List.of()  // stickers
-        );
     }
 }
