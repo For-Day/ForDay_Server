@@ -57,7 +57,7 @@ public class HobbyService {
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
         log.info("[ActivityCreate] 요청 시작 - userId={}, hobbyCardId={}",
-                user.getUsername(), reqDto.getHobbyCardId());
+                user.getUsername(), reqDto.getHobbyInfoId());
 
         User currentUser = userUtil.getCurrentUser(user);
 
@@ -77,7 +77,7 @@ public class HobbyService {
 
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
-                .hobbyInfoId(reqDto.getHobbyCardId())
+                .hobbyInfoId(reqDto.getHobbyInfoId())
                 .hobbyName(reqDto.getHobbyName())
                 .hobbyPurpose(reqDto.getHobbyPurpose())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
