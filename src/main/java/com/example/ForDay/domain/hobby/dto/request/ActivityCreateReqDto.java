@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ActivityCreateReqDto {
 
-    private Long hobbyCardId;
+    private Long hobbyInfoId;
 
     @NotBlank(message = "hobbyName은 필수입니다.")
     private String hobbyName;
