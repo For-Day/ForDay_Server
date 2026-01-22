@@ -29,10 +29,10 @@ public class AppService {
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
-        List<AppMetaDataResDto.HobbyCardDto> hobbyCardDtos =
+        List<AppMetaDataResDto.HobbyInfoDto> hobbyCardDtos =
                 hobbyCardRepository.findAll()
                         .stream()
-                        .map(hobbyCard -> new AppMetaDataResDto.HobbyCardDto(
+                        .map(hobbyCard -> new AppMetaDataResDto.HobbyInfoDto(
                                 hobbyCard.getId(),
                                 hobbyCard.getHobbyName(),
                                 hobbyCard.getHobbyDescription(),

@@ -9,10 +9,6 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ActivityAIRecommendResDto {
-    private String message;
-    private int aiCallCount;
-    private int aiCallLimit;
-    private String recommendedText;
+public class FastAPIRecommendResDto {
     private List<ActivityDto> activities;
 }

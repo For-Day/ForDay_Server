@@ -23,8 +23,8 @@ public class Hobby extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "hobby_card_id")
-    private Long hobbyCardId;
+    @Column(name = "hobby_info_id")
+    private Long hobbyInfoId;
 
     @Column(name = "hobby_name", nullable = false, length = 50)
     private String hobbyName;
