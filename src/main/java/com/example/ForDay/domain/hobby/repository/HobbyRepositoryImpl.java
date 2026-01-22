@@ -124,7 +124,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
         return queryFactory
                 .select(Projections.constructor(OnboardingDataDto.class,
                         hobby.id,
-                        hobby.hobbyCardId,
+                        hobby.hobbyInfoId,
                         hobby.hobbyName,
                         hobby.hobbyPurpose,
                         hobby.hobbyTimeMinutes,

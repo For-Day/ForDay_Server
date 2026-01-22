@@ -11,13 +11,13 @@ import java.util.List;
 @AllArgsConstructor
 public class AppMetaDataResDto {
     private String appVersion;
-    private List<HobbyCardDto> hobbyCards;
+    private List<HobbyInfoDto> hobbyInfo;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class HobbyCardDto {
-        private Long hobbyCardId;
+    public static class HobbyInfoDto {
+        private Long hobbyInfoId;
         private String hobbyName;
         private String hobbyDescription;
         private String imageCode;

@@ -7,15 +7,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "hobby_cards")
+@Table(name = "hobby_info")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HobbyCard {
+public class HobbyInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "hobby_card_id")
+    @Column(name = "hobby_info_id")
     private Long id;
 
     @Column(name = "hobby_name", nullable = false, length = 20)

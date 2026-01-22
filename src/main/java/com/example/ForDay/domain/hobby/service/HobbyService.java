@@ -76,7 +76,7 @@ public class HobbyService {
 
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
-                .hobbyCardId(reqDto.getHobbyCardId())
+                .hobbyInfoId(reqDto.getHobbyCardId())
                 .hobbyName(reqDto.getHobbyName())
                 .hobbyPurpose(reqDto.getHobbyPurpose())
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
@@ -153,7 +153,7 @@ public class HobbyService {
         verifyHobbyOwner(hobby, currentUser);
         checkHobbyInProgressStatus(hobby);
 
-        Long hobbyCardId = hobby.getHobbyCardId();
+        Long hobbyCardId = hobby.getHobbyInfoId();
 
         log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}", hobbyCardId);
 
