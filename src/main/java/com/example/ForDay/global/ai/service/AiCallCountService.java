@@ -38,6 +38,17 @@ public class AiCallCountService {
         return count;
     }
 
+    public void decrease(String userSocialId, Long hobbyId) {
+        String key = generateKey(userSocialId, hobbyId);
+
+        Integer currentCount = redisTemplate.opsForValue().get(key);
+
+        // 값이 있고 0보다 클 때만 감소 (음수 방지)
+        if (currentCount != null && currentCount > 0) {
+            redisTemplate.opsForValue().decrement(key);
+        }
+    }
+
     public int getCurrentCount(String userSocialId, Long hobbyId) {
         String key = generateKey(userSocialId, hobbyId);
 

@@ -30,32 +30,25 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     QActivityRecord activityRecord = QActivityRecord.activityRecord;
 
     @Override
-    public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, User currentUser) {
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long targetHobbyId, User currentUser) {
 
-        // 1. Hobby 리스트 조회 (Expressions.constant 사용)
+        // 1. Hobby 리스트 조회 (현재 사용자의 진행 중인 취미들)
         List<GetHomeHobbyInfoResDto.InProgressHobbyDto> hobbyList = queryFactory
                 .select(Projections.constructor(GetHomeHobbyInfoResDto.InProgressHobbyDto.class,
                         hobby.id,
                         hobby.hobbyName,
-                        Expressions.constant(false)
+                        // 서비스에서 넘겨준 targetHobbyId와 같으면 true, 아니면 false
+                        hobby.id.eq(targetHobbyId)
                 ))
                 .from(hobby)
-                .where(hobby.user.eq(currentUser), hobby.status.eq(HobbyStatus.IN_PROGRESS))
+                .where(hobby.user.eq(currentUser),
+                        hobby.status.eq(HobbyStatus.IN_PROGRESS))
                 .orderBy(hobby.createdAt.desc())
                 .fetch();
 
         if (hobbyList.isEmpty()) return null;
 
-        // 2. targetHobbyId 결정 및 마킹
-        Long targetHobbyId = (hobbyId == null) ? hobbyList.get(0).getHobbyId() : hobbyId;
-
-        hobbyList.forEach(h -> {
-            if (h.getHobbyId().equals(targetHobbyId)) {
-                h.setCurrentHobby(true);
-            }
-        });
-
-        // 3. Activity Preview 조회
+        // 2. 해당 targetHobbyId에 속한 Activity Preview 조회
         GetHomeHobbyInfoResDto.ActivityPreviewDto activityPreview = queryFactory
                 .select(Projections.constructor(GetHomeHobbyInfoResDto.ActivityPreviewDto.class,
                         activity.id,
@@ -63,7 +56,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                         activity.aiRecommended
                 ))
                 .from(activity)
-                .where(activity.hobby.id.eq(targetHobbyId))
+                .where(activity.hobby.id.eq(targetHobbyId)) // 명확하게 targetHobbyId로 필터링
                 .orderBy(
                         activity.lastRecordedAt.desc().nullsLast(),
                         activity.collectedStickerNum.desc(),
@@ -71,16 +64,9 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 )
                 .fetchFirst();
 
-
-
-        boolean isAiCallRemaining = true;
-        int currentCount = aiCallCountService.getCurrentCount(currentUser.getSocialId(), targetHobbyId);
-        if(currentCount >= 3) isAiCallRemaining = false;
-
         return GetHomeHobbyInfoResDto.builder()
                 .inProgressHobbies(hobbyList)
                 .activityPreview(activityPreview)
-                .aiCallRemaining(isAiCallRemaining)
                 .build();
     }
 
