@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.hobby.dto.request;
 
+import com.example.ForDay.domain.hobby.type.ExtensionType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

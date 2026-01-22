@@ -52,6 +52,7 @@ public class HobbyService {
     private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
+    private final UserSummaryAIService userSummaryAIService;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -107,13 +108,14 @@ public class HobbyService {
         checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지 확인
 
         // 오늘 ai 호출 횟수 조회 (내부 로직에서 3회를 넘어가면 예외 처리됨)
-        int currentCount = aiCallCountService.increaseAndGet(currentUser.getSocialId(), hobbyId);
+        String socialId = currentUser.getSocialId();
+        int currentCount = aiCallCountService.increaseAndGet(socialId, hobbyId);
 
         log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
 
 
         // 2. FastAPI 요청 객체 생성 (추가 select 없음 - 이미 영속성에 있는 상황)
-        FastAPIRecommendReq requestDto = FastAPIRecommendReq.builder()
+        FastAPIRecommendReqDto requestDto = FastAPIRecommendReqDto.builder()
                 .userId(userId)
                 .userHobbyId(hobbyId.intValue())
                 .hobbyName(hobby.getHobbyName())
@@ -126,18 +128,28 @@ public class HobbyService {
         // 3. FastAPI 호출
         String url = fastApiBaseUrl + "/ai/activities/recommend";
         try {
-            // FastAPI 응답 타입이 ActivityAIRecommendResDto와 동일하므로 바로 매핑
-            ActivityAIRecommendResDto response = restTemplate.postForObject(url, requestDto, ActivityAIRecommendResDto.class);
+             FastAPIRecommendResDto response = restTemplate.postForObject(url, requestDto, FastAPIRecommendResDto.class);
 
             if (response == null || response.getActivities().isEmpty()) {
                 throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
             }
 
-            // 응답 값 내의 count 정보만 현재 트래킹 값으로 업데이트하여 반환
-            response.setAiCallCount(currentCount);
-            response.setAiCallLimit(maxCallLimit);
-            response.setMessage("AI가 취미 활동을 추천했습니다.");
-            return response;
+            String userSummaryText = "";
+            long recordCount = activityRecordRepository.countByUserAndHobbyId(currentUser, hobbyId);
+
+            if(recordCount >=5) {
+                // 기존에 사용자 요약 문구가 존재하는지 redis에 조회
+                if(userSummaryAIService.hasSummary(socialId, hobbyId)) {
+                    userSummaryText = userSummaryAIService.getSummary(socialId, hobby.getId());
+                } else {
+                    // fast api에 요청
+                    userSummaryText = fetchAndSaveUserSummary(socialId, hobbyId, hobby.getHobbyName());
+                }
+
+            }
+            userSummaryText += " 포데이 AI가 알맞은 취미 활동을 추천드려요";
+
+            return new ActivityAIRecommendResDto("AI가 취미 활동을 추천했습니다.", currentCount, maxCallLimit, userSummaryText, response.getActivities());
 
         } catch (Exception e) {
             log.error("[AI-RECOMMEND][ERROR] FastAPI 호출 실패: {}", e.getMessage());
@@ -249,7 +261,28 @@ public class HobbyService {
         log.info("[GetHomeHobbyInfo] 대시보드 조회 - UserId: {}, TargetHobbyId: {}",
                 currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
 
-        return hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
+        getLatestInProgressHobby(user)
+        GetHomeHobbyInfoResDto homeHobbyInfo = hobbyRepository.getHomeHobbyInfo(hobbyId, currentUser);
+
+
+        String socialId = currentUser.getSocialId();
+        String greetingMessage = "반가워요, " + currentUser.getNickname() + "님! \uD83D\uDC4B,";
+        String userSummaryText = "";
+        String recommendMessage = "포데이 AI가 알맞은 취미활동을 추천해드려요";
+        long recordCount = activityRecordRepository.countByUserAndHobbyId(currentUser, hobbyId);
+
+        if(recordCount >=5) {
+            // 기존에 사용자 요약 문구가 존재하는지 redis에 조회
+            if(userSummaryAIService.hasSummary(socialId, hobbyId)) {
+                userSummaryText = userSummaryAIService.getSummary(socialId, hobbyId);
+            } else {
+                // fast api에 요청
+                userSummaryText = fetchAndSaveUserSummary(socialId, hobbyId, hobby.getHobbyName());
+            }
+
+        }
+
+        return
     }
 
     @Transactional(readOnly = true)
@@ -568,6 +601,42 @@ public class HobbyService {
                 .orElse(null);
     }
 
+    /**
+     * FastAPI에 요약을 요청하고 Redis에 저장하는 전용 메서드
+     */
+    private String fetchAndSaveUserSummary(String socialId, Long hobbyId, String hobbyName) {
+        try {
+            // 1. 요청 DTO 구성
+            ActivitySummaryRequest requestDto = ActivitySummaryRequest.builder()
+                    .userId(socialId)
+                    .userHobbyId(hobbyId)
+                    .hobbyName(hobbyName)
+                    .build();
 
+            String fastapiUrl = "http://localhost:8000/ai/summary";
+
+            // 2. FastAPI 호출 및 DTO 응답 받기
+            ActivitySummaryResponse response = restTemplate.postForObject(
+                    fastapiUrl,
+                    requestDto,
+                    ActivitySummaryResponse.class
+            );
+
+            // 3. 결과 처리
+            if (response != null && response.getSummary() != null) {
+                String summary = response.getSummary();
+
+                // Redis에 7일간 저장
+                userSummaryAIService.saveSummary(socialId, hobbyId, summary);
+                return summary;
+            }
+        } catch (Exception e) {
+            log.error("FastAPI 요약 요청 실패 | socialId: {}, hobbyId: {}, error: {}",
+                    socialId, hobbyId, e.getMessage());
+        }
+
+        // 예외 발생 시 기본 가이드 문구 반환
+        return "";
+    }
 
 }

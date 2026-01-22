@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class FastAPIRecommendReq {
+public class FastAPIRecommendReqDto {
     private String userId;
     private int userHobbyId;
     private String hobbyName;
