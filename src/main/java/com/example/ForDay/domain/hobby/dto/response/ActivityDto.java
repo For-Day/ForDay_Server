@@ -1,6 +1,5 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
-import com.example.ForDay.domain.hobby.type.ExtensionType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,8 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SetHobbyExtensionResDto {
-    private Long hobbyId;
-    private ExtensionType type;
-    private String message;
+public class ActivityDto {
+    private Long activityId;
+    private String topic;
+    private String content;
+    private String description;
 }
