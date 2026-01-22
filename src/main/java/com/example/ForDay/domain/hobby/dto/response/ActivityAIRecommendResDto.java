@@ -13,6 +13,7 @@ public class ActivityAIRecommendResDto {
     private String message;
     private int aiCallCount;
     private int aiCallLimit;
+    private String recommendedText;
     private List<ActivityDto> activities;
 
     @Data
