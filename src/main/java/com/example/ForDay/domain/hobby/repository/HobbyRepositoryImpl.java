@@ -71,25 +71,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 )
                 .fetchFirst();
 
-        // 4. Redis 및 스티커 조회
-        boolean activityRecordedToday = redisUtil.hasKey(redisUtil.createRecordKey(currentUser.getId(), targetHobbyId));
 
-        List<GetHomeHobbyInfoResDto.StickerDto> collectedStickers = queryFactory
-                .select(Projections.constructor(GetHomeHobbyInfoResDto.StickerDto.class,
-                        activityRecord.id,
-                        activityRecord.sticker
-                ))
-                .from(activityRecord)
-                .where(activityRecord.activity.hobby.id.eq(targetHobbyId))
-                .orderBy(activityRecord.createdAt.asc())
-                .fetch();
-
-        // 5. 전체 스티커 수 조회
-        Integer totalStickerNum = queryFactory
-                .select(hobby.currentStickerNum)
-                .from(hobby)
-                .where(hobby.id.eq(targetHobbyId))
-                .fetchOne();
 
         boolean isAiCallRemaining = true;
         int currentCount = aiCallCountService.getCurrentCount(currentUser.getSocialId(), targetHobbyId);
@@ -98,9 +80,6 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
         return GetHomeHobbyInfoResDto.builder()
                 .inProgressHobbies(hobbyList)
                 .activityPreview(activityPreview)
-                .totalStickerNum(totalStickerNum != null ? totalStickerNum : 0)
-                .activityRecordedToday(activityRecordedToday)
-                .collectedStickers(collectedStickers)
                 .aiCallRemaining(isAiCallRemaining)
                 .build();
     }

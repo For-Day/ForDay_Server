@@ -14,10 +14,7 @@ import java.util.List;
 public class GetHomeHobbyInfoResDto {
     private List<InProgressHobbyDto> inProgressHobbies;
     private ActivityPreviewDto activityPreview;
-    private Integer totalStickerNum;
-    private boolean activityRecordedToday;
     private boolean aiCallRemaining;
-    private List<StickerDto> collectedStickers;
 
     @Data
     @NoArgsConstructor
@@ -35,13 +32,5 @@ public class GetHomeHobbyInfoResDto {
         private Long activityId;
         private String content;
         private boolean aiRecommended;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class StickerDto {
-        private Long activityRecordId;
-        private String sticker;
     }
 }

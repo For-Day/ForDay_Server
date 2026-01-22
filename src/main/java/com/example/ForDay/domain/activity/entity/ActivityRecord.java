@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.activity.entity;
 
 import com.example.ForDay.domain.activity.type.RecordVisibility;
+import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -27,6 +28,10 @@ public class ActivityRecord extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_activity_id", nullable = false)
     private Activity activity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_hobby_id", nullable = false)
+    private Hobby hobby;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
