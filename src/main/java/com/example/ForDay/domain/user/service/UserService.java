@@ -1,7 +1,9 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
+import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
 import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
@@ -11,9 +13,13 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
+import com.example.ForDay.infra.s3.S3Service;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +27,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserUtil userUtil;
+    private final S3Service s3Service;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -89,6 +96,26 @@ public class UserService {
     public UserInfoResDto getUserInfo(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        return new UserInfoResDto(currentUser.getProfileImageUrl(), currentUser.getNickname(), currentUser.getTotalCollectedStickerCount());
+        return new UserInfoResDto(currentUser.getProfileImageUrl(),
+                currentUser.getNickname(),
+                currentUser.getTotalCollectedStickerCount() == null ? 0 : currentUser.getTotalCollectedStickerCount());
+    }
+
+    @Transactional
+    public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String newImageUrl = reqDto.getProfileImageUrl();
+
+        if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
+            return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
+        }
+
+        String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
+        if (!s3Service.existsByKey(s3Key)) {
+            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+        }
+
+        currentUser.updateProfileImage(newImageUrl);
+        return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "프로필 이미지가 성공적으로 변경되었습니다.");
     }
 }

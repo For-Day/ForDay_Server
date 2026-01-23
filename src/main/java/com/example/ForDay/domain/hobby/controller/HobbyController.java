@@ -34,7 +34,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.activityAiRecommend(hobbyId, user);
     }
 
-    @GetMapping("/activities/ai/recommend/tset")
+    @GetMapping("/activities/ai/recommend/test")
     public ActivityAIRecommendResDto testActivityAiRecommend(@RequestParam(name = "hobbyId") Long hobbyId,
                                                          @AuthenticationPrincipal CustomUserDetails user) throws Exception {
         return hobbyService.testActivityAiRecommend(hobbyId, user);

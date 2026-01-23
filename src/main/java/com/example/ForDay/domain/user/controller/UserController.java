@@ -1,8 +1,10 @@
 package com.example.ForDay.domain.user.controller;
 
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
+import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
+import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
 import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
 import com.example.ForDay.domain.user.service.UserService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -36,5 +38,10 @@ public class UserController implements UserControllerDocs {
     @GetMapping("/info")
     public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user) {
         return userService.getUserInfo(user);
+    }
+
+    @PatchMapping("/profile-image")
+    public SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return userService.setUserProfileImage(reqDto, user);
     }
 }
