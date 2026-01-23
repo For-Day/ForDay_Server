@@ -22,6 +22,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
         return activityRecordService.getRecordDetail(activityRecordId, user);
     }
 
+    @Override
     @PatchMapping("/{activityRecordId}/visibility")
     public UpdateRecordVisibilityResDto updateRecordVisibility(@PathVariable(name = "activityRecordId") Long activityRecordId,
                                                                @RequestBody @Valid UpdateRecordVisibilityReqDto reqDto,

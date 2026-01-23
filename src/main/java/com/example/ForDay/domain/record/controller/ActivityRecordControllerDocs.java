@@ -1,20 +1,22 @@
 package com.example.ForDay.domain.record.controller;
 
+import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
+import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "activityRecord", description = "활동 기록 관련 API")
 public interface ActivityRecordControllerDocs {
@@ -33,4 +35,32 @@ public interface ActivityRecordControllerDocs {
             )
     })
     GetRecordDetailResDto getRecordDetail(@PathVariable(name = "activityRecordId") Long activityRecordId, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "기록 공개 범위 수정",
+            description = "특정 기록의 공개 범위를 수정합니다. 본인의 기록만 수정할 수 있습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "공개 범위 수정 성공",
+                    content = @Content(schema = @Schema(implementation = UpdateRecordVisibilityResDto.class),
+                            examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"공개 범위가 정상적으로 변경되었습니다.\", \"previousVisibility\": \"PRIVATE\", \"newVisibility\": \"FRIEND\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"NOT_ACTIVITY_OWNER\", \"message\": \"활동 소유자가 아닙니다.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "기록을 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"))
+            )
+    })
+    UpdateRecordVisibilityResDto updateRecordVisibility(
+            @Parameter(description = "수정할 활동 기록의 ID", example = "1")
+            @PathVariable(name = "activityRecordId") Long activityRecordId,
+            @RequestBody @Valid UpdateRecordVisibilityReqDto reqDto,
+            @AuthenticationPrincipal CustomUserDetails user);
 }
