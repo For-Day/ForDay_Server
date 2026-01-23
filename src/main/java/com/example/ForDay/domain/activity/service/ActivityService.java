@@ -82,6 +82,7 @@ public class ActivityService {
                 .build();
 
         activity.record();
+        currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
         redisUtil.setDataExpire(redisKey, "recorded", 86400);
@@ -133,6 +134,7 @@ public class ActivityService {
                 .build();
 
         activity.record();
+        currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
         boolean extensionCheckRequired = isCheckStickerFull(hobby);

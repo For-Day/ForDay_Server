@@ -2,6 +2,7 @@ package com.example.ForDay.domain.user.service;
 
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
+import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
@@ -9,9 +10,7 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
-
-    public User getUserBySocialId(String id) {
-        return userRepository.findBySocialId(id);
-    }
+    private final UserUtil userUtil;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -87,5 +83,12 @@ public class UserService {
         currentUser.changeNickname(nickname);
 
         return new NicknameRegisterResDto("사용자 이름이 성공적으로 등록되었습니다.", nickname);
+    }
+
+    @Transactional(readOnly = true)
+    public UserInfoResDto getUserInfo(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        return new UserInfoResDto(currentUser.getProfileImageUrl(), currentUser.getNickname(), currentUser.getTotalCollectedStickerCount());
     }
 }

@@ -3,6 +3,7 @@ package com.example.ForDay.domain.user.controller;
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
+import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
 import com.example.ForDay.domain.user.service.UserService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -29,5 +30,10 @@ public class UserController implements UserControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         return userService.nicknameRegister(reqDto.getNickname(), user);
+    }
+
+    @GetMapping("/info")
+    public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user) {
+        return userService.getUserInfo(user);
     }
 }
