@@ -1,11 +1,14 @@
 package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.friend.FriendRelationRepository;
+import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
+import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -107,4 +110,26 @@ public class ActivityRecordService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
     }
 
+    @Transactional
+    public UpdateRecordVisibilityResDto updateRecordVisibility(Long activityRecordId, UpdateRecordVisibilityReqDto reqDto, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(activityRecordId);
+        User currentUser = userUtil.getCurrentUser(user);
+        verifyRecordOwner(activityRecord, currentUser);
+
+        RecordVisibility previousVisibility = activityRecord.getVisibility();
+        RecordVisibility newVisibility = reqDto.getVisibility();
+
+        if (previousVisibility.equals(newVisibility)) {
+            return new UpdateRecordVisibilityResDto("이미 설정된 공개 범위입니다.", previousVisibility, newVisibility);
+        }
+        activityRecord.updateVisibility(newVisibility);
+
+        return new UpdateRecordVisibilityResDto("공개 범위가 정상적으로 변경되었습니다.", previousVisibility, newVisibility);
+    }
+
+    private static void verifyRecordOwner(ActivityRecord activityRecord, User currentUser) {
+        if (!activityRecord.getUser().getId().equals(currentUser.getId())) {
+            throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
+        }
+    }
 }

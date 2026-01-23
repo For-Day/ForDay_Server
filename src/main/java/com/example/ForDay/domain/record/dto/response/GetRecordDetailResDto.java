@@ -1,6 +1,6 @@
 package com.example.ForDay.domain.record.dto.response;
 
-import com.example.ForDay.domain.activity.type.RecordVisibility;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
