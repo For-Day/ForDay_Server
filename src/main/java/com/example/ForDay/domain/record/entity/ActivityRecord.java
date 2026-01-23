@@ -1,5 +1,6 @@
-package com.example.ForDay.domain.activity.entity;
+package com.example.ForDay.domain.record.entity;
 
+import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
@@ -9,9 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "activity_records")

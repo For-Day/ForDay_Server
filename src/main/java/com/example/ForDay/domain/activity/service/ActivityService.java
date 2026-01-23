@@ -2,8 +2,8 @@ package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.domain.activity.entity.ActivityRecord;
-import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;

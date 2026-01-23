@@ -1,11 +1,10 @@
 package com.example.ForDay.domain.activity.repository;
 
-import com.example.ForDay.domain.activity.dto.StickerWithActivityIdDto;
 import com.example.ForDay.domain.activity.entity.QActivity;
-import com.example.ForDay.domain.activity.entity.QActivityRecord;
 import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHobbyActivitiesResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -13,8 +12,6 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class ActivityRepositoryImpl implements ActivityRepositoryCustom{

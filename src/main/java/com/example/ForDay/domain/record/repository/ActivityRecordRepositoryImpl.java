@@ -1,8 +1,8 @@
-package com.example.ForDay.domain.activity.repository;
+package com.example.ForDay.domain.record.repository;
 
-import com.example.ForDay.domain.activity.entity.QActivityRecord;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
+import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
