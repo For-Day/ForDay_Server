@@ -3,8 +3,10 @@ package com.example.ForDay.domain.record.service;
 import com.example.ForDay.domain.friend.FriendRelationRepository;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
+import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
 import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,14 +34,14 @@ public class ActivityRecordService {
     private final ActivityRecordReactionRepository recordReactionRepository;
 
     @Transactional(readOnly = true)
-    public GetRecordDetailResDto getRecordDetail(Long activityRecordId, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(activityRecordId);
+    public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
         User currentUser = userUtil.getCurrentUser(user);
         User writer = activityRecord.getUser();
         String currentUserId = currentUser.getId();
 
         // 내가 이 글에 누른 리액션 정보 (UserReactionDto)
-        List<RecordReactionType> myReactions = recordReactionRepository.findAllMyReactions(activityRecordId, currentUserId);
+        List<RecordReactionType> myReactions = recordReactionRepository.findAllMyReactions(recordId, currentUserId);
         GetRecordDetailResDto.UserReactionDto userReaction = new GetRecordDetailResDto.UserReactionDto(
                 myReactions.contains(RecordReactionType.AWESOME),
                 myReactions.contains(RecordReactionType.GREAT),
@@ -51,7 +54,7 @@ public class ActivityRecordService {
         // 권한 판별 및 New 알림 처리
         if (Objects.equals(currentUserId, writer.getId())) {
             //  읽지 않은 리액션이 있는지 확인
-            List<RecordReactionType> unreadTypes = recordReactionRepository.findAllUnreadReactions(activityRecordId);
+            List<RecordReactionType> unreadTypes = recordReactionRepository.findAllUnreadReactions(recordId);
             newReaction = new GetRecordDetailResDto.NewReactionDto(
                     unreadTypes.contains(RecordReactionType.AWESOME),
                     unreadTypes.contains(RecordReactionType.GREAT),
@@ -60,7 +63,7 @@ public class ActivityRecordService {
             );
 
             // 확인한 리액션들은 모두 읽음 처리 (Dirty Checking)
-            recordReactionRepository.markAsReadByRecordId(activityRecordId);
+            recordReactionRepository.markAsReadByRecordId(recordId);
         } else {
             //  권한 체크
             validateVisibility(activityRecord, writer, currentUser);
@@ -69,6 +72,7 @@ public class ActivityRecordService {
         }
 
         return GetRecordDetailResDto.builder()
+                .hobbyId(activityRecord.getHobby().getId())
                 .activityId(activityRecord.getActivity().getId())
                 .activityContent(activityRecord.getActivity().getContent())
                 .activityRecordId(activityRecord.getId())
@@ -111,8 +115,8 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public UpdateRecordVisibilityResDto updateRecordVisibility(Long activityRecordId, UpdateRecordVisibilityReqDto reqDto, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(activityRecordId);
+    public UpdateRecordVisibilityResDto updateRecordVisibility(Long recordId, UpdateRecordVisibilityReqDto reqDto, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
         User currentUser = userUtil.getCurrentUser(user);
         verifyRecordOwner(activityRecord, currentUser);
 
@@ -131,5 +135,30 @@ public class ActivityRecordService {
         if (!activityRecord.getUser().getId().equals(currentUser.getId())) {
             throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public GetRecordReactionUsersResDto getRecordReactionUsers(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        // 소유자 권한 검증
+        verifyRecordOwner(activityRecord, currentUser);
+
+        // Repository 호출 (Querydsl: readWriter=false, 최신순)
+        List<ActivityRecordReaction> unreadReactions =
+                recordReactionRepository.findUnreadReactionsByType(recordId, reactionType);
+
+        // DTO 변환
+        List<GetRecordReactionUsersResDto.ReactionUserInfo> users = unreadReactions.stream()
+                .map(reaction -> new GetRecordReactionUsersResDto.ReactionUserInfo(
+                        reaction.getReactedUser().getId(),
+                        reaction.getReactedUser().getNickname(),
+                        reaction.getReactedUser().getProfileImageUrl(),
+                        reaction.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+
+        return new GetRecordReactionUsersResDto(reactionType, users);
     }
 }

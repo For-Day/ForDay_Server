@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Builder
 @Schema(description = "기록 상세 조회 응답 DTO")
 public class GetRecordDetailResDto {
+    private Long hobbyId;
     private Long activityId;
     private String activityContent;
     private Long activityRecordId;

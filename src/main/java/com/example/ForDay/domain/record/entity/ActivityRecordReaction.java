@@ -27,7 +27,7 @@ public class ActivityRecordReaction extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reacted_user_id", nullable = false)
-    private User reactedUserId;
+    private User reactedUser;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
