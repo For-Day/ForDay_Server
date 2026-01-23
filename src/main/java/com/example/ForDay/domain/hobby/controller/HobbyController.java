@@ -34,6 +34,12 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.activityAiRecommend(hobbyId, user);
     }
 
+    @GetMapping("/activities/ai/recommend/tset")
+    public ActivityAIRecommendResDto testActivityAiRecommend(@RequestParam(name = "hobbyId") Long hobbyId,
+                                                         @AuthenticationPrincipal CustomUserDetails user) throws Exception {
+        return hobbyService.testActivityAiRecommend(hobbyId, user);
+    }
+
     @Override
     @GetMapping("/activities/others/v1")
     public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
