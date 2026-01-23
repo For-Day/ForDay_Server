@@ -4,6 +4,7 @@ import com.example.ForDay.domain.friend.FriendRelationRepository;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
+import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
 import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -160,5 +162,58 @@ public class ActivityRecordService {
                 .collect(Collectors.toList());
 
         return new GetRecordReactionUsersResDto(reactionType, users);
+    }
+
+    @Transactional
+    public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+        User writer = activityRecord.getUser();
+        User currentUser = userUtil.getCurrentUser(user);
+
+        // 반응 권한 확인 (본인이거나, 전체공개이거나, 친구인 경우)
+        validateReactionAuthority(activityRecord, writer, currentUser);
+
+        // 이미 해당 타입의 리액션을 남겼는지 확인 (중복 방지)
+        Optional<ActivityRecordReaction> existingReaction =
+                recordReactionRepository.findByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, reactionType);
+
+        if (existingReaction.isPresent()) {
+            return new ReactToRecordResDto("해당 기록에는 이미 같은 반응을 하셨습니다.", reactionType, recordId);
+        }
+
+        // 리액션 저장
+        ActivityRecordReaction reaction = ActivityRecordReaction.builder()
+                .activityRecord(activityRecord)
+                .reactedUser(currentUser)
+                .reactionType(reactionType)
+                .readWriter(false)
+                .build();
+
+        recordReactionRepository.save(reaction);
+
+        return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", reactionType, recordId);
+    }
+
+    private void validateReactionAuthority(ActivityRecord record, User writer, User currentUser) {
+        // 본인 글에는 항상 반응 가능
+        if (writer.getId().equals(currentUser.getId())) {
+            return;
+        }
+
+        switch (record.getVisibility()) {
+            case PUBLIC -> {
+                // 전체 공개글은 누구나 가능
+            }
+            case FRIEND -> {
+                // 친구 관계인지 확인
+                if (!checkFriendship(writer, currentUser)) {
+                    throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
+                }
+            }
+            case PRIVATE -> {
+                // 나만 보기 글은 본인 외에 반응 불가
+                throw new CustomException(ErrorCode.PRIVATE_RECORD);
+            }
+        }
     }
 }
