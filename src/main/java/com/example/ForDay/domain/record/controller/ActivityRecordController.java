@@ -43,9 +43,10 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
         return activityRecordService.getRecordReactionUsers(recordId, reactionType, user);
     }
 
+    @Override
     @PostMapping("/{recordId}/reaction")
     public ReactToRecordResDto reactToRecord(@PathVariable(name = "recordId") Long recordId,
-                                             @RequestParam(name = "reactionType") ReactToRecordReqDto reqDto,
+                                             @RequestBody ReactToRecordReqDto reqDto,
                                              @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordService.reactToRecord(recordId, reqDto.getReactionType(), user);
     }

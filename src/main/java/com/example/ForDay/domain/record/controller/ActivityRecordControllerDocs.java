@@ -1,8 +1,10 @@
 package com.example.ForDay.domain.record.controller;
 
+import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
+import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
 import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -91,6 +93,44 @@ public interface ActivityRecordControllerDocs {
     GetRecordReactionUsersResDto getRecordReactionUsers(
             @Parameter(description = "활동 기록 ID", example = "1") @PathVariable Long recordId,
             @Parameter(description = "조회할 리액션 타입", example = "AWESOME") @RequestParam RecordReactionType reactionType,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+
+    @Operation(
+            summary = "리액션 등록",
+            description = "활동 기록에 리액션을 남깁니다. 전체 공개글이거나 친구 관계인 경우에만 가능하며, 중복 리액션은 허용되지 않습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "리액션 등록 성공",
+                    content = @Content(schema = @Schema(implementation = ReactToRecordResDto.class),
+                            examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"반응이 정상적으로 등록되었습니다.\", \"reactionType\": \"GREAT\", \"recordId\": 123}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (중복 리액션)",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"DUPLICATE_REACTION\", \"message\": \"해당 기록에는 이미 같은 반응을 하셨습니다.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 없음 (비공개 또는 친구 아님)",
+                    content = @Content(examples = {
+                            @ExampleObject(name = "친구 미등록", value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"FRIEND_ONLY_ACCESS\", \"message\": \"이 글은 친구만 조회할 수 있습니다.\"}}"),
+                            @ExampleObject(name = "나만 보기 기록", value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"PRIVATE_RECORD\", \"message\": \"이 글은 작성자만 볼 수 있습니다.\"}}")
+                    })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "기록 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"))
+            )
+    })
+    @PostMapping("/{recordId}/reactions")
+    ReactToRecordResDto reactToRecord(
+            @Parameter(description = "활동 기록 ID", example = "123") @PathVariable Long recordId,
+            @Parameter(description = "리액션 종류 (AWESOME, GREAT, AMAZING, FIGHTING)", example = "GREAT")   @RequestBody ReactToRecordReqDto reqDto,
             @AuthenticationPrincipal CustomUserDetails user
     );
 }
