@@ -100,6 +100,55 @@ public class ActivityService {
         );
     }
 
+    @Transactional
+    public RecordActivityResDto testRecordActivity(
+            Long activityId,
+            RecordActivityReqDto reqDto,
+            CustomUserDetails user
+    ) {
+        Activity activity = getActivity(activityId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
+        Hobby hobby = activity.getHobby();
+
+        if(isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
+        checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
+
+        if (StringUtils.hasText(reqDto.getImageUrl())) {  // 이미지를 등록하고자 한다면 해당 이미지가 s3상에 잘 업로드 되었는지 확인
+            String s3Key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl()); // 이미지url에서 key를 추출
+            if (!s3Service.existsByKey(s3Key)) { // 해당 key를 가진 객체가 존재하는지 확인
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND); // 존재하지 않으면 예외 발생
+            }
+        }
+
+        ActivityRecord activityRecord = ActivityRecord.builder()
+                .hobby(hobby)
+                .activity(activity)
+                .user(currentUser)
+                .sticker(reqDto.getSticker())
+                .memo(reqDto.getMemo())
+                .visibility(reqDto.getVisibility())
+                .imageUrl(reqDto.getImageUrl())
+                .build();
+
+        activity.record();
+        activityRecordRepository.save(activityRecord);
+
+        boolean extensionCheckRequired = isCheckStickerFull(hobby);
+
+        return new RecordActivityResDto(
+                "오늘의 활동 기록이 정상적으로 작성되었습니다",
+                hobby.getId(),
+                activityRecord.getId(),
+                activity.getContent(),
+                activityRecord.getImageUrl(),
+                reqDto.getSticker(),
+                activityRecord.getMemo(),
+                extensionCheckRequired
+        );
+    }
+
     private static boolean isCheckStickerFull(Hobby hobby) {
         return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
     }
