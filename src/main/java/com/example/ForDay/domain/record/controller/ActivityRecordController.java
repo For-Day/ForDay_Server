@@ -33,6 +33,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
         return activityRecordService.updateRecordVisibility(recordId, reqDto, user);
     }
 
+    @Override
     @GetMapping("/{recordId}/reaction-users")
     public GetRecordReactionUsersResDto getRecordReactionUsers(@PathVariable(name = "recordId") Long recordId,
                                                                @RequestParam(name = "reactionType") RecordReactionType reactionType,

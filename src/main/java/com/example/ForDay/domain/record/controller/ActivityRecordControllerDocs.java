@@ -2,8 +2,10 @@ package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
+import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
 import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
+import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -63,4 +65,32 @@ public interface ActivityRecordControllerDocs {
             @PathVariable(name = "activityRecordId") Long activityRecordId,
             @RequestBody @Valid UpdateRecordVisibilityReqDto reqDto,
             @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "리액션 유저 목록 조회",
+            description = "특정 리액션을 남긴 유저들 중 아직 확인하지 않은(unread) 목록을 최신순으로 조회합니다. 기록 소유자만 접근 가능합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetRecordReactionUsersResDto.class),
+                            examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"reactionType\": \"AWESOME\", \"reactionUsers\": [{\"userId\": \"75e5f503-667a-40e8-8f90-f592a2022a5d\", \"nickname\": \"유지\", \"profileImageUrl\": \"https://forday-s3.amazonaws.com/profiles/yuji.png\", \"reactedAt\": \"2026-01-23T17:34:53\"}, {\"userId\": \"a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6\", \"nickname\": \"행복한토끼\", \"profileImageUrl\": null, \"reactedAt\": \"2026-01-23T16:20:10\"}]}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 부족",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"NOT_ACTIVITY_OWNER\", \"message\": \"활동 소유자가 아닙니다.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "기록 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"))
+            )
+    })
+    GetRecordReactionUsersResDto getRecordReactionUsers(
+            @Parameter(description = "활동 기록 ID", example = "1") @PathVariable Long recordId,
+            @Parameter(description = "조회할 리액션 타입", example = "AWESOME") @RequestParam RecordReactionType reactionType,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
 }
