@@ -2,10 +2,7 @@ package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.friend.FriendRelationRepository;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
-import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
-import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
-import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
-import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
+import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
@@ -215,5 +212,18 @@ public class ActivityRecordService {
                 throw new CustomException(ErrorCode.PRIVATE_RECORD);
             }
         }
+    }
+
+    public CancelReactToRecordResDto cancelReactToRecord(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        ActivityRecordReaction reaction = recordReactionRepository
+                .findByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, reactionType)
+                .orElseThrow(() -> new CustomException(ErrorCode.REACTION_NOT_FOUND));
+
+        recordReactionRepository.delete(reaction);
+
+        return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", reactionType, recordId);
     }
 }

@@ -2,10 +2,7 @@ package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
-import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
-import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
-import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
-import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
+import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -49,5 +46,15 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
                                              @RequestBody ReactToRecordReqDto reqDto,
                                              @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordService.reactToRecord(recordId, reqDto.getReactionType(), user);
+    }
+
+    @Override
+    @DeleteMapping("/{recordId}/reaction")
+    public CancelReactToRecordResDto cancelReactToRecord(
+            @PathVariable(name = "recordId") Long recordId,
+            @RequestParam(name = "reactionType") RecordReactionType reactionType,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return activityRecordService.cancelReactToRecord(recordId, reactionType, user);
     }
 }

@@ -2,10 +2,7 @@ package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
-import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDto;
-import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
-import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
-import com.example.ForDay.domain.record.dto.response.UpdateRecordVisibilityResDto;
+import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -133,4 +130,5 @@ public interface ActivityRecordControllerDocs {
             @Parameter(description = "리액션 종류 (AWESOME, GREAT, AMAZING, FIGHTING)", example = "GREAT")   @RequestBody ReactToRecordReqDto reqDto,
             @AuthenticationPrincipal CustomUserDetails user
     );
+
 }
