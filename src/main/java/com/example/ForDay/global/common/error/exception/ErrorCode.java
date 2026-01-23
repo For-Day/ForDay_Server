@@ -60,12 +60,13 @@ public enum ErrorCode {
     PRIVATE_RECORD(HttpStatus.FORBIDDEN, "이 글은 작성자만 볼 수 있습니다."),
     FRIEND_ONLY_ACCESS(HttpStatus.FORBIDDEN, "이 글은 친구만 조회할 수 있습니다."),
     NOT_ACTIVITY_RECORD_OWNER(HttpStatus.FORBIDDEN, "활동 기록 소유자가 아닙니다."),
+    DUPLICATE_REACTION(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 같은 반응을 하셨습니다."),
 
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
-    DUPLICATE_HOBBY_REQUEST(HttpStatus.CONFLICT, "같은 취미에 대한 충복 요청입니다. (닉네임 설정을 완료하세요.)")
-    ;
+    DUPLICATE_HOBBY_REQUEST(HttpStatus.CONFLICT, "같은 취미에 대한 충복 요청입니다. (닉네임 설정을 완료하세요.)"),
 
+;
     private final HttpStatus status;
     private final String message;
 

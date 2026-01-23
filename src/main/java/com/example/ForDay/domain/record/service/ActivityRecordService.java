@@ -178,7 +178,7 @@ public class ActivityRecordService {
                 recordReactionRepository.findByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, reactionType);
 
         if (existingReaction.isPresent()) {
-            return new ReactToRecordResDto("해당 기록에는 이미 같은 반응을 하셨습니다.", reactionType, recordId);
+            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
 
         // 리액션 저장
