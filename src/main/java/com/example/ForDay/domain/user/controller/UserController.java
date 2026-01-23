@@ -32,6 +32,7 @@ public class UserController implements UserControllerDocs {
         return userService.nicknameRegister(reqDto.getNickname(), user);
     }
 
+    @Override
     @GetMapping("/info")
     public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user) {
         return userService.getUserInfo(user);

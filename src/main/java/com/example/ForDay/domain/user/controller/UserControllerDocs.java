@@ -3,6 +3,7 @@ package com.example.ForDay.domain.user.controller;
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
+import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @Tag(name = "User", description = "사용자 프로필 및 계정 관련 API")
 public interface UserControllerDocs {
@@ -69,4 +71,14 @@ public interface UserControllerDocs {
             )
     })
     NicknameRegisterResDto nicknameRegister(NicknameRegisterReqDto reqDto, CustomUserDetails user);
+
+    @Operation(
+            summary = "사용자 정보 조회",
+            description = "마이페이지 등에 표시될 사용자의 닉네임, 프로필 이미지, 총 스티커 개수를 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
+    })
+    public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user);
 }
