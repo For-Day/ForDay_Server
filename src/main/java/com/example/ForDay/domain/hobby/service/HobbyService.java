@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -157,6 +158,48 @@ public class HobbyService {
             log.error("[AI-RECOMMEND][ERROR] FastAPI 호출 실패: {}", e.getMessage());
             throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public ActivityAIRecommendResDto testActivityAiRecommend(Long hobbyId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        Hobby hobby = getHobby(hobbyId);
+        verifyHobbyOwner(hobby, currentUser); // hobby의 소유자인지 검증
+        checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지 확인
+
+        List<ActivityDto> activityDtos = new ArrayList<>();
+        activityDtos.add(ActivityDto
+                .builder()
+                        .activityId(1L)
+                        .topic("가벼운 덤벨 운동")
+                        .content("덤벨로 양팔 10회 들어보기")
+                        .description("부담 없이 가벼운 덤벨을 사용해 운동할 수 있어요.")
+                .build());
+
+        activityDtos.add(ActivityDto
+                .builder()
+                .activityId(2L)
+                .topic("간단한 플랭크")
+                .content("플랭크 자세로 20초 유지해보기")
+                .description("짧은 시간 동안 자세를 유지하면 부담이 적어요.")
+                .build());
+
+        activityDtos.add(ActivityDto
+                .builder()
+                .activityId(3L)
+                .topic("가벼운 점프 운동")
+                .content("제자리에서 점프 15회 해보기")
+                .description("가벼운 점프로 쉽게 시작할 수 있어요.")
+                .build());
+
+        return ActivityAIRecommendResDto.builder()
+                .message("AI가 취미 활동을 추천했습니다.")
+                .aiCallCount(1)
+                .aiCallLimit(maxCallLimit)
+                .recommendedText("포데이 AI가 알맞은 취미 활동을 추천드려요")
+                .activities(activityDtos)
+                .build();
     }
 
 
