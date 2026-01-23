@@ -1,18 +1,23 @@
 package com.example.ForDay.domain.user.controller;
 
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
+import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
 import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
+import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
 import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Tag(name = "User", description = "사용자 프로필 및 계정 관련 API")
 public interface UserControllerDocs {
@@ -80,5 +85,32 @@ public interface UserControllerDocs {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
-    public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user);
+    UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "프로필 이미지 변경",
+            description = "S3에 업로드된 URL을 받아 사용자의 프로필 이미지를 업데이트합니다. 기존 이미지와 동일할 경우 변경되지 않습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "성공 (신규 등록 또는 동일 이미지)",
+                    content = @Content(schema = @Schema(implementation = SetUserProfileImageResDto.class),
+                            examples = {
+                                    @ExampleObject(name = "신규 등록 성공", value = "{\"status\": 200, \"success\": true, \"data\": {\"profileImageUrl\": \"https://forday-s3...\", \"message\": \"사용자의 프로필 이미지 URL이 정상적으로 등록되었습니다.\"}}"),
+                                    @ExampleObject(name = "동일 이미지 기존 등록", value = "{\"status\": 200, \"success\": true, \"data\": {\"profileImageUrl\": \"https://forday-s3...\", \"message\": \"이미 동일한 프로필 이미지로 설정되어 있습니다.\"}}")
+                            })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "S3 파일 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"S3_IMAGE_NOT_FOUND\", \"message\": \"S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "유효성 검사 실패",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{profileImageUrl=올바른 URL 형식이어야 합니다.}\"}}"))
+            )
+    })
+    SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
 }

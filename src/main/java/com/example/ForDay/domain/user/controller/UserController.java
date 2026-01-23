@@ -40,6 +40,7 @@ public class UserController implements UserControllerDocs {
         return userService.getUserInfo(user);
     }
 
+    @Override
     @PatchMapping("/profile-image")
     public SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return userService.setUserProfileImage(reqDto, user);
