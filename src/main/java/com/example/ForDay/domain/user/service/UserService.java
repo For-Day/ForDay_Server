@@ -1,5 +1,7 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
@@ -16,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -25,6 +28,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserUtil userUtil;
     private final S3Service s3Service;
+    private final HobbyRepository hobbyRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -119,7 +123,11 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        int inProgressHobbyCount = (int) hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
+        int hobbyCardCount = currentUser.getHobbyCardCount();
 
-        return null;
+        List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
+
+        return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
     }
 }

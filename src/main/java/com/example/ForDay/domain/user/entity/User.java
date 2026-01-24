@@ -62,6 +62,9 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Integer totalCollectedStickerCount = 0;
 
+    @Builder.Default
+    private Integer hobbyCardCount = 0;
+
     // 게스트 마지막 활동일시 업데이트
     public void updateLastActivity() {
         this.lastActivityAt = LocalDateTime.now();
@@ -86,5 +89,9 @@ public class User extends BaseTimeEntity {
 
     public Integer getTotalCollectedStickerCount() {
         return totalCollectedStickerCount == null ? 0 : totalCollectedStickerCount;
+    }
+
+    public void obtainHobbyCard() {
+        this.hobbyCardCount++;
     }
 }

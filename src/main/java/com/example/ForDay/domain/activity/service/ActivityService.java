@@ -174,6 +174,7 @@ public class ActivityService {
                 .imageUrl(hobby.getCoverImageUrl())
                 .build();
         hobbyCardRepository.save(hobbyCard);
+        currentUser.obtainHobbyCard();
     }
 
     private static boolean isCheckStickerFull(Hobby hobby) {
