@@ -54,6 +54,8 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "status", nullable = false, length = 20)
     private HobbyStatus status;
 
+    private String coverImageUrl;
+
 
     public void record() {
         this.currentStickerNum++;
@@ -85,5 +87,9 @@ public class Hobby extends BaseTimeEntity {
 
     public void setGoalDaysExtension() {
         this.goalDays = null;
+    }
+
+    public void updateCoverImage(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
     }
 }

@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.controller;
 
 import com.example.ForDay.domain.activity.service.ActivityService;
+import com.example.ForDay.domain.hobby.dto.response.SetHobbyCoverImageResDto;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.dto.response.*;
@@ -133,5 +134,10 @@ public class HobbyController implements HobbyControllerDocs {
     @GetMapping("/stickers")
     public GetStickerInfoResDto getStickerInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId, @RequestParam(value = "page", required = false) Integer page, @RequestParam(value = "size", required = false, defaultValue = "28") Integer size, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getStickerInfo(hobbyId, page, size, user);
+    }
+
+    @PatchMapping("/cover-image")
+    public SetHobbyCoverImageResDto setHobbyCoverImage(@RequestBody @Valid SetHobbyCoverImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.setHobbyCoverImage(reqDto, user);
     }
 }

@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.*;
@@ -19,6 +20,8 @@ import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.RedisUtil;
 import com.example.ForDay.global.util.UserUtil;
+import com.example.ForDay.infra.s3.S3Service;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +57,7 @@ public class HobbyService {
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
     private final UserSummaryAIService userSummaryAIService;
+    private final S3Service s3Service;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -501,7 +505,7 @@ public class HobbyService {
     }
 
     private void verifyHobbyOwner(Hobby hobby, User currentUser) {
-        if (!Objects.equals(hobby.getUser(), currentUser)) {
+        if (!hobby.getUser().getId().equals(currentUser.getId())) {
             log.warn("[HobbyService] 권한 없음 - HobbyOwnerId: {}, CurrentUserId: {}",
                     hobby.getUser().getId(), currentUser.getId());
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
@@ -693,5 +697,55 @@ public class HobbyService {
         // 예외 발생 시 기본 가이드 문구 반환
         return "";
     }
+
+    @Transactional
+    public SetHobbyCoverImageResDto setHobbyCoverImage(@Valid SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String updatedUrl;
+        Long targetHobbyId;
+
+        // Case 1: 직접 업로드된 이미지 URL로 설정하는 경우
+        if (reqDto.getHobbyId() != null && StringUtils.hasText(reqDto.getCoverImageUrl())) {
+            Hobby hobby = getHobby(reqDto.getHobbyId());
+            verifyHobbyOwner(hobby, currentUser);
+
+            // S3 존재 여부 검증
+            String key = s3Service.extractKeyFromFileUrl(reqDto.getCoverImageUrl());
+            if (!s3Service.existsByKey(key)) {
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+            }
+
+            hobby.updateCoverImage(reqDto.getCoverImageUrl());
+            updatedUrl = hobby.getCoverImageUrl();
+            targetHobbyId = hobby.getId();
+        }
+        // Case 2: 기존 활동 기록의 사진으로 설정하는 경우
+        else if (reqDto.getRecordId() != null) {
+            ActivityRecord activityRecord = activityRecordRepository.findByIdWithHobby(reqDto.getRecordId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+            // 권한 확인
+            if (!activityRecord.getUser().getId().equals(currentUser.getId())) {
+                throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
+            }
+
+            Hobby hobby = activityRecord.getHobby();
+
+            hobby.updateCoverImage(activityRecord.getImageUrl());
+            updatedUrl = hobby.getCoverImageUrl();
+            targetHobbyId = hobby.getId();
+        }
+        else {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        return new SetHobbyCoverImageResDto(
+                "대표 이미지가 성공적으로 변경되었습니다.",
+                targetHobbyId,
+                reqDto.getRecordId(),
+                updatedUrl
+        );
+    }
+
 
 }

@@ -59,4 +59,5 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
     ) {
         return activityRecordService.cancelReactToRecord(recordId, reactionType, user);
     }
+
 }
