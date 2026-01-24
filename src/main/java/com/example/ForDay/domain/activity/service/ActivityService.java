@@ -36,7 +36,6 @@ public class ActivityService {
     private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
-    private final HobbyRepository hobbyRepository;
 
     @Transactional
     public RecordActivityResDto recordActivity(

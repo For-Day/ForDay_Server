@@ -505,7 +505,7 @@ public class HobbyService {
     }
 
     private void verifyHobbyOwner(Hobby hobby, User currentUser) {
-        if (!hobby.getUser().getId().equals(currentUser.getId())) {
+        if (!Objects.equals(hobby.getUser().getId(), currentUser.getId())) {
             log.warn("[HobbyService] 권한 없음 - HobbyOwnerId: {}, CurrentUserId: {}",
                     hobby.getUser().getId(), currentUser.getId());
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);

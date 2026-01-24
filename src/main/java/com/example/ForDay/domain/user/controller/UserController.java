@@ -45,4 +45,6 @@ public class UserController implements UserControllerDocs {
     public SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return userService.setUserProfileImage(reqDto, user);
     }
+
+
 }
