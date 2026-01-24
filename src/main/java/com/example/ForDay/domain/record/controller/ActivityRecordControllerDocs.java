@@ -90,6 +90,8 @@ public interface ActivityRecordControllerDocs {
     GetRecordReactionUsersResDto getRecordReactionUsers(
             @Parameter(description = "활동 기록 ID", example = "1") @PathVariable Long recordId,
             @Parameter(description = "조회할 리액션 타입", example = "AWESOME") @RequestParam RecordReactionType reactionType,
+            @RequestParam(name = "lastUserId") String lastUserId,
+            @RequestParam(name = "size") Integer size,
             @AuthenticationPrincipal CustomUserDetails user
     );
 

@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.friend.FriendRelationRepository;
+import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
@@ -21,8 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,203 +31,173 @@ public class ActivityRecordService {
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordReactionRepository recordReactionRepository;
 
-    @Transactional
+    @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
         ActivityRecord activityRecord = activityRecordRepository.findByIdWithUserAndActivity(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         User currentUser = userUtil.getCurrentUser(user);
         User writer = activityRecord.getUser();
-        String currentUserId = currentUser.getId();
+        boolean isRecordOwner = Objects.equals(currentUser.getId(), writer.getId());
 
-        // 내가 이 글에 누른 리액션 정보 (UserReactionDto)
-        List<RecordReactionType> myReactions = recordReactionRepository.findAllMyReactions(recordId, currentUserId);
-        GetRecordDetailResDto.UserReactionDto userReaction = new GetRecordDetailResDto.UserReactionDto(
-                myReactions.contains(RecordReactionType.AWESOME),
-                myReactions.contains(RecordReactionType.GREAT),
-                myReactions.contains(RecordReactionType.AMAZING),
-                myReactions.contains(RecordReactionType.FIGHTING)
-        );
-
-        GetRecordDetailResDto.NewReactionDto newReaction;
-
-        boolean isRecordOwner = false;
-        // 권한 판별 및 New 알림 처리
-        if (Objects.equals(currentUserId, writer.getId())) {
-            isRecordOwner = true;
-
-            //  읽지 않은 리액션이 있는지 확인
-            List<RecordReactionType> unreadTypes = recordReactionRepository.findAllUnreadReactions(recordId);
-            newReaction = new GetRecordDetailResDto.NewReactionDto(
-                    unreadTypes.contains(RecordReactionType.AWESOME),
-                    unreadTypes.contains(RecordReactionType.GREAT),
-                    unreadTypes.contains(RecordReactionType.AMAZING),
-                    unreadTypes.contains(RecordReactionType.FIGHTING)
-            );
-
-            // 확인한 리액션들은 모두 읽음 처리 (Dirty Checking)
-            recordReactionRepository.markAsReadByRecordId(recordId);
-        } else {
-            //  권한 체크
-            validateVisibility(activityRecord, writer, currentUser);
-            // 타인 조회 시 new 정보는 항상 false
-            newReaction = new GetRecordDetailResDto.NewReactionDto(false, false, false, false);
+        if (!isRecordOwner) {
+            validateRecordAuthority(activityRecord, writer, currentUser);
         }
 
-        return GetRecordDetailResDto.builder()
-                .activityId(activityRecord.getActivity().getId())
-                .activityContent(activityRecord.getActivity().getContent())
-                .activityRecordId(activityRecord.getId())
-                .imageUrl(activityRecord.getImageUrl())
-                .sticker(activityRecord.getSticker())
-                .createdAt(TimeUtil.formatLocalDateTime(activityRecord.getCreatedAt()))
-                .memo(activityRecord.getMemo())
-                .recordOwner(isRecordOwner)
-                .visibility(activityRecord.getVisibility())
-                .newReaction(newReaction)
-                .userReaction(userReaction)
-                .build();
+        List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
+
+        GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUser.getId());
+        GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
+
+        return buildGetRecordDetailResDto(activityRecord, isRecordOwner, newReaction, userReaction);
     }
 
-    private void validateVisibility(ActivityRecord record, User writer, User currentUser) {
-        switch (record.getVisibility()) {
-            case FRIEND -> {
-                if (!checkFriendship(writer, currentUser)) {
-                    throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
-                }
-            }
-            case PRIVATE -> throw new CustomException(ErrorCode.PRIVATE_RECORD);
-            case PUBLIC -> {} // 통과
+    @Transactional
+    public GetRecordReactionUsersResDto getRecordReactionUsers(
+            Long recordId, RecordReactionType type, CustomUserDetails user, String lastUserId, Integer size
+    ) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+        User currentUser = userUtil.getCurrentUser(user);
+        User writer = activityRecord.getUser();
+        boolean isRecordOwner = Objects.equals(currentUser.getId(), writer.getId());
+
+        validateRecordAuthority(activityRecord, writer, currentUser);
+
+        List<ActivityRecordReaction> reactions = recordReactionRepository.findUsersReactionsByType(recordId, type, lastUserId, size);
+
+        boolean hasNext = reactions.size() > size;
+        if (hasNext) reactions.remove(size.intValue());
+
+        List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers = reactions.stream()
+                .map(r -> new GetRecordReactionUsersResDto.ReactionUserInfo(
+                        r.getReactedUser().getId(),
+                        r.getReactedUser().getNickname(),
+                        r.getReactedUser().getProfileImageUrl(),
+                        r.getCreatedAt(),
+                        isRecordOwner && !r.isReadWriter()
+                )).toList();
+
+        if (isRecordOwner) {
+            recordReactionRepository.markAsReadByRecordIdAndType(recordId, type);
         }
+
+        return new GetRecordReactionUsersResDto(type, reactionUsers, hasNext, reactionUsers.get(reactionUsers.size() - 1).getUserId());
     }
 
-    private boolean checkFriendship(User writer, User currentUser) {
-        if (writer.getId().equals(currentUser.getId())) {
-            return true;
+    @Transactional
+    public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+        User currentUser = userUtil.getCurrentUser(user);
+
+        validateRecordAuthority(activityRecord, activityRecord.getUser(), currentUser);
+
+        if (recordReactionRepository.existsByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, type)) {
+            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
 
-        return friendRelationRepository.existsAcceptedFriendship(
-                writer.getId(),
-                currentUser.getId()
-        );
-    }
+        recordReactionRepository.save(ActivityRecordReaction.builder()
+                .activityRecord(activityRecord)
+                .reactedUser(currentUser)
+                .reactionType(type)
+                .readWriter(false)
+                .build());
 
-    private ActivityRecord getActivityRecord(Long activityRecordId) {
-        return activityRecordRepository.findById(activityRecordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", type, recordId);
     }
 
     @Transactional
     public UpdateRecordVisibilityResDto updateRecordVisibility(Long recordId, UpdateRecordVisibilityReqDto reqDto, CustomUserDetails user) {
         ActivityRecord activityRecord = getActivityRecord(recordId);
-        User currentUser = userUtil.getCurrentUser(user);
-        verifyRecordOwner(activityRecord, currentUser);
+        verifyRecordOwner(activityRecord, userUtil.getCurrentUser(user));
 
-        RecordVisibility previousVisibility = activityRecord.getVisibility();
-        RecordVisibility newVisibility = reqDto.getVisibility();
+        RecordVisibility previous = activityRecord.getVisibility();
+        RecordVisibility next = reqDto.getVisibility();
 
-        if (previousVisibility.equals(newVisibility)) {
-            return new UpdateRecordVisibilityResDto("이미 설정된 공개 범위입니다.", previousVisibility, newVisibility);
+        if (previous == next) {
+            return new UpdateRecordVisibilityResDto("이미 설정된 공개 범위입니다.", previous, next);
         }
-        activityRecord.updateVisibility(newVisibility);
 
-        return new UpdateRecordVisibilityResDto("공개 범위가 정상적으로 변경되었습니다.", previousVisibility, newVisibility);
+        activityRecord.updateVisibility(next);
+        return new UpdateRecordVisibilityResDto("공개 범위가 정상적으로 변경되었습니다.", previous, next);
     }
 
-    private static void verifyRecordOwner(ActivityRecord activityRecord, User currentUser) {
-        if (!activityRecord.getUser().getId().equals(currentUser.getId())) {
+    @Transactional
+    public CancelReactToRecordResDto cancelReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+        ActivityRecordReaction reaction = recordReactionRepository
+                .findByActivityRecordAndReactedUserAndReactionType(activityRecord, userUtil.getCurrentUser(user), type)
+                .orElseThrow(() -> new CustomException(ErrorCode.REACTION_NOT_FOUND));
+
+        recordReactionRepository.delete(reaction);
+        return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", type, recordId);
+    }
+
+    private void validateRecordAuthority(ActivityRecord record, User writer, User currentUser) {
+        if (writer.getId().equals(currentUser.getId())) return;
+
+        switch (record.getVisibility()) {
+            case FRIEND -> {
+                if (!checkFriendship(writer, currentUser)) throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
+            }
+            case PRIVATE -> throw new CustomException(ErrorCode.PRIVATE_RECORD);
+            default -> {} // PUBLIC
+        }
+    }
+
+    private boolean checkFriendship(User writer, User currentUser) {
+        return friendRelationRepository.existsAcceptedFriendship(writer.getId(), currentUser.getId());
+    }
+
+    private void verifyRecordOwner(ActivityRecord record, User user) {
+        if (!record.getUser().getId().equals(user.getId())) {
             throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
         }
     }
 
-    @Transactional(readOnly = true)
-    public GetRecordReactionUsersResDto getRecordReactionUsers(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
-        User currentUser = userUtil.getCurrentUser(user);
-
-        // 소유자 권한 검증
-        verifyRecordOwner(activityRecord, currentUser);
-
-        // Repository 호출 (Querydsl: readWriter=false, 최신순)
-        List<ActivityRecordReaction> unreadReactions =
-                recordReactionRepository.findUnreadReactionsByType(recordId, reactionType);
-
-        // DTO 변환
-        List<GetRecordReactionUsersResDto.ReactionUserInfo> users = unreadReactions.stream()
-                .map(reaction -> new GetRecordReactionUsersResDto.ReactionUserInfo(
-                        reaction.getReactedUser().getId(),
-                        reaction.getReactedUser().getNickname(),
-                        reaction.getReactedUser().getProfileImageUrl(),
-                        reaction.getCreatedAt()
-                ))
-                .collect(Collectors.toList());
-
-        return new GetRecordReactionUsersResDto(reactionType, users);
+    private ActivityRecord getActivityRecord(Long id) {
+        return activityRecordRepository.findById(id).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
     }
 
-    @Transactional
-    public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
-        User writer = activityRecord.getUser();
-        User currentUser = userUtil.getCurrentUser(user);
+    private GetRecordDetailResDto.UserReactionDto createUserReactionDto(List<ReactionSummary> summaries, String userId) {
+        List<RecordReactionType> myTypes = summaries.stream()
+                .filter(s -> s.reactedUserId().equals(userId))
+                .map(ReactionSummary::type).toList();
+        return new GetRecordDetailResDto.UserReactionDto(
+                myTypes.contains(RecordReactionType.AWESOME),
+                myTypes.contains(RecordReactionType.GREAT),
+                myTypes.contains(RecordReactionType.AMAZING),
+                myTypes.contains(RecordReactionType.FIGHTING)
+        );
+    }
 
-        // 반응 권한 확인 (본인이거나, 전체공개이거나, 친구인 경우)
-        validateReactionAuthority(activityRecord, writer, currentUser);
+    private GetRecordDetailResDto.NewReactionDto createNewReactionDto(List<ReactionSummary> summaries, boolean isOwner) {
+        if (!isOwner) return new GetRecordDetailResDto.NewReactionDto(false, false, false, false);
+        List<RecordReactionType> unreadTypes = summaries.stream()
+                .filter(s -> !s.readWriter())
+                .map(ReactionSummary::type).toList();
+        return new GetRecordDetailResDto.NewReactionDto(
+                unreadTypes.contains(RecordReactionType.AWESOME),
+                unreadTypes.contains(RecordReactionType.GREAT),
+                unreadTypes.contains(RecordReactionType.AMAZING),
+                unreadTypes.contains(RecordReactionType.FIGHTING)
+        );
+    }
 
-        // 이미 해당 타입의 리액션을 남겼는지 확인 (중복 방지)
-        Optional<ActivityRecordReaction> existingReaction =
-                recordReactionRepository.findByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, reactionType);
-
-        if (existingReaction.isPresent()) {
-            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
-        }
-
-        // 리액션 저장
-        ActivityRecordReaction reaction = ActivityRecordReaction.builder()
-                .activityRecord(activityRecord)
-                .reactedUser(currentUser)
-                .reactionType(reactionType)
-                .readWriter(false)
+    private GetRecordDetailResDto buildGetRecordDetailResDto(ActivityRecord record, boolean isOwner,
+                                                             GetRecordDetailResDto.NewReactionDto newR,
+                                                             GetRecordDetailResDto.UserReactionDto userR) {
+        return GetRecordDetailResDto.builder()
+                .activityId(record.getActivity().getId())
+                .activityContent(record.getActivity().getContent())
+                .activityRecordId(record.getId())
+                .imageUrl(record.getImageUrl())
+                .sticker(record.getSticker())
+                .createdAt(TimeUtil.formatLocalDateTime(record.getCreatedAt()))
+                .memo(record.getMemo())
+                .recordOwner(isOwner)
+                .visibility(record.getVisibility())
+                .newReaction(newR)
+                .userReaction(userR)
                 .build();
-
-        recordReactionRepository.save(reaction);
-
-        return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", reactionType, recordId);
-    }
-
-    private void validateReactionAuthority(ActivityRecord record, User writer, User currentUser) {
-        // 본인 글에는 항상 반응 가능
-        if (writer.getId().equals(currentUser.getId())) {
-            return;
-        }
-
-        switch (record.getVisibility()) {
-            case PUBLIC -> {
-                // 전체 공개글은 누구나 가능
-            }
-            case FRIEND -> {
-                // 친구 관계인지 확인
-                if (!checkFriendship(writer, currentUser)) {
-                    throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
-                }
-            }
-            case PRIVATE -> {
-                // 나만 보기 글은 본인 외에 반응 불가
-                throw new CustomException(ErrorCode.PRIVATE_RECORD);
-            }
-        }
-    }
-
-    public CancelReactToRecordResDto cancelReactToRecord(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
-        User currentUser = userUtil.getCurrentUser(user);
-
-        ActivityRecordReaction reaction = recordReactionRepository
-                .findByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, reactionType)
-                .orElseThrow(() -> new CustomException(ErrorCode.REACTION_NOT_FOUND));
-
-        recordReactionRepository.delete(reaction);
-
-        return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", reactionType, recordId);
     }
 }

@@ -10,5 +10,5 @@ public interface ActivityRecordReactionRepositoryCustom {
 
     List<RecordReactionType> findAllUnreadReactions(Long activityRecordId);
 
-    List<ActivityRecordReaction> findUnreadReactionsByType(Long recordId, RecordReactionType reactionType);
+    List<ActivityRecordReaction> findUsersReactionsByType(Long recordId, RecordReactionType reactionType, String lastUserId, Integer size);
 }

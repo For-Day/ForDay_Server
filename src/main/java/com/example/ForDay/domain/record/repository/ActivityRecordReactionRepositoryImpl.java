@@ -4,6 +4,7 @@ import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.QUser;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -36,16 +37,31 @@ public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReact
     }
 
     @Override
-    public List<ActivityRecordReaction> findUnreadReactionsByType(Long recordId, RecordReactionType type) {
+    public List<ActivityRecordReaction> findUsersReactionsByType(Long recordId, RecordReactionType type, String lastUserId, Integer size) {
         return queryFactory
                 .selectFrom(activityRecordReaction)
-                .join(activityRecordReaction.reactedUser, user).fetchJoin() // 유저 정보 페치 조인
+                .join(activityRecordReaction.reactedUser, user).fetchJoin()
                 .where(
                         activityRecordReaction.activityRecord.id.eq(recordId),
                         activityRecordReaction.reactionType.eq(type),
-                        activityRecordReaction.readWriter.eq(false)
+                        ltLastUserId(lastUserId) // 커서 조건 추가
                 )
-                .orderBy(activityRecordReaction.createdAt.desc()) // 최신순 정렬
+                .orderBy(
+                        activityRecordReaction.readWriter.asc(),
+                        activityRecordReaction.createdAt.desc()
+                )
+                .limit(size + 1)
                 .fetch();
+    }
+
+    // lastUserId가 있을 때만 '다음 페이지' 조건 생성
+    private BooleanExpression ltLastUserId(String lastUserId) {
+        if (lastUserId == null) {
+            return null;
+        }
+        // 실제 운영 환경에서는 ID가 아닌 정렬 기준값(ex: createdAt)으로 비교하는 것이 더 빠릅니다.
+        // 여기서는 단순성을 위해 ID 기반 예시를 들거나,
+        // 정렬 순서상 특정 시점 이후의 데이터를 가져오는 로직을 넣어야 합니다.
+        return activityRecordReaction.reactedUser.id.gt(lastUserId);
     }
 }

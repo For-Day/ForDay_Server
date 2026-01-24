@@ -36,8 +36,10 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
     @GetMapping("/{recordId}/reaction-users")
     public GetRecordReactionUsersResDto getRecordReactionUsers(@PathVariable(name = "recordId") Long recordId,
                                                                @RequestParam(name = "reactionType") RecordReactionType reactionType,
+                                                               @RequestParam(name = "lastUserId", required = false) String lastUserId,
+                                                               @RequestParam(name = "size", required = false, defaultValue = "10") Integer size,
                                                                @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.getRecordReactionUsers(recordId, reactionType, user);
+        return activityRecordService.getRecordReactionUsers(recordId, reactionType, user, lastUserId, size);
     }
 
     @Override
