@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.entity.UserRecordCount;
@@ -35,6 +36,7 @@ public class UserService {
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final UserRecordCountRepository userRecordCountRepository;
+    private final HobbyCardRepository hobbyCardRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -151,5 +153,15 @@ public class UserService {
 
         List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
         return new GetUserFeedListResDto(totalFeedCount, feedList);
+    }
+
+    @Transactional(readOnly = true)
+    public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, currentUser);
+        Long lastId = cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
+
+        return new GetUserHobbyCardListResDto(lastId, cardDtoList);
     }
 }

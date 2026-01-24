@@ -15,7 +15,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UserRecordCount {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
     private String id;
 
