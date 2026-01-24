@@ -2,7 +2,9 @@ package com.example.ForDay.domain.user.service;
 
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.entity.UserRecordCount;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ public class UserService {
     private final S3Service s3Service;
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
+    private final UserRecordCountRepository userRecordCountRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -137,8 +141,15 @@ public class UserService {
     public GetUserFeedListResDto getUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
+        int totalFeedCount = 0;
 
-        return null;
+        Optional<UserRecordCount> userRecordCountOpt = userRecordCountRepository.findById(currentUser.getId());
+
+        if (userRecordCountOpt.isPresent()) {
+            totalFeedCount = userRecordCountOpt.get().getRecordCount();
+        }
+
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
+        return new GetUserFeedListResDto(totalFeedCount, feedList);
     }
 }
