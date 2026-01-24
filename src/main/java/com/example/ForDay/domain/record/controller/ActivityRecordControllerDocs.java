@@ -131,4 +131,31 @@ public interface ActivityRecordControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+
+    @Operation(
+            summary = "리액션 취소",
+            description = "본인이 남긴 리액션을 취소(삭제)합니다. 기록 ID와 리액션 타입을 파라미터로 전달해야 합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "리액션 취소 성공",
+                    content = @Content(schema = @Schema(implementation = CancelReactToRecordResDto.class),
+                            examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"리액션이 정상적으로 취소되었습니다.\", \"reactionType\": \"GREAT\", \"recordId\": 123}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "찾을 수 없음 (기록 또는 리액션)",
+                    content = @Content(examples = {
+                            @ExampleObject(name = "기록 없음", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"),
+                            @ExampleObject(name = "리액션 없음", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"REACTION_NOT_FOUND\", \"message\": \"해당 리액션을 찾을 수 없거나 이미 취소되었습니다.\"}}")
+                    })
+            )
+    })
+    CancelReactToRecordResDto cancelReactToRecord(
+            @Parameter(description = "활동 기록 ID", example = "123") @PathVariable(name = "recordId") Long recordId,
+            @Parameter(description = "취소할 리액션 타입 (AWESOME: 멋져요, GREAT: 짱이야, AMAZING: 대단해, FIGHTING: 화이팅)", example = "GREAT")
+            @RequestParam(name = "reactionType") RecordReactionType reactionType,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
 }

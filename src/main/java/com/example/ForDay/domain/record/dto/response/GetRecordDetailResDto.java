@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Builder
 @Schema(description = "기록 상세 조회 응답 DTO")
 public class GetRecordDetailResDto {
-    private Long hobbyId;
     private Long activityId;
     private String activityContent;
     private Long activityRecordId;
@@ -21,6 +20,7 @@ public class GetRecordDetailResDto {
     private String sticker;
     private String createdAt;
     private String memo;
+    private boolean recordOwner;
     private RecordVisibility visibility;
     private NewReactionDto newReaction;
     private UserReactionDto userReaction;

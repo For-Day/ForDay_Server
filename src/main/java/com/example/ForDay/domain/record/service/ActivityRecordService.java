@@ -32,7 +32,7 @@ public class ActivityRecordService {
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordReactionRepository recordReactionRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
         ActivityRecord activityRecord = getActivityRecord(recordId);
         User currentUser = userUtil.getCurrentUser(user);
@@ -50,8 +50,11 @@ public class ActivityRecordService {
 
         GetRecordDetailResDto.NewReactionDto newReaction;
 
+        boolean isRecordOwner = false;
         // 권한 판별 및 New 알림 처리
         if (Objects.equals(currentUserId, writer.getId())) {
+            isRecordOwner = true;
+
             //  읽지 않은 리액션이 있는지 확인
             List<RecordReactionType> unreadTypes = recordReactionRepository.findAllUnreadReactions(recordId);
             newReaction = new GetRecordDetailResDto.NewReactionDto(
@@ -71,7 +74,6 @@ public class ActivityRecordService {
         }
 
         return GetRecordDetailResDto.builder()
-                .hobbyId(activityRecord.getHobby().getId())
                 .activityId(activityRecord.getActivity().getId())
                 .activityContent(activityRecord.getActivity().getContent())
                 .activityRecordId(activityRecord.getId())
@@ -79,6 +81,7 @@ public class ActivityRecordService {
                 .sticker(activityRecord.getSticker())
                 .createdAt(TimeUtil.formatLocalDateTime(activityRecord.getCreatedAt()))
                 .memo(activityRecord.getMemo())
+                .recordOwner(isRecordOwner)
                 .visibility(activityRecord.getVisibility())
                 .newReaction(newReaction)
                 .userReaction(userReaction)

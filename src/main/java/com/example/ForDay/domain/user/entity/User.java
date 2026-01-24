@@ -83,4 +83,8 @@ public class User extends BaseTimeEntity {
     public void updateProfileImage(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }
+
+    public Integer getTotalCollectedStickerCount() {
+        return totalCollectedStickerCount == null ? 0 : totalCollectedStickerCount;
+    }
 }
