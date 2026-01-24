@@ -7,7 +7,7 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
+import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
@@ -52,7 +52,7 @@ public class HobbyService {
     private final ActivityRepository activityRepository;
     private final AiActivityService aiActivityService;
     private final AiCallCountService aiCallCountService;
-    private final HobbyCardRepository hobbyCardRepository;
+    private final HobbyInfoRepository hobbyInfoRepository;
     private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
@@ -219,7 +219,7 @@ public class HobbyService {
         log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}", hobbyCardId);
 
         // 1. HobbyCard 존재 여부 검증
-        if (!hobbyCardRepository.existsById(hobbyCardId)) {
+        if (!hobbyInfoRepository.existsById(hobbyCardId)) {
             log.warn("[OTHERS-AI-RECOMMEND][NOT-FOUND] hobbyCardId={} is not exist", hobbyCardId);
             throw new CustomException(ErrorCode.HOBBY_CARD_NOT_FOUND);
         }
@@ -505,9 +505,7 @@ public class HobbyService {
     }
 
     private void verifyHobbyOwner(Hobby hobby, User currentUser) {
-        if (!Objects.equals(hobby.getUser().getId(), currentUser.getId())) {
-            log.warn("[HobbyService] 권한 없음 - HobbyOwnerId: {}, CurrentUserId: {}",
-                    hobby.getUser().getId(), currentUser.getId());
+        if (!Objects.equals(hobby.getUser(), currentUser)) {
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
     }
@@ -725,7 +723,7 @@ public class HobbyService {
                     .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
             // 권한 확인
-            if (!activityRecord.getUser().getId().equals(currentUser.getId())) {
+            if (!Objects.equals(activityRecord.getUser(), currentUser)) {
                 throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
             }
 

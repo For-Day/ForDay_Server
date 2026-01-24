@@ -2,10 +2,7 @@ package com.example.ForDay.domain.user.controller;
 
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
-import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
-import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
-import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
-import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
+import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.service.UserService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -46,5 +43,9 @@ public class UserController implements UserControllerDocs {
         return userService.setUserProfileImage(reqDto, user);
     }
 
+    @GetMapping("/hobbies/in-progress")
+    public GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user) {
+        return userService.getHobbyInProgress(user);
+    }
 
 }

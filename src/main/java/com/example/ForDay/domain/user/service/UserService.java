@@ -1,10 +1,7 @@
 package com.example.ForDay.domain.user.service;
 
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
-import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
-import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
-import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
-import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
+import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
@@ -117,5 +114,12 @@ public class UserService {
 
         currentUser.updateProfileImage(newImageUrl);
         return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "프로필 이미지가 성공적으로 변경되었습니다.");
+    }
+
+    @Transactional(readOnly = true)
+    public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        return null;
     }
 }
