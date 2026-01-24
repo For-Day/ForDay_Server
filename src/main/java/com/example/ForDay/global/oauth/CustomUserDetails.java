@@ -28,6 +28,10 @@ public class CustomUserDetails implements UserDetails {
         return authorities;
     }
 
+    public User getUser() {
+        return user;
+    }
+
     @Override
     public String getPassword() {
         return "";

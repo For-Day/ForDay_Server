@@ -1,19 +1,16 @@
 package com.example.ForDay.domain.hobby.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
-import com.example.ForDay.domain.activity.entity.QActivityRecord;
 import com.example.ForDay.domain.auth.dto.response.OnboardingDataDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHomeHobbyInfoResDto;
 import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.util.RedisUtil;
-import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.CaseBuilder;
-import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 

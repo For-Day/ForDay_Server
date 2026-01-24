@@ -1,10 +1,10 @@
 package com.example.ForDay.domain.hobby;
 
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.domain.activity.entity.ActivityRecord;
-import com.example.ForDay.domain.activity.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
-import com.example.ForDay.domain.activity.type.RecordVisibility;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
