@@ -34,7 +34,9 @@ public class ActivityRecordService {
 
     @Transactional
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
+        ActivityRecord activityRecord = activityRecordRepository.findByIdWithUserAndActivity(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
         User currentUser = userUtil.getCurrentUser(user);
         User writer = activityRecord.getUser();
         String currentUserId = currentUser.getId();
