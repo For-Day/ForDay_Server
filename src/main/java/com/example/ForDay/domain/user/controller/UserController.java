@@ -43,6 +43,7 @@ public class UserController implements UserControllerDocs {
         return userService.setUserProfileImage(reqDto, user);
     }
 
+    @Override
     @GetMapping("/hobbies/in-progress")
     public GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user) {
         return userService.getHobbyInProgress(user);

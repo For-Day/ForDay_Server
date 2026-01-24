@@ -2,10 +2,7 @@ package com.example.ForDay.domain.user.controller;
 
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
-import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
-import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
-import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
-import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
+import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -113,4 +110,17 @@ public interface UserControllerDocs {
             )
     })
     SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "마이페이지 상단 취미 탭 조회",
+            description = "현재 로그인한 사용자의 진행 중인 취미 개수, 전체 취미 카드 개수, 그리고 취미 리스트(진행 중 우선 정렬)를 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    useReturnTypeSchema = true // GetHobbyInProgressResDto 구조 자동 반영
+            )
+    })
+    GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user);
 }
