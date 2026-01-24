@@ -136,6 +136,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.getStickerInfo(hobbyId, page, size, user);
     }
 
+    @Override
     @PatchMapping("/cover-image")
     public SetHobbyCoverImageResDto setHobbyCoverImage(@RequestBody @Valid SetHobbyCoverImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.setHobbyCoverImage(reqDto, user);
