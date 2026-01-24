@@ -3,8 +3,10 @@ package com.example.ForDay.domain.record.repository;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
+import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -43,5 +45,36 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .offset(offset)
                 .limit(size)
                 .fetch();
+    }
+
+
+
+    @Override
+    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, User currentUser) {
+        return queryFactory
+                .select(Projections.constructor(
+                        GetUserFeedListResDto.FeedDto.class,
+                        record.id,
+                        record.imageUrl,
+                        record.sticker,
+                        record.createdAt
+                ))
+                .from(record)
+                .where(
+                        record.user.id.eq(currentUser.getId()),
+                        ltLastRecordId(lastRecordId),
+                        eqHobbyId(hobbyId)
+                )
+                .orderBy(record.id.desc())
+                .limit(feedSize)
+                .fetch();
+    }
+
+    private BooleanExpression eqHobbyId(Long hobbyId) {
+        return hobbyId != null ? record.hobby.id.eq(hobbyId) : null;
+    }
+
+    private BooleanExpression ltLastRecordId(Long lastRecordId) {
+        return lastRecordId != null ? record.id.lt(lastRecordId) : null;
     }
 }

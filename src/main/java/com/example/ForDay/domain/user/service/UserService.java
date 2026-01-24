@@ -2,6 +2,7 @@ package com.example.ForDay.domain.user.service;
 
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
@@ -29,6 +30,7 @@ public class UserService {
     private final UserUtil userUtil;
     private final S3Service s3Service;
     private final HobbyRepository hobbyRepository;
+    private final ActivityRecordRepository activityRecordRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -129,5 +131,14 @@ public class UserService {
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
 
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
+    }
+
+    @Transactional(readOnly = true)
+    public GetUserFeedListResDto getUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
+
+        return null;
     }
 }
