@@ -49,6 +49,7 @@ public class UserController implements UserControllerDocs {
         return userService.getHobbyInProgress(user);
     }
 
+    @Override
     @GetMapping("/feeds")
     public GetUserFeedListResDto getUserFeedList(@RequestParam(name = "hobbyId", required = false) Long hobbyId,
                                                  @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,

@@ -14,7 +14,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "User", description = "사용자 프로필 및 계정 관련 API")
 public interface UserControllerDocs {
@@ -123,4 +125,29 @@ public interface UserControllerDocs {
             )
     })
     GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user);
+
+
+    @Operation(
+            summary = "나의 활동 피드 목록 조회",
+            description = "사용자의 활동 기록을 최신순으로 조회합니다. 특정 취미 필터링 및 무한 스크롤(No-offset) 페이징을 지원합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공 (기록이 없는 경우 totalFeedCount가 null일 수 있음)",
+                    useReturnTypeSchema = true
+            )
+    })
+    @GetMapping("/feeds")
+    public GetUserFeedListResDto getUserFeedList(
+            @Parameter(description = "필터링할 취미 ID (입력하지 않으면 전체 피드 조회)", example = "12")
+            @RequestParam(name = "hobbyId", required = false) Long hobbyId,
+
+            @Parameter(description = "마지막으로 조회된 기록 ID (첫 페이지 요청 시에는 비워둠)", example = "455")
+            @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
+
+            @Parameter(description = "한 번에 가져올 피드 개수 (기본값: 24)", example = "24")
+            @RequestParam(name = "feedSize", required = false, defaultValue = "24") Integer feedSize,
+
+            @AuthenticationPrincipal CustomUserDetails user);
 }

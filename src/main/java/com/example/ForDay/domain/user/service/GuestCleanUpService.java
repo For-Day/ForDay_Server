@@ -20,10 +20,10 @@ public class GuestCleanUpService {
     public void deleteOldGuests() {
 
         LocalDateTime sixMonthsAgo =
-                LocalDateTime.now().minusMonths(6);
+                LocalDateTime.now().minusMonths(12);
 
         int deleted = userRepository.deleteOldGuests(sixMonthsAgo);
 
-        log.info("[Guest Cleanup] 6개월 이상 활동 없는 게스트 삭제 = {}", deleted);
+        log.info("[Guest Cleanup] 12개월 이상 활동 없는 게스트 삭제 = {}", deleted);
     }
 }
