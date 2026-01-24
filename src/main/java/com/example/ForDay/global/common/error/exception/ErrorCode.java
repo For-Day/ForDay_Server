@@ -56,13 +56,18 @@ public enum ErrorCode {
 
     // 활동 기록 관련
     ALREADY_RECORDED_TODAY(HttpStatus.BAD_REQUEST, "오늘 해당 취미에 대한 활동 기록을 이미 작성하였습니다."),
+    ACTIVITY_RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동 기록입니다."),
+    PRIVATE_RECORD(HttpStatus.FORBIDDEN, "이 글은 작성자만 볼 수 있습니다."),
+    FRIEND_ONLY_ACCESS(HttpStatus.FORBIDDEN, "이 글은 친구만 조회할 수 있습니다."),
+    NOT_ACTIVITY_RECORD_OWNER(HttpStatus.FORBIDDEN, "활동 기록 소유자가 아닙니다."),
+    DUPLICATE_REACTION(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 같은 반응을 하셨습니다."),
+    REACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 리액션을 찾을 수 없거나 이미 취소되었습니다."),
 
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
     DUPLICATE_HOBBY_REQUEST(HttpStatus.CONFLICT, "같은 취미에 대한 충복 요청입니다. (닉네임 설정을 완료하세요.)"),
 
-    ;
-
+   ;
     private final HttpStatus status;
     private final String message;
 

@@ -1,6 +1,7 @@
-package com.example.ForDay.domain.activity.entity;
+package com.example.ForDay.domain.record.entity;
 
-import com.example.ForDay.domain.activity.type.RecordVisibility;
+import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
@@ -9,9 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "activity_records")
@@ -48,4 +46,8 @@ public class ActivityRecord extends BaseTimeEntity {
     private RecordVisibility visibility;
 
     private String imageUrl;
+
+    public void updateVisibility(RecordVisibility newVisibility) {
+        this.visibility = newVisibility;
+    }
 }

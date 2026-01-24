@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.activity.type;
+package com.example.ForDay.domain.record.type;
 
 public enum RecordVisibility {
     PUBLIC,

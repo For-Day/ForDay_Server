@@ -4,7 +4,9 @@ import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import org.hibernate.validator.constraints.URL;
 
 import java.time.LocalDateTime;
 
@@ -43,7 +45,7 @@ public class User extends BaseTimeEntity {
     @Column(name = "social_type", length = 20, nullable = false)
     private SocialType socialType;
 
-    @Column(name = "social_id", length = 255, unique = true, nullable = false)
+    @Column(name = "social_id", unique = true, nullable = false)
     private String socialId;
 
     @Column(name = "last_activity_at")
@@ -52,6 +54,13 @@ public class User extends BaseTimeEntity {
 
     @Builder.Default
     private boolean onboardingCompleted = false;
+
+    @Column(name = "profile_image_url")
+    @Builder.Default
+    private String profileImageUrl = null;
+
+    @Builder.Default
+    private Integer totalCollectedStickerCount = 0;
 
     // 게스트 마지막 활동일시 업데이트
     public void updateLastActivity() {
@@ -67,4 +76,15 @@ public class User extends BaseTimeEntity {
         this.onboardingCompleted = true;
     }
 
+    public void obtainSticker() {
+        this.totalCollectedStickerCount++;
+    }
+
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public Integer getTotalCollectedStickerCount() {
+        return totalCollectedStickerCount == null ? 0 : totalCollectedStickerCount;
+    }
 }

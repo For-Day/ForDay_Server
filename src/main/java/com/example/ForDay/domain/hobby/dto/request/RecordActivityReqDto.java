@@ -1,15 +1,12 @@
 package com.example.ForDay.domain.hobby.dto.request;
 
-import com.example.ForDay.domain.activity.type.RecordVisibility;
-import jakarta.validation.Valid;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Data
 @AllArgsConstructor
