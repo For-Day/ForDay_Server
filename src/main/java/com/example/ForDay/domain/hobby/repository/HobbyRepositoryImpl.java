@@ -7,10 +7,13 @@ import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
+import com.example.ForDay.domain.user.dto.response.GetHobbyInProgressResDto;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.util.RedisUtil;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -119,5 +122,28 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .where(hobby.user.eq(user))
                 .orderBy(hobby.createdAt.asc())
                 .fetchFirst();
+    }
+
+    @Override
+    public List<GetHobbyInProgressResDto.HobbyDto> findUserTabHobbyList(User currentUser) {
+        NumberExpression<Integer> statusOrder = new CaseBuilder()
+                .when(hobby.status.eq(HobbyStatus.IN_PROGRESS)).then(1)
+                .otherwise(2);
+
+        return queryFactory
+                .select(Projections.constructor(
+                        GetHobbyInProgressResDto.HobbyDto.class,
+                        hobby.id,
+                        hobby.hobbyName,
+                        hobby.coverImageUrl,
+                        hobby.status
+                ))
+                .from(hobby)
+                .where(hobby.user.id.eq(currentUser.getId()))
+                .orderBy(
+                        statusOrder.asc(),
+                        hobby.createdAt.desc()
+                )
+                .fetch();
     }
 }

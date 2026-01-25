@@ -6,7 +6,7 @@ import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
 import com.example.ForDay.domain.app.dto.response.GeneratePresignedUrlResDto;
-import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
+import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -22,7 +22,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class AppService {
-    private final HobbyCardRepository hobbyCardRepository;
+    private final HobbyInfoRepository hobbyInfoRepository;
     private final S3Service s3Service;
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
@@ -30,7 +30,7 @@ public class AppService {
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
         List<AppMetaDataResDto.HobbyInfoDto> hobbyCardDtos =
-                hobbyCardRepository.findAll()
+                hobbyInfoRepository.findAll()
                         .stream()
                         .map(hobbyCard -> new AppMetaDataResDto.HobbyInfoDto(
                                 hobbyCard.getId(),

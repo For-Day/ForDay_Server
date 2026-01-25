@@ -1,10 +1,13 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.entity.UserRecordCount;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
-import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
-import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
-import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
-import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
+import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
@@ -19,7 +22,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +33,10 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserUtil userUtil;
     private final S3Service s3Service;
+    private final HobbyRepository hobbyRepository;
+    private final ActivityRecordRepository activityRecordRepository;
+    private final UserRecordCountRepository userRecordCountRepository;
+    private final HobbyCardRepository hobbyCardRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -82,7 +91,7 @@ public class UserService {
     @Transactional
     public NicknameRegisterResDto nicknameRegister(String nickname, CustomUserDetails user) {
         boolean exists = userRepository.existsByNickname(nickname);
-        if(exists) {
+        if (exists) {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
@@ -117,5 +126,57 @@ public class UserService {
 
         currentUser.updateProfileImage(newImageUrl);
         return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "프로필 이미지가 성공적으로 변경되었습니다.");
+    }
+
+    @Transactional(readOnly = true)
+    public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        int inProgressHobbyCount = (int) hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
+        int hobbyCardCount = currentUser.getHobbyCardCount();
+
+        List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
+
+        return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
+    }
+
+    @Transactional(readOnly = true)
+    public GetUserFeedListResDto getUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        int totalFeedCount = 0;
+
+        Optional<UserRecordCount> userRecordCountOpt = userRecordCountRepository.findById(currentUser.getId());
+
+        if (userRecordCountOpt.isPresent()) {
+            totalFeedCount = userRecordCountOpt.get().getRecordCount();
+        }
+
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
+
+        boolean hasNext = false;
+        if (feedList.size() > feedSize) {
+            hasNext = true;
+            feedList.remove(feedSize.intValue());
+        }
+
+        Long lastId = feedList.isEmpty() ? null : feedList.get(feedList.size() - 1).getRecordId();
+        return new GetUserFeedListResDto(totalFeedCount, lastId, feedList, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, currentUser);
+
+        boolean hasNext = false;
+        if (cardDtoList.size() > size) {
+            hasNext = true;
+            cardDtoList.remove(size.intValue());
+        }
+
+        Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
+
+        return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
     }
 }

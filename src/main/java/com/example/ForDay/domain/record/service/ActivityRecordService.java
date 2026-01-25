@@ -149,7 +149,7 @@ public class ActivityRecordService {
     }
 
     private void verifyRecordOwner(ActivityRecord record, User user) {
-        if (!record.getUser().getId().equals(user.getId())) {
+        if (!Objects.equals(record.getUser(), user)) {
             throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
         }
     }

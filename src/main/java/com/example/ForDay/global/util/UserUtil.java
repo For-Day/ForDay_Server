@@ -12,6 +12,6 @@ public class UserUtil {
     private final UserRepository userRepository;
 
     public User getCurrentUser(CustomUserDetails user) {
-        return user.getUser();
+        return userRepository.findBySocialId(user.getUsername());
     }
 }
