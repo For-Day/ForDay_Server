@@ -66,7 +66,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         eqHobbyId(hobbyId)
                 )
                 .orderBy(record.id.desc())
-                .limit(feedSize)
+                .limit(feedSize + 1)
                 .fetch();
     }
 

@@ -91,7 +91,7 @@ public class UserService {
     @Transactional
     public NicknameRegisterResDto nicknameRegister(String nickname, CustomUserDetails user) {
         boolean exists = userRepository.existsByNickname(nickname);
-        if(exists) {
+        if (exists) {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
@@ -152,7 +152,15 @@ public class UserService {
         }
 
         List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
-        return new GetUserFeedListResDto(totalFeedCount, feedList);
+
+        boolean hasNext = false;
+        if (feedList.size() > feedSize) {
+            hasNext = true;
+            feedList.remove(feedSize.intValue());
+        }
+
+        Long lastId = feedList.isEmpty() ? null : feedList.get(feedList.size() - 1).getRecordId();
+        return new GetUserFeedListResDto(totalFeedCount, lastId, feedList, hasNext);
     }
 
     @Transactional(readOnly = true)
@@ -160,8 +168,15 @@ public class UserService {
         User currentUser = userUtil.getCurrentUser(user);
 
         List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, currentUser);
-        Long lastId = cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
 
-        return new GetUserHobbyCardListResDto(lastId, cardDtoList);
+        boolean hasNext = false;
+        if (cardDtoList.size() > size) {
+            hasNext = true;
+            cardDtoList.remove(size.intValue());
+        }
+
+        Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
+
+        return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
     }
 }

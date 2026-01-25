@@ -150,4 +150,21 @@ public interface UserControllerDocs {
             @RequestParam(name = "feedSize", required = false, defaultValue = "24") Integer feedSize,
 
             @AuthenticationPrincipal CustomUserDetails user);
+
+
+    @Operation(
+            summary = "유저의 취미 카드 리스트 조회",
+            description = "사용자가 생성한 취미 카드들을 무한 스크롤 방식으로 조회합니다. 첫 조회 시 lastCardId는 비워둡니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    GetUserHobbyCardListResDto getUserHobbyCardList(
+            @Parameter(description = "마지막으로 조회된 카드의 ID (첫 페이지 조회 시 null)", example = "45")
+            @RequestParam(name = "lastCardId", required = false) Long lastHobbyCardId,
+
+            @Parameter(description = "한 번에 가져올 데이터 개수", example = "20")
+            @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
+
+            @AuthenticationPrincipal CustomUserDetails user);
 }

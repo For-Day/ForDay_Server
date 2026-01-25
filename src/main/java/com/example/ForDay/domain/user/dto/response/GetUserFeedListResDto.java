@@ -12,7 +12,9 @@ import java.util.List;
 @AllArgsConstructor
 public class GetUserFeedListResDto {
     private int totalFeedCount;
+    private Long lastRecordId;
     private List<FeedDto> feedList;
+    private boolean hasNext;
 
     @Data
     @NoArgsConstructor

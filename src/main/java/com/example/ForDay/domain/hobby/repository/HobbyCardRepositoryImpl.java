@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 
 @RequiredArgsConstructor
-public class HobbyCardRepositoryImpl implements HobbyCardRepositoryCustom{
+public class HobbyCardRepositoryImpl implements HobbyCardRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     QHobbyCard hobbyCard = QHobbyCard.hobbyCard;
 
@@ -32,7 +32,7 @@ public class HobbyCardRepositoryImpl implements HobbyCardRepositoryCustom{
                         ltLastHobbyCardId(lastHobbyCardId)
                 )
                 .orderBy(hobbyCard.id.desc())
-                .limit(size)
+                .limit(size + 1)
                 .fetch();
     }
 
