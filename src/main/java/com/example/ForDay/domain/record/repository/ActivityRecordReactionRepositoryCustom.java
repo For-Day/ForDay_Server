@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.record.repository;
 
+import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 
@@ -10,5 +11,5 @@ public interface ActivityRecordReactionRepositoryCustom {
 
     List<RecordReactionType> findAllUnreadReactions(Long activityRecordId);
 
-    List<ActivityRecordReaction> findUsersReactionsByType(Long recordId, RecordReactionType reactionType, String lastUserId, Integer size);
+    List<GetRecordReactionUsersResDto.ReactionUserInfo> findReactionUsersDtoByType(Long recordId, RecordReactionType type, String lastUserId, Integer size, boolean isRecordOwner);
 }

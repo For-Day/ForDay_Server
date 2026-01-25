@@ -1,14 +1,17 @@
 package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
-import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.User;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ActivityRecordRepositoryCustom {
     List<GetStickerInfoResDto.StickerDto> getStickerInfo(Long hobbyId, Integer page, Integer size, User currentUser);
 
-    List<GetUserFeedListResDto.FeedDto> findUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, User currentUser);
+    List<GetUserFeedListResDto.FeedDto> findUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, String userId);
+
+    Optional<RecordDetailQueryDto> findDetailDtoById(Long recordId);
 }

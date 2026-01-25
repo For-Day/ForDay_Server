@@ -1,17 +1,21 @@
 package com.example.ForDay.domain.record.repository;
 
+import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.QUser;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
 @RequiredArgsConstructor
-public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReactionRepositoryCustom{
+public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReactionRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private QActivityRecordReaction activityRecordReaction = QActivityRecordReaction.activityRecordReaction;
     private QUser user = QUser.user;
@@ -37,14 +41,29 @@ public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReact
     }
 
     @Override
-    public List<ActivityRecordReaction> findUsersReactionsByType(Long recordId, RecordReactionType type, String lastUserId, Integer size) {
+    public List<GetRecordReactionUsersResDto.ReactionUserInfo> findReactionUsersDtoByType(
+            Long recordId, RecordReactionType type, String lastUserId, Integer size, boolean isRecordOwner) {
+
         return queryFactory
-                .selectFrom(activityRecordReaction)
-                .join(activityRecordReaction.reactedUser, user).fetchJoin()
+                .select(Projections.constructor(GetRecordReactionUsersResDto.ReactionUserInfo.class,
+                        user.id,
+                        user.nickname,
+                        user.profileImageUrl,
+                        activityRecordReaction.createdAt,
+                        new CaseBuilder()
+                                .when(
+                                        Expressions.asBoolean(isRecordOwner).isTrue() // 전달받은 자바 변수가 true이고
+                                                .and(activityRecordReaction.readWriter.isFalse()) // DB의 readWriter가 false이면
+                                )
+                                .then(true)
+                                .otherwise(false)
+                ))
+                .from(activityRecordReaction)
+                .join(activityRecordReaction.reactedUser, user)
                 .where(
                         activityRecordReaction.activityRecord.id.eq(recordId),
                         activityRecordReaction.reactionType.eq(type),
-                        ltLastUserId(lastUserId) // 커서 조건 추가
+                        ltLastUserId(lastUserId)
                 )
                 .orderBy(
                         activityRecordReaction.readWriter.asc(),
