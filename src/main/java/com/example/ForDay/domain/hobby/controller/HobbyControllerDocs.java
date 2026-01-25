@@ -3,6 +3,7 @@ package com.example.ForDay.domain.hobby.controller;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -163,7 +164,7 @@ public interface HobbyControllerDocs {
                                                   @AuthenticationPrincipal CustomUserDetails user) throws Exception;
 
     @Operation(
-            summary = "다른 포비들의 활동 조회 (AI 기반)",
+            summary = "다른 포비들의 활동 조회 (더미 데이터 기반)",
             description = "초기 유저 데이터가 없을 때, AI가 비슷한 조건의 다른 유저들이 할 법한 인기 활동 3개를 생성하여 반환합니다."
     )
     @ApiResponses(value = {
@@ -323,7 +324,7 @@ public interface HobbyControllerDocs {
             )
     })
     @GetMapping("/activities/others/v1")
-    OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, CustomUserDetails userDetails);
+    OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, CustomUserDetails user);
 
     @Operation(
             summary = "취미 활동 추가",

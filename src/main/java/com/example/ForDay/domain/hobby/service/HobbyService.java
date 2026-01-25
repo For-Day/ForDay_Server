@@ -1,6 +1,8 @@
 package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.entity.OtherActivity;
+import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -11,7 +13,6 @@ import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.dto.response.AiOthersActivityResult;
 import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -31,6 +32,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -58,6 +60,7 @@ public class HobbyService {
     private final RedisUtil redisUtil;
     private final UserSummaryAIService userSummaryAIService;
     private final S3Service s3Service;
+    private final OtherActivityRepository otherActivityRepository;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -210,52 +213,19 @@ public class HobbyService {
     @Transactional(readOnly = true)
     public OthersActivityRecommendResDto othersActivityRecommendV1(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        Hobby hobby = getHobby(hobbyId);
-        verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
 
-        Long hobbyCardId = hobby.getHobbyInfoId();
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
 
-        log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}", hobbyCardId);
+        Long hobbyInfoId = hobby.getHobbyInfoId();
 
-        // 1. HobbyCard 존재 여부 검증
-        if (!hobbyInfoRepository.existsById(hobbyCardId)) {
-            log.warn("[OTHERS-AI-RECOMMEND][NOT-FOUND] hobbyCardId={} is not exist", hobbyCardId);
-            throw new CustomException(ErrorCode.HOBBY_CARD_NOT_FOUND);
-        }
+        List<OtherActivity> activities = otherActivityRepository.findRandomThreeByHobbyInfoId(hobbyInfoId);
 
-        // 2. AI 추천 서비스 호출
-        log.info("[OTHERS-AI-RECOMMEND][AI-CALL] Calling AI service for hobby: {}", hobbyCardId);
-        AiOthersActivityResult aiResult = aiActivityService.othersActivityRecommend(hobby);
-
-        // 3. 응답 결과 검증
-        if (aiResult.getOtherActivities() == null || aiResult.getOtherActivities().isEmpty()) {
-            log.error("[OTHERS-AI-RECOMMEND][INVALID-RESPONSE] AI returned null or empty result for hobby: {}",
-                    hobbyCardId);
-            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
-        }
-
-        // 4. DTO 매핑
-        log.debug("[OTHERS-AI-RECOMMEND][MAPPING] Mapping AI result to DTO. Size: {}",
-                aiResult.getOtherActivities().size());
-
-        List<OthersActivityRecommendResDto.ActivityDto> activities = aiResult.getOtherActivities().stream()
-                .map(routine -> new OthersActivityRecommendResDto.ActivityDto(
-                        routine.getId(),
-                        routine.getContent()
-                ))
+        List<OthersActivityRecommendResDto.ActivityDto> list = activities.stream()
+                .map(OthersActivityRecommendResDto.ActivityDto::from)
                 .toList();
 
-        // 5. 성공 로그 및 반환
-        log.info("[OTHERS-AI-RECOMMEND][SUCCESS] Successfully generated activities for hobbyCardId={}, count={}",
-                hobbyCardId,
-                activities.size()
-        );
-
-        return new OthersActivityRecommendResDto(
-                "다른 포비들의 인기 활동을 조회했습니다.",
-                activities
-        );
+        return new OthersActivityRecommendResDto("다른 하비들이 많이 하는 활동 목록 조회에 성공하셨습니다.", list);
     }
 
     @Transactional
