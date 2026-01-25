@@ -2,6 +2,8 @@ package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.hobby.entity.HobbyCard;
+import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -10,6 +12,7 @@ import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -36,7 +39,8 @@ public class ActivityService {
     private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisUtil redisUtil;
-    private final HobbyRepository hobbyRepository;
+    private final HobbyCardRepository hobbyCardRepository;
+    private final UserRecordCountRepository userRecordCountRepository;
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -52,7 +56,7 @@ public class ActivityService {
         verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
         Hobby hobby = activity.getHobby();
 
-        if(isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
+        if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
 
         checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
 
@@ -87,6 +91,11 @@ public class ActivityService {
 
         redisUtil.setDataExpire(redisKey, "recorded", 86400);
 
+        // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
+        if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
+            crateHobbyCard(hobby, currentUser);
+        }
+
         boolean extensionCheckRequired = isCheckStickerFull(hobby);
 
         return new RecordActivityResDto(
@@ -113,7 +122,7 @@ public class ActivityService {
         verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
         Hobby hobby = activity.getHobby();
 
-        if(isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
+        if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
         checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
 
         if (StringUtils.hasText(reqDto.getImageUrl())) {  // 이미지를 등록하고자 한다면 해당 이미지가 s3상에 잘 업로드 되었는지 확인
@@ -137,6 +146,11 @@ public class ActivityService {
         currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
+
+        // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
+        if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
+            crateHobbyCard(hobby, currentUser);
+        }
         boolean extensionCheckRequired = isCheckStickerFull(hobby);
 
         return new RecordActivityResDto(
@@ -149,6 +163,22 @@ public class ActivityService {
                 activityRecord.getMemo(),
                 extensionCheckRequired
         );
+    }
+
+    private void crateHobbyCard(Hobby hobby, User currentUser) {
+        // fast api 서버와 통신하여 취미 카드 content 생성하기
+        String hobbyCardContent = "취미 카드 내용";
+
+        HobbyCard hobbyCard = HobbyCard.builder()
+                .user(currentUser)
+                .hobby(hobby)
+                .content(hobbyCardContent)
+                .imageUrl(hobby.getCoverImageUrl())
+                .build();
+        hobbyCardRepository.save(hobbyCard);
+        userRecordCountRepository.incrementRecordCount(currentUser.getId());
+
+        currentUser.obtainHobbyCard();
     }
 
     private static boolean isCheckStickerFull(Hobby hobby) {
@@ -219,14 +249,12 @@ public class ActivityService {
 
     private void verifyActivityOwner(Activity activity, User currentUser) {
         if (!Objects.equals(activity.getUser(), currentUser)) {
-            log.warn("[RecordActivity] 소유권 검증 실패 - ActivityOwnerId: {}, CurrentUserId: {}",
-                    activity.getUser().getId(), currentUser.getId());
             throw new CustomException(ErrorCode.NOT_ACTIVITY_OWNER);
         }
     }
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
-        if(!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
+        if (!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
     }

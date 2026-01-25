@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.user.entity.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +18,10 @@ public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, 
             "join fetch ar.activity " +
             "where ar.id = :recordId")
     Optional<ActivityRecord> findByIdWithUserAndActivity(@Param("recordId") Long recordId);
+
+    @Query("SELECT ar FROM ActivityRecord ar " +
+            "JOIN FETCH ar.hobby " +
+            "JOIN FETCH ar.user " +
+            "WHERE ar.id = :recordId")
+    Optional<ActivityRecord> findByIdWithHobby(@Param("recordId") Long recordId);
 }

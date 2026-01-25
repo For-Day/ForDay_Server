@@ -2,10 +2,7 @@ package com.example.ForDay.domain.user.controller;
 
 import com.example.ForDay.domain.user.dto.request.NicknameRegisterReqDto;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
-import com.example.ForDay.domain.user.dto.response.NicknameCheckResDto;
-import com.example.ForDay.domain.user.dto.response.NicknameRegisterResDto;
-import com.example.ForDay.domain.user.dto.response.SetUserProfileImageResDto;
-import com.example.ForDay.domain.user.dto.response.UserInfoResDto;
+import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.service.UserService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -45,4 +42,28 @@ public class UserController implements UserControllerDocs {
     public SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return userService.setUserProfileImage(reqDto, user);
     }
+
+    @Override
+    @GetMapping("/hobbies/in-progress")
+    public GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user) {
+        return userService.getHobbyInProgress(user);
+    }
+
+    @Override
+    @GetMapping("/feeds")
+    public GetUserFeedListResDto getUserFeedList(@RequestParam(name = "hobbyId", required = false) Long hobbyId,
+                                                 @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
+                                                 @RequestParam(name = "feedSize", required = false, defaultValue = "24") Integer feedSize,
+                                                 @AuthenticationPrincipal CustomUserDetails user) {
+        return userService.getUserFeedList(hobbyId, lastRecordId, feedSize, user);
+    }
+
+    @Override
+    @GetMapping("/hobby-cards")
+    public GetUserHobbyCardListResDto getUserHobbyCardList(@RequestParam(name = "lastHobbyCardId", required = false) Long lastHobbyCardId,
+                                                           @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
+                                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return userService.getUserHobbyCardList(lastHobbyCardId, size, user);
+    }
+
 }

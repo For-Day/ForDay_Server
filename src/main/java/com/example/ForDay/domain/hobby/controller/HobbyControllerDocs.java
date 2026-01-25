@@ -1329,4 +1329,42 @@ public interface HobbyControllerDocs {
             )
     })
     GetStickerInfoResDto getStickerInfo(Long hobbyId, Integer page, Integer size, CustomUserDetails user);
+
+    @Operation(
+            summary = "취미 대표 이미지 설정",
+            description = "앨범에서 선택한 이미지 URL 또는 기존 활동 기록의 사진을 사용하여 취미 카드의 대표 이미지를 변경합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "대표 이미지 변경 성공",
+                    content = @Content(schema = @Schema(implementation = SetHobbyCoverImageResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_INPUT_VALUE: 입력 값이 유효하지 않음 (hobbyId/coverImageUrl 누락 등)",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{hobbyId=필수 값입니다.}\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "NOT_HOBBY_OWNER / NOT_ACTIVITY_RECORD_OWNER: 취미 또는 활동 기록의 소유자가 아님",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"NOT_HOBBY_OWNER\", \"message\": \"취미 소유자가 아닙니다.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "HOBBY_NOT_FOUND / ACTIVITY_RECORD_NOT_FOUND / S3_IMAGE_NOT_FOUND: 요청한 리소스를 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"S3_IMAGE_NOT_FOUND\", \"message\": \"S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.\"}}"))
+            )
+    })
+    @PatchMapping("/cover-image")
+    public SetHobbyCoverImageResDto setHobbyCoverImage(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "case 1: hobbyId + coverImageUrl 전달 | case 2: recordId 전달 (hobbyId 자동 매칭)",
+                    content = @Content(examples = {
+                            @ExampleObject(name = "Case 1: 앨범에서 선택", value = "{\"hobbyId\": 12, \"coverImageUrl\": \"https://s3.forday-bucket.com/records/unique-image-name.jpg\", \"recordId\": null}"),
+                            @ExampleObject(name = "Case 2: 활동 기록에서 선택", value = "{\"hobbyId\": null, \"coverImageUrl\": null, \"recordId\": 456}")
+                    })
+            )
+            @RequestBody @Valid SetHobbyCoverImageReqDto reqDto,
+            @AuthenticationPrincipal CustomUserDetails user);
 }
