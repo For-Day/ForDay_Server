@@ -169,63 +169,6 @@ public interface HobbyControllerDocs {
     )
     @ApiResponses(value = {
             @ApiResponse(
-                    responseCode = "400",
-                    description = "요청값 유효성 검사 실패",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "VALIDATION_ERROR",
-                                    value = """
-                                            {
-                                              "status": 400,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "VALIDATION_ERROR",
-                                                "message": "{hobbyName=hobbyName은 필수입니다.}"
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "AI 호출 횟수 초과",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "AI_CALL_LIMIT_EXCEEDED",
-                                    value = """
-                                            {
-                                              "status": 400,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "AI_CALL_LIMIT_EXCEEDED",
-                                                "message": "AI 최대 호출 횟수를 초과하였습니다."
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "취미 소유자가 아님",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "NOT_HOBBY_OWNER",
-                                    value = """
-                                            {
-                                              "status": 403,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "NOT_HOBBY_OWNER",
-                                                "message": "취미 소유자가 아닙니다."
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
                     responseCode = "404",
                     description = "취미 카드 조회 실패",
                     content = @Content(
@@ -236,86 +179,8 @@ public interface HobbyControllerDocs {
                                               "status": 404,
                                               "success": false,
                                               "data": {
-                                                "errorClassName": "HOBBY_CARD_NOT_FOUND",
-                                                "message": "존재하지 않는 취미 카드입니다."
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "취미 조회 실패",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "HOBBY_NOT_FOUND",
-                                    value = """
-                                            {
-                                              "status": 404,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "HOBBY_CARD_NOT_FOUND",
+                                                "errorClassName": "HOBBY_NOT_FOUND",
                                                 "message": "존재하지 않는 취미입니다."
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "422",
-                    description = "AI 응답 형식 오류",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "AI_RESPONSE_INVALID",
-                                    value = """
-                                            {
-                                              "status": 422,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "AI_RESPONSE_INVALID",
-                                                "message": "AI 응답 형식이 올바르지 않아 데이터를 처리할 수 없습니다."
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "502",
-                    description = "AI 서비스 통신 실패",
-                    content = @Content(
-                            examples = @ExampleObject(
-                                    name = "AI_SERVICE_ERROR",
-                                    value = """
-                                            {
-                                              "status": 502,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "AI_SERVICE_ERROR",
-                                                "message": "AI 서비스 연결 중에 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-                                              }
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "현재 취미 상태에서는 작업을 수행할 수 없음",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    name = "INVALID_HOBBY_STATUS",
-                                    summary = "유효하지 않은 취미 상태",
-                                    value = """
-                                            {
-                                              "status": 400,
-                                              "success": false,
-                                              "data": {
-                                                "errorClassName": "INVALID_HOBBY_STATUS",
-                                                "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
                                               }
                                             }
                                             """
