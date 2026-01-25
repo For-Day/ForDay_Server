@@ -131,11 +131,14 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        int inProgressHobbyCount = (int) hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
-        int hobbyCardCount = currentUser.getHobbyCardCount();
 
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
 
+        int inProgressHobbyCount = (int) hobbyList.stream()
+                .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
+                .count();
+
+        int hobbyCardCount = currentUser.getHobbyCardCount();
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
     }
 
