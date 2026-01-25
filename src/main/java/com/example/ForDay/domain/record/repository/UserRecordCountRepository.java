@@ -6,9 +6,14 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+
 public interface UserRecordCountRepository extends JpaRepository<UserRecordCount, String> {
 
     @Modifying
     @Query("UPDATE UserRecordCount u SET u.recordCount = u.recordCount + 1 WHERE u.id = :userId")
     int incrementRecordCount(@Param("userId") String userId);
+
+    @Query("SELECT urc.recordCount FROM UserRecordCount urc WHERE urc.id = :userId")
+    Optional<Integer> findRecordCountByUserId(@Param("userId") String userId);
 }

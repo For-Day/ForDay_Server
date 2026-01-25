@@ -26,7 +26,7 @@ public class DataInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         // 1. ID가 43인 활동 기록 조회
-        ActivityRecord record = recordRepository.findById(43L)
+        ActivityRecord record = recordRepository.findById(1L)
                 .orElseThrow(() -> new RuntimeException("ID 43인 ActivityRecord가 존재하지 않습니다."));
 
         // 3. 반복문을 통한 30명의 사용자 및 리액션 생성
@@ -61,6 +61,6 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
 
-        System.out.println("✅ 더미 데이터 생성 완료: ID 43 기록에 대해 30명의 리액션이 추가되었습니다.");
+        System.out.println("✅ 더미 데이터 생성 완료: ID 1 기록에 대해 30명의 리액션이 추가되었습니다.");
     }
 }

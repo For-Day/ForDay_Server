@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.friend.FriendRelationRepository;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
+import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
@@ -33,55 +34,55 @@ public class ActivityRecordService {
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
-        ActivityRecord activityRecord = activityRecordRepository.findByIdWithUserAndActivity(recordId)
+        RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        User currentUser = userUtil.getCurrentUser(user);
-        User writer = activityRecord.getUser();
-        boolean isRecordOwner = Objects.equals(currentUser.getId(), writer.getId());
+        String currentUserId = userUtil.getCurrentUser(user).getId();
+        boolean isRecordOwner = Objects.equals(currentUserId, detail.writerId());
 
         if (!isRecordOwner) {
-            validateRecordAuthority(activityRecord, writer, currentUser);
+            validateRecordAuthority(detail.visibility(), detail.writerId(), currentUserId);
         }
 
         List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
 
-        GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUser.getId());
+
+        GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
-        return buildGetRecordDetailResDto(activityRecord, isRecordOwner, newReaction, userReaction);
+        return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction);
     }
 
     @Transactional
     public GetRecordReactionUsersResDto getRecordReactionUsers(
             Long recordId, RecordReactionType type, CustomUserDetails user, String lastUserId, Integer size
     ) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
-        User currentUser = userUtil.getCurrentUser(user);
-        User writer = activityRecord.getUser();
-        boolean isRecordOwner = Objects.equals(currentUser.getId(), writer.getId());
+        // 1. 엔티티 전체 대신 권한 확인용 DTO만 조회 (Fetch Join 제거 효과)
+        RecordDetailQueryDto recordDetail = activityRecordRepository.findDetailDtoById(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        validateRecordAuthority(activityRecord, writer, currentUser);
+        String currentUserId = userUtil.getCurrentUser(user).getId();
+        boolean isRecordOwner = Objects.equals(currentUserId, recordDetail.writerId());
 
-        List<ActivityRecordReaction> reactions = recordReactionRepository.findUsersReactionsByType(recordId, type, lastUserId, size);
+        // 2. 이미 가져온 DTO 정보로 권한 검증
+        validateRecordAuthority(recordDetail.visibility(), recordDetail.writerId(), currentUserId);
 
-        boolean hasNext = reactions.size() > size;
-        if (hasNext) reactions.remove(size.intValue());
+        // 3. 리포지토리에서 DTO(ReactionUserInfo)로 직접 조회하여 N+1 및 오버페칭 방지
+        List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers =
+                recordReactionRepository.findReactionUsersDtoByType(recordId, type, lastUserId, size, isRecordOwner);
 
-        List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers = reactions.stream()
-                .map(r -> new GetRecordReactionUsersResDto.ReactionUserInfo(
-                        r.getReactedUser().getId(),
-                        r.getReactedUser().getNickname(),
-                        r.getReactedUser().getProfileImageUrl(),
-                        r.getCreatedAt(),
-                        isRecordOwner && !r.isReadWriter()
-                )).toList();
+        // 4. 다음 페이지 여부 확인
+        boolean hasNext = reactionUsers.size() > size;
+        if (hasNext) reactionUsers.remove(size.intValue());
 
+        // 5. 게시글 주인인 경우에만 벌크 업데이트 실행
         if (isRecordOwner) {
             recordReactionRepository.markAsReadByRecordIdAndType(recordId, type);
         }
 
-        return new GetRecordReactionUsersResDto(type, reactionUsers, hasNext, reactionUsers.get(reactionUsers.size() - 1).getUserId());
+        String nextLastUserId = reactionUsers.isEmpty() ? null : reactionUsers.get(reactionUsers.size() - 1).getUserId();
+
+        return new GetRecordReactionUsersResDto(type, reactionUsers, hasNext, nextLastUserId);
     }
 
     @Transactional
@@ -89,7 +90,7 @@ public class ActivityRecordService {
         ActivityRecord activityRecord = getActivityRecord(recordId);
         User currentUser = userUtil.getCurrentUser(user);
 
-        validateRecordAuthority(activityRecord, activityRecord.getUser(), currentUser);
+        validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getUser().getId(), currentUser.getId());
 
         if (recordReactionRepository.existsByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, type)) {
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
@@ -132,20 +133,21 @@ public class ActivityRecordService {
         return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", type, recordId);
     }
 
-    private void validateRecordAuthority(ActivityRecord record, User writer, User currentUser) {
-        if (writer.getId().equals(currentUser.getId())) return;
+    private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {
+        if (writerId.equals(currentUserId)) return;
 
-        switch (record.getVisibility()) {
+        switch (visibility) {
             case FRIEND -> {
-                if (!checkFriendship(writer, currentUser)) throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
+                if (!checkFriendship(writerId, currentUserId)) throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
             }
             case PRIVATE -> throw new CustomException(ErrorCode.PRIVATE_RECORD);
-            default -> {} // PUBLIC
+            default -> {
+            } // PUBLIC
         }
     }
 
-    private boolean checkFriendship(User writer, User currentUser) {
-        return friendRelationRepository.existsAcceptedFriendship(writer.getId(), currentUser.getId());
+    private boolean checkFriendship(String writerId, String currentUserId) {
+        return friendRelationRepository.existsAcceptedFriendship(writerId, currentUserId);
     }
 
     private void verifyRecordOwner(ActivityRecord record, User user) {
@@ -183,19 +185,19 @@ public class ActivityRecordService {
         );
     }
 
-    private GetRecordDetailResDto buildGetRecordDetailResDto(ActivityRecord record, boolean isOwner,
-                                                             GetRecordDetailResDto.NewReactionDto newR,
-                                                             GetRecordDetailResDto.UserReactionDto userR) {
+    private GetRecordDetailResDto buildGetRecordDetailResDtoFromDto(RecordDetailQueryDto detail,
+                                                                    boolean isOwner,
+                                                                    GetRecordDetailResDto.NewReactionDto newR,
+                                                                    GetRecordDetailResDto.UserReactionDto userR) {
         return GetRecordDetailResDto.builder()
-                .activityId(record.getActivity().getId())
-                .activityContent(record.getActivity().getContent())
-                .activityRecordId(record.getId())
-                .imageUrl(record.getImageUrl())
-                .sticker(record.getSticker())
-                .createdAt(TimeUtil.formatLocalDateTime(record.getCreatedAt()))
-                .memo(record.getMemo())
+                .activityContent(detail.activityContent())
+                .activityRecordId(detail.recordId())
+                .imageUrl(detail.imageUrl())
+                .sticker(detail.sticker())
+                .createdAt(TimeUtil.formatLocalDateTime(detail.createdAt()))
+                .memo(detail.memo())
                 .recordOwner(isOwner)
-                .visibility(record.getVisibility())
+                .visibility(detail.visibility())
                 .newReaction(newR)
                 .userReaction(userR)
                 .build();

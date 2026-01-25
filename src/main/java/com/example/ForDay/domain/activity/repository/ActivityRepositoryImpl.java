@@ -21,7 +21,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
     QActivityRecord activityRecord = QActivityRecord.activityRecord;
 
     @Override
-    public GetHobbyActivitiesResDto getHobbyActivities(Hobby hobby, Integer size) {
+    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, Integer size) { // Hobby 객체 대신 ID만 받음
 
         JPAQuery<GetHobbyActivitiesResDto.ActivityDto> query = queryFactory
                 .select(Projections.constructor(
@@ -31,10 +31,9 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                         activity.aiRecommended
                 ))
                 .from(activity)
-                .where(activity.hobby.eq(hobby))
+                .where(activity.hobby.id.eq(hobbyId))
                 .orderBy(
                         activity.lastRecordedAt.desc().nullsLast(),
-                        activity.lastRecordedAt.desc(),
                         activity.collectedStickerNum.desc(),
                         activity.content.asc()
                 );
@@ -48,7 +47,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
 
 
     @Override
-    public GetActivityListResDto getActivityList(Hobby hobby, User currentUser) {
+    public GetActivityListResDto getActivityList(Long hobbyId, String userId) {
 
         List<GetActivityListResDto.ActivityDto> activities =
                 queryFactory
@@ -63,8 +62,8 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                         )
                         .from(activity)
                         .where(
-                                activity.hobby.eq(hobby),
-                                activity.user.eq(currentUser)
+                                activity.hobby.id.eq(hobbyId),
+                                activity.user.id.eq(userId)
                         )
                         .orderBy(
                                 activity.lastRecordedAt.desc().nullsLast(),
