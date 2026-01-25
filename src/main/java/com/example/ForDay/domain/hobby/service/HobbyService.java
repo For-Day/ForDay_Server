@@ -327,7 +327,7 @@ public class HobbyService {
         if (currentCount >= 3) isAiCallRemaining = false;
 
         // 요약 문구 처리 (기록 5개 이상일 때)
-        long recordCount = activityRecordRepository.countByUserAndHobbyId(currentUser, targetHobby.getId());
+        long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), targetHobby.getId());
         if (recordCount >= 5) {
             if (userSummaryAIService.hasSummary(socialId, targetHobby.getId())) {
                 userSummaryText = userSummaryAIService.getSummary(socialId, targetHobby.getId());
