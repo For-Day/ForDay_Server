@@ -17,4 +17,14 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
 
     @Query("SELECT h FROM Hobby h WHERE h.id = :hobbyId AND h.user.id = :userId")
     Optional<Hobby> findByIdAndUserId(@Param("hobbyId") Long hobbyId, @Param("userId") String userId);
+
+    @Query("SELECT COUNT(h) > 0 FROM Hobby h WHERE h.id = :hobbyId AND h.user.id = :userId")
+    boolean existsByIdAndUserId(@Param("hobbyId") Long hobbyId, @Param("userId") String userId);
+
+    @Query("SELECT COUNT(h) > 0 FROM Hobby h WHERE h.id = :hobbyId AND h.user.id = :userId AND h.status = :status")
+    boolean existsByIdAndUserIdAndStatus(
+            @Param("hobbyId") Long hobbyId,
+            @Param("userId") String userId,
+            @Param("status") HobbyStatus status
+    );
 }

@@ -290,18 +290,18 @@ public class HobbyService {
 
     @Transactional(readOnly = true)
     public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user, Integer size) {
-        Hobby hobby = getHobby(hobbyId);
-        User currentUser = userUtil.getCurrentUser(user);
+        User currentUser = userUtil.getCurrentUser(user); // 쿼리 0회 (이미 필터에서 로드됨)
         log.info("[GetHobbyActivities] 조회 시작 - UserId: {}, HobbyId: {}", currentUser.getId(), hobbyId);
 
-        // 현재 사용자가 hobby의 소유자인지 판별
-        verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
 
-        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobby, size);
+        if (!hobbyRepository.existsByIdAndUserId(hobbyId, currentUser.getId())) {
+            throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
+        }
+
+        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobbyId, size);
+
         log.info("[GetHobbyActivities] 조회 완료 - 활동 개수: {}", response.getActivities().size());
-        return response; // 해당 취미에 대한 활동 목록 조회
-
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -354,23 +354,16 @@ public class HobbyService {
 
     @Transactional(readOnly = true)
     public GetActivityListResDto getActivityList(Long hobbyId, CustomUserDetails user) {
-        log.info("[HobbyService] 활동 목록 조회 요청 - hobbyId={}", hobbyId);
-
-        Hobby hobby = getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[HobbyService] 활동 목록 조회 시작 - hobbyId={}, userId={}", hobbyId, currentUser.getId());
 
-        verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
+        if (!hobbyRepository.existsByIdAndUserIdAndStatus(hobbyId, currentUser.getId(), HobbyStatus.IN_PROGRESS)) {
+            throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
+        }
 
-        GetActivityListResDto result =
-                activityRepository.getActivityList(hobby, currentUser);
+        GetActivityListResDto result = activityRepository.getActivityList(hobbyId, currentUser.getId());
 
-        log.info("[HobbyService] 활동 목록 조회 완료 - hobbyId={}, userId={}, activityCount={}",
-                hobbyId,
-                currentUser.getId(),
-                result.getActivities().size()
-        );
-
+        log.info("[HobbyService] 활동 목록 조회 완료 - activityCount={}", result.getActivities().size());
         return result;
     }
 
