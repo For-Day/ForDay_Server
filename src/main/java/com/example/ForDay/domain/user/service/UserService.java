@@ -131,27 +131,25 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        int inProgressHobbyCount = (int) hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
-        int hobbyCardCount = currentUser.getHobbyCardCount();
 
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
 
+        int inProgressHobbyCount = (int) hobbyList.stream()
+                .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
+                .count();
+
+        int hobbyCardCount = currentUser.getHobbyCardCount();
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
     }
 
     @Transactional(readOnly = true)
     public GetUserFeedListResDto getUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        String userId = currentUser.getId();
 
-        int totalFeedCount = 0;
+        int totalFeedCount = userRecordCountRepository.findRecordCountByUserId(userId).orElse(0);
 
-        Optional<UserRecordCount> userRecordCountOpt = userRecordCountRepository.findById(currentUser.getId());
-
-        if (userRecordCountOpt.isPresent()) {
-            totalFeedCount = userRecordCountOpt.get().getRecordCount();
-        }
-
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, currentUser);
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, userId);
 
         boolean hasNext = false;
         if (feedList.size() > feedSize) {

@@ -18,6 +18,8 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
@@ -72,37 +74,36 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
 
     @Override
     public MyHobbySettingResDto myHobbySetting(User user, HobbyStatus hobbyStatus) {
+        // 1. 리스트 조회 (기존과 동일)
         List<MyHobbySettingResDto.HobbyDto> hobbyDtos = queryFactory
                 .select(Projections.constructor(MyHobbySettingResDto.HobbyDto.class,
-                        hobby.id,
-                        hobby.hobbyName,
-                        hobby.hobbyTimeMinutes,
-                        hobby.executionCount,
-                        hobby.goalDays
-                ))
+                        hobby.id, hobby.hobbyName, hobby.hobbyTimeMinutes,
+                        hobby.executionCount, hobby.goalDays))
                 .from(hobby)
-                .where(
-                        hobby.user.eq(user),
-                        hobby.status.eq(hobbyStatus)
-                )
+                .where(hobby.user.eq(user), hobby.status.eq(hobbyStatus))
                 .orderBy(hobby.createdAt.desc())
                 .fetch();
 
-        Long inProgressHobbyCount = queryFactory
-                .select(hobby.count())
-                .from(hobby)
-                .where(hobby.user.eq(user),
-                        hobby.status.eq(HobbyStatus.IN_PROGRESS))
-                .fetchOne();
+        Map<HobbyStatus, Long> counts = getCountsByStatus(user);
 
-        Long archivedHobbyCount = queryFactory
-                .select(hobby.count())
-                .from(hobby)
-                .where(hobby.user.eq(user),
-                        hobby.status.eq(HobbyStatus.ARCHIVED))
-                .fetchOne();
+        long inProgressHobbyCount = counts.getOrDefault(HobbyStatus.IN_PROGRESS, 0L);
+        long archivedHobbyCount = counts.getOrDefault(HobbyStatus.ARCHIVED, 0L);
 
-        return new MyHobbySettingResDto(hobbyStatus, inProgressHobbyCount, archivedHobbyCount ,hobbyDtos);
+        return new MyHobbySettingResDto(hobbyStatus, inProgressHobbyCount, archivedHobbyCount, hobbyDtos);
+    }
+
+    public Map<HobbyStatus, Long> getCountsByStatus(User user) {
+        return queryFactory
+                .select(hobby.status, hobby.count())
+                .from(hobby)
+                .where(hobby.user.eq(user))
+                .groupBy(hobby.status)
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(
+                        tuple -> tuple.get(hobby.status),
+                        tuple -> tuple.get(hobby.count())
+                ));
     }
 
     @Override
