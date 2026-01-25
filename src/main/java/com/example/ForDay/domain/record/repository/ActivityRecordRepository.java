@@ -12,8 +12,9 @@ import java.util.Optional;
 
 public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, Long>, ActivityRecordRepositoryCustom {
     long countByUserAndHobbyId(User currentUser, Long hobbyId);
+
     @Query("SELECT COUNT(ar) FROM ActivityRecord ar " +
-            "WHERE ar.user.id = :userId AND ar.userHobby.id = :hobbyId")
+            "WHERE ar.user.id = :userId AND ar.hobby.id = :hobbyId")
     long countByUserIdAndHobbyId(@Param("userId") String userId, @Param("hobbyId") Long hobbyId);
 
     @Query("select ar from ActivityRecord ar " +

@@ -141,7 +141,7 @@ public class HobbyService {
             }
 
             String userSummaryText = "";
-            long recordCount = activityRecordRepository.countByUserAndHobbyId(currentUser, hobbyId);
+            long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), hobbyId);
 
             if(recordCount >=5) {
                 // 기존에 사용자 요약 문구가 존재하는지 redis에 조회
@@ -505,7 +505,7 @@ public class HobbyService {
     }
 
     private void verifyHobbyOwner(Hobby hobby, User currentUser) {
-        if (!Objects.equals(hobby.getUser(), currentUser)) {
+        if (!hobby.getUser().getId().equals(currentUser.getId())) {
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
     }
@@ -571,7 +571,8 @@ public class HobbyService {
 
         // hobby 조회
         Hobby hobby = (hobbyId != null)
-                ? getHobby(hobbyId)
+                ? hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_HOBBY_OWNER))
                 : getLatestInProgressHobby(currentUser);
         log.debug("조회된 hobby: {}", hobby);
 
@@ -651,8 +652,8 @@ public class HobbyService {
 
     private Hobby getLatestInProgressHobby(User user) {
         return hobbyRepository
-                .findTopByUserAndStatusOrderByCreatedAtDesc(
-                        user,
+                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
+                        user.getId(),
                         HobbyStatus.IN_PROGRESS
                 )
                 .orElse(null);
