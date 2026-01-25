@@ -15,7 +15,7 @@ import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.RedisUtil;
+import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,7 +48,7 @@ class GetStickerInfoServiceTodayRecordedTest {
     private ActivityRecordRepository activityRecordRepository;
 
     @MockitoBean
-    private RedisUtil redisUtil;
+    private TodayRecordRedisService todayRecordRedisService;
 
     @Test
     void 스티커_1개_오늘기록함_전체페이지1_현재페이지null() {
@@ -57,7 +57,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 1개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 1);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), null, 28, ctx.userDetails);
 
@@ -81,7 +81,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 28개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 28);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), null, 28, ctx.userDetails);
 
@@ -105,7 +105,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 30개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 30);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), null, 28, ctx.userDetails);
 
@@ -129,7 +129,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 56개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 56);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), null, 28, ctx.userDetails);
 
@@ -145,7 +145,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 56개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 56);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), 1, 28, ctx.userDetails);
 
@@ -163,7 +163,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 66개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 66);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), null, 28, ctx.userDetails);
 
@@ -181,7 +181,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 66개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 66);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), 1, 28, ctx.userDetails);
 
@@ -199,7 +199,7 @@ class GetStickerInfoServiceTodayRecordedTest {
         // 스티커 66개 생성
         createStickers(ctx.activity, ctx.hobby, ctx.user, 66);
 
-        given(redisUtil.hasKey(any())).willReturn(true);
+        given(todayRecordRedisService.hasKey(any())).willReturn(true);
 
         GetStickerInfoResDto result = hobbyService.getStickerInfo(ctx.hobby.getId(), 2, 28, ctx.userDetails);
 

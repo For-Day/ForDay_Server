@@ -14,12 +14,11 @@ import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiActivityService;
-import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.RedisUtil;
+import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.S3Service;
 import jakarta.validation.Valid;
@@ -32,7 +31,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -57,7 +55,7 @@ public class HobbyService {
     private final HobbyInfoRepository hobbyInfoRepository;
     private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
-    private final RedisUtil redisUtil;
+    private final TodayRecordRedisService todayRecordRedisService;
     private final UserSummaryAIService userSummaryAIService;
     private final S3Service s3Service;
     private final OtherActivityRepository otherActivityRepository;
@@ -555,8 +553,8 @@ public class HobbyService {
 
         // 오늘 기록 여부 (Redis)
         boolean recordedToday =
-                redisUtil.hasKey(
-                        redisUtil.createRecordKey(currentUser.getId(), hobby.getId())
+                todayRecordRedisService.hasKey(
+                        todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId())
                 );
         log.debug("recordedToday={}", recordedToday);
 

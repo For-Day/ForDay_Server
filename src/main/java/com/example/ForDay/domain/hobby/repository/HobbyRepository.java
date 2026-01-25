@@ -11,7 +11,6 @@ import java.util.Optional;
 
 public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyRepositoryCustom {
     long countByStatusAndUser(HobbyStatus hobbyStatus, User currentUser);
-    boolean existsByIdAndStatus(Long id, HobbyStatus hobbyStatus);
 
     Optional<Hobby> findTopByUserIdAndStatusOrderByCreatedAtDesc(String userId, HobbyStatus status);
 

@@ -10,7 +10,6 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.entity.User;
@@ -18,7 +17,6 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.RedisUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.S3Service;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +36,7 @@ public class ActivityService {
     private final ActivityRepository activityRepository;
     private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
-    private final RedisUtil redisUtil;
+    private final TodayRecordRedisService todayRecordRedisService;
     private final HobbyCardRepository hobbyCardRepository;
     private final UserRecordCountRepository userRecordCountRepository;
 
@@ -48,20 +46,20 @@ public class ActivityService {
             RecordActivityReqDto reqDto,
             CustomUserDetails user
     ) {
-        Activity activity = getActivity(activityId);
-        User currentUser = userUtil.getCurrentUser(user);
 
+        User currentUser = userUtil.getCurrentUser(user);
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
 
-        verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
+        Activity activity = getActivityByUserId(activityId, currentUser.getId());
         Hobby hobby = activity.getHobby();
-
-        if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
 
         checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
 
-        String redisKey = redisUtil.createRecordKey(currentUser.getId(), hobby.getId());
-        if (redisUtil.hasKey(redisKey)) { // 해당 취미에 대해 오늘 기록한 활동이 있는지 확인
+        // 기간 설정 66일 이고 이미 스티커를 다 채운 상황이면 기록 불가
+        if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
+
+        String redisKey = todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId());
+        if (todayRecordRedisService.hasKey(redisKey)) { // 해당 취미에 대해 오늘 기록한 활동이 있는지 확인
             log.warn("[RecordActivity] 중복 기록 시도 - UserId: {}, HobbyId: {}",
                     currentUser.getId(), hobby.getId());
             throw new CustomException(ErrorCode.ALREADY_RECORDED_TODAY);
@@ -85,15 +83,15 @@ public class ActivityService {
                 .imageUrl(reqDto.getImageUrl())
                 .build();
 
-        activity.record();
-        currentUser.obtainSticker();
+        activity.record(); // 해당 취미와 활동에 대해 스티커 + 1
+        currentUser.obtainSticker(); // 해당 유저가 모은 스티커 + 1
         activityRecordRepository.save(activityRecord);
 
-        redisUtil.setDataExpire(redisKey, "recorded", 86400);
+        todayRecordRedisService.setDataExpire(redisKey, "recorded");
 
         // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
-            crateHobbyCard(hobby, currentUser);
+            createHobbyCard(hobby, currentUser);
         }
 
         boolean extensionCheckRequired = isCheckStickerFull(hobby);
@@ -116,10 +114,9 @@ public class ActivityService {
             RecordActivityReqDto reqDto,
             CustomUserDetails user
     ) {
-        Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
 
-        verifyActivityOwner(activity, currentUser); // 활동 소유자인지 검증
+        Activity activity = getActivityByUserId(activityId, currentUser.getId());
         Hobby hobby = activity.getHobby();
 
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
@@ -149,7 +146,7 @@ public class ActivityService {
 
         // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
-            crateHobbyCard(hobby, currentUser);
+            createHobbyCard(hobby, currentUser);
         }
         boolean extensionCheckRequired = isCheckStickerFull(hobby);
 
@@ -165,7 +162,7 @@ public class ActivityService {
         );
     }
 
-    private void crateHobbyCard(Hobby hobby, User currentUser) {
+    private void createHobbyCard(Hobby hobby, User currentUser) {
         // fast api 서버와 통신하여 취미 카드 content 생성하기
         String hobbyCardContent = "취미 카드 내용";
 
@@ -193,11 +190,8 @@ public class ActivityService {
     ) {
         log.info("[ActivityService] 활동 수정 요청 - activityId={}, content={}",
                 activityId, reqDto.getContent());
-
-        Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
-
-        verifyActivityOwner(activity, currentUser);
+        Activity activity = getActivityByUserId(activityId, currentUser.getId());
 
         // 진행 중인 취미가 아니면 활동 수정 불가
         checkHobbyInProgressStatus(activity.getHobby());
@@ -218,12 +212,10 @@ public class ActivityService {
     @Transactional
     public MessageResDto deleteActivity(Long activityId, CustomUserDetails user) {
         log.info("[ActivityService] 활동 삭제 요청 - activityId={}", activityId);
-
-        Activity activity = getActivity(activityId);
         User currentUser = userUtil.getCurrentUser(user);
-        verifyActivityOwner(activity, currentUser);
+        Activity activity = getActivityByUserId(activityId, currentUser.getId());
 
-        // 삭제 가능 여부
+        // 삭제 가능 여부 (해당 활동으로 획득한 스티커가 없을 때)
         if (!activity.isDeletable()) {
             log.warn("[ActivityService] 활동 삭제 불가 (deletable=false) - activityId={}, userId={}",
                     activityId, currentUser.getId());
@@ -242,15 +234,8 @@ public class ActivityService {
     }
 
     // 유틸 클래스
-
-    private Activity getActivity(Long activityId) {
-        return activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
-    }
-
-    private void verifyActivityOwner(Activity activity, User currentUser) {
-        if (!Objects.equals(activity.getUser(), currentUser)) {
-            throw new CustomException(ErrorCode.NOT_ACTIVITY_OWNER);
-        }
+    private Activity getActivityByUserId(Long activityId, String userId) {
+        return activityRepository.findByIdAndUserId(activityId, userId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
     }
 
     private void checkHobbyInProgressStatus(Hobby hobby) {
