@@ -668,10 +668,13 @@ public class HobbyService {
         if (reqDto.getHobbyId() != null && StringUtils.hasText(reqDto.getCoverImageUrl())) {
             Hobby hobby = getHobby(reqDto.getHobbyId());
             verifyHobbyOwner(hobby, currentUser);
+            String originalCoverImageUrl = reqDto.getCoverImageUrl();
+            String resizedCoverImageUrl = toCoverMainResizedUrl(originalCoverImageUrl);
 
             // S3 존재 여부 검증
-            String key = s3Service.extractKeyFromFileUrl(reqDto.getCoverImageUrl());
-            if (!s3Service.existsByKey(key)) {
+            String originalCoverKey = s3Service.extractKeyFromFileUrl(reqDto.getCoverImageUrl());
+            String resizedCoverImageKey = s3Service.extractKeyFromFileUrl(resizedCoverImageUrl);
+            if (!s3Service.existsByKey(originalCoverKey) || !s3Service.existsByKey(resizedCoverImageKey)) {
                 throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
             }
 
@@ -705,6 +708,13 @@ public class HobbyService {
                 reqDto.getRecordId(),
                 updatedUrl
         );
+    }
+
+    private static String toCoverMainResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/thumb/");
     }
 
 
