@@ -105,7 +105,7 @@ public class UserService {
     public UserInfoResDto getUserInfo(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        return new UserInfoResDto(currentUser.getProfileImageUrl(),
+        return new UserInfoResDto(toProfileMainResizedUrl(currentUser.getProfileImageUrl()),
                 currentUser.getNickname(),
                 currentUser.getTotalCollectedStickerCount() == null ? 0 : currentUser.getTotalCollectedStickerCount());
     }
