@@ -160,6 +160,13 @@ public class UserService {
             feedList.remove(feedSize.intValue());
         }
 
+        // resized url 호출하도록 수정
+        feedList.forEach(feedDto -> {
+            feedDto.setThumbnailImageUrl(
+                    toFeedThumbResizedUrl(feedDto.getThumbnailImageUrl())
+            );
+        });
+
         Long lastId = feedList.isEmpty() ? null : feedList.get(feedList.size() - 1).getRecordId();
         return new GetUserFeedListResDto(totalFeedCount, lastId, feedList, hasNext);
     }
@@ -181,10 +188,17 @@ public class UserService {
         return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
     }
 
-    public static String toProfileMainResizedUrl(String originalUrl) {
+    private static String toProfileMainResizedUrl(String originalUrl) {
         if (originalUrl == null || !originalUrl.contains("/temp/")) {
             return originalUrl;
         }
         return originalUrl.replace("/temp/", "/resized/main/");
+    }
+
+    private static String toFeedThumbResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/thumb/");
     }
 }
