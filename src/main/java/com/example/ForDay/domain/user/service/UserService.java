@@ -137,9 +137,6 @@ public class UserService {
 
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
 
-        hobbyList.forEach(hobbyDto
-                -> toCoverMainResizedUrl(hobbyDto.getThumbnailImageUrl()));
-
         int inProgressHobbyCount = (int) hobbyList.stream()
                 .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
                 .count();
