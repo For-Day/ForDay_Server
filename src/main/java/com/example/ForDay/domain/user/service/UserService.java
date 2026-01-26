@@ -114,17 +114,20 @@ public class UserService {
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String newImageUrl = reqDto.getProfileImageUrl();
+        String resizedImageUrl = toProfileMainResizedUrl(newImageUrl);
 
         if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
             return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
-        String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
-        if (!s3Service.existsByKey(s3Key)) {
+        String originalKey = s3Service.extractKeyFromFileUrl(newImageUrl);
+        String resizedKey  = s3Service.extractKeyFromFileUrl(resizedImageUrl);
+
+        if (!s3Service.existsByKey(originalKey) && !s3Service.existsByKey(resizedKey)) {
             throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
         }
 
-        currentUser.updateProfileImage(newImageUrl);
+        currentUser.updateProfileImage(newImageUrl); // 원본 url을 db에 저장 사용 목적에 따라 url을 바꿔서 사용
         return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "프로필 이미지가 성공적으로 변경되었습니다.");
     }
 
@@ -176,5 +179,12 @@ public class UserService {
         Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
 
         return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
+    }
+
+    public static String toProfileMainResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/main/");
     }
 }
