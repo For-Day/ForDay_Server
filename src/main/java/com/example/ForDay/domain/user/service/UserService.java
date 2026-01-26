@@ -121,7 +121,7 @@ public class UserService {
         }
 
         String originalKey = s3Service.extractKeyFromFileUrl(newImageUrl);
-        String resizedKey  = s3Service.extractKeyFromFileUrl(resizedImageUrl);
+        String resizedKey = s3Service.extractKeyFromFileUrl(resizedImageUrl);
 
         if (!s3Service.existsByKey(originalKey) && !s3Service.existsByKey(resizedKey)) {
             throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
@@ -136,6 +136,9 @@ public class UserService {
         User currentUser = userUtil.getCurrentUser(user);
 
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
+
+        hobbyList.forEach(hobbyDto
+                -> toCoverMainResizedUrl(hobbyDto.getThumbnailImageUrl()));
 
         int inProgressHobbyCount = (int) hobbyList.stream()
                 .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
@@ -196,6 +199,13 @@ public class UserService {
     }
 
     private static String toFeedThumbResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/thumb/");
+    }
+
+    private static String toCoverMainResizedUrl(String originalUrl) {
         if (originalUrl == null || !originalUrl.contains("/temp/")) {
             return originalUrl;
         }
