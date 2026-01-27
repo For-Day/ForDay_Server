@@ -139,7 +139,7 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @PatchMapping("/cover-image")
-    public SetHobbyCoverImageResDto setHobbyCoverImage(@RequestBody @Valid SetHobbyCoverImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+    public SetHobbyCoverImageResDto setHobbyCoverImage(@RequestBody @Valid SetHobbyCoverImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) throws Exception {
         return hobbyService.setHobbyCoverImage(reqDto, user);
     }
 }

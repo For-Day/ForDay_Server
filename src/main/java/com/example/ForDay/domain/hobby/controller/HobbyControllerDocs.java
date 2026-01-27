@@ -1232,5 +1232,5 @@ public interface HobbyControllerDocs {
                     })
             )
             @RequestBody @Valid SetHobbyCoverImageReqDto reqDto,
-            @AuthenticationPrincipal CustomUserDetails user);
+            @AuthenticationPrincipal CustomUserDetails user) throws Exception;
 }

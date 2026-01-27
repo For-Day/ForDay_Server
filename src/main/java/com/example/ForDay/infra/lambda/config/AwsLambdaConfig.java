@@ -1,4 +1,4 @@
-package com.example.ForDay.infra.lambda;
+package com.example.ForDay.infra.lambda.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -20,7 +20,8 @@ import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.S3Service;
+import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
+import com.example.ForDay.infra.s3.service.S3Service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -59,6 +58,7 @@ public class HobbyService {
     private final UserSummaryAIService userSummaryAIService;
     private final S3Service s3Service;
     private final OtherActivityRepository otherActivityRepository;
+    private final CoverLambdaInvoker invoker;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -659,7 +659,7 @@ public class HobbyService {
     }
 
     @Transactional
-    public SetHobbyCoverImageResDto setHobbyCoverImage(@Valid SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) {
+    public SetHobbyCoverImageResDto setHobbyCoverImage(@Valid SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) throws Exception {
         User currentUser = userUtil.getCurrentUser(user);
         String updatedUrl;
         Long targetHobbyId;
@@ -671,7 +671,6 @@ public class HobbyService {
 
             // cover_image/temp/~~~~
             String originalCoverImageUrl = reqDto.getCoverImageUrl();
-
             // cover_image/resized/thumb/~~~~
             String resizedCoverImageUrl = toCoverMainResizedUrl(originalCoverImageUrl);
 
@@ -696,10 +695,39 @@ public class HobbyService {
                 throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
             }
 
+            String activityRecordImageUrl = activityRecord.getImageUrl();
+            String activityRecordKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
+
+            if (!activityRecordKey.startsWith("activity_record/temp/")) {
+                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+            }
+
+            String dstKey = activityRecordKey
+                    .replace("activity_record/temp/", "cover_image/resized/thumb/");
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("action", "SET_COVER");
+            payload.put("srcBucket", "forday-s3-bucket");
+            payload.put("dstBucket", "forday-s3-bucket");
+            payload.put("srcKey", activityRecordKey);   // 예: activity_record/temp/uuid_xxx.jpg
+            payload.put("dstKey", dstKey);   // 예: cover_image/resized/thumb/uuid_xxx.jpg
+            payload.put("size", 96);         // 48 표시라면 2배 저장
+            payload.put("format", "jpeg");
+
+            invoker.invokeSync(payload);
+
             Hobby hobby = activityRecord.getHobby();
+            String oldCoverUrl = hobby.getCoverImageUrl();
+            if (oldCoverUrl != null) {
+                String oldKey = s3Service.extractKeyFromFileUrl(oldCoverUrl);
+                if (s3Service.existsByKey(oldKey)) {
+                    s3Service.deleteByKey(oldKey);
+                }
+            }
 
             // createCoverLambda 를 이용하여 /activity_record/temp/ -> /cover_image/resized/thumb
-            hobby.updateCoverImage(activityRecord.getImageUrl()); // 여기도 resize된 url 저장되도록
+            hobby.updateCoverImage(s3Service.createFileUrl(dstKey)); // 여기도 resize된 url 저장되도록
+
             updatedUrl = hobby.getCoverImageUrl();
             targetHobbyId = hobby.getId();
         }

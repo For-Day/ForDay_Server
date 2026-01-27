@@ -3,7 +3,6 @@ package com.example.ForDay.domain.user.service;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.record.entity.UserRecordCount;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
@@ -16,15 +15,13 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.S3Service;
-import jakarta.validation.Valid;
+import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -113,22 +110,32 @@ public class UserService {
     @Transactional
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        String newImageUrl = reqDto.getProfileImageUrl();
-        String resizedImageUrl = toProfileMainResizedUrl(newImageUrl);
+        String newImageUrl = reqDto.getProfileImageUrl(); // 새로 설정하는 원본 url
+        String resizedImageUrl = toProfileMainResizedUrl(newImageUrl); // 새로 설정하는 리사이즈 url
 
         // 원본이 그대로 저장되므로 db에도 원본이 url이 이미 있는지 확인
         if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
             return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
-        String originalKey = s3Service.extractKeyFromFileUrl(newImageUrl);
-        String resizedKey = s3Service.extractKeyFromFileUrl(resizedImageUrl);
-        if (!s3Service.existsByKey(originalKey) && !s3Service.existsByKey(resizedKey)) {
+        String oldImageUrl = currentUser.getProfileImageUrl();
+        if (oldImageUrl != null && !oldImageUrl.isBlank()) {
+            String oldMainResizedUrl = toProfileMainResizedUrl(oldImageUrl);
+            String oldKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
+
+            if (s3Service.existsByKey(oldKey)) {
+                s3Service.deleteByKey(oldKey);
+            }
+        }
+
+        String newKey = s3Service.extractKeyFromFileUrl(newImageUrl); // 새로 설정하는 원본 key
+        String resizedKey = s3Service.extractKeyFromFileUrl(resizedImageUrl); // 새로 설정하는 resize key
+        if (!s3Service.existsByKey(newKey) && !s3Service.existsByKey(resizedKey)) {
             throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
         }
 
         currentUser.updateProfileImage(newImageUrl); // 원본 url을 db에 저장 사용 목적에 따라 url을 바꿔서 사용
-        return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "프로필 이미지가 성공적으로 변경되었습니다.");
+        return new SetUserProfileImageResDto(s3Service.createFileUrl(resizedKey), "프로필 이미지가 성공적으로 변경되었습니다.");
     }
 
     @Transactional(readOnly = true)

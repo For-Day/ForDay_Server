@@ -9,6 +9,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface ActivityRepository extends JpaRepository<Activity, Long>, ActivityRepositoryCustom{
-    @Query("SELECT a FROM Activity a WHERE a.id = :activityId AND h.user.id = :userId")
+    @Query("SELECT a FROM Activity a WHERE a.id = :activityId AND a.user.id = :userId")
     Optional<Activity> findByIdAndUserId(@Param("activityId") Long activityId,@Param("userId") String userId);
 }
