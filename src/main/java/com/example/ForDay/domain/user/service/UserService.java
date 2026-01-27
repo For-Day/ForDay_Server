@@ -135,6 +135,7 @@ public class UserService {
         }
 
         currentUser.updateProfileImage(newImageUrl); // 원본 url을 db에 저장 사용 목적에 따라 url을 바꿔서 사용
+        userRepository.save(currentUser);
         return new SetUserProfileImageResDto(s3Service.createFileUrl(resizedKey), "프로필 이미지가 성공적으로 변경되었습니다.");
     }
 
