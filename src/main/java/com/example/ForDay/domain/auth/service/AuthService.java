@@ -224,7 +224,23 @@ public class AuthService {
                 refreshToken = jwtUtil.createRefreshToken(socialId);
             }
             case APPLE -> {
+                // 프론트에서 code값을 보내면서 로그인/회원가입 요청을 한다.
+                // code와 애플 설정값을 이용하여 직접 JWT 토큰 생성후 apple api에 유저 정보 요청을 보낸다. -> 응답으로 idToken과 accessToken을 받는다.
+                AppleTokenResDto appleTokenResDto = appleService.getAppleToken(reqDto.getSocialCode());
 
+                // 응답으로 받은 idToken에 대해 공개키로 무결성 검증을 진행한다.  (공개키 생성은 애플 api에 요청해서 받아오기)
+                // 공개키 받아서 검증 후 payload 읽기
+                Claims claims = appleService.verifyAndParseAppleIdToken(appleTokenResDto);
+
+                // 사용자 정보에서 socialId와 email 추출
+                String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
+                String email = claims.containsKey("email")
+                        ? claims.get("email", String.class)
+                        : null;
+
+                currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
+                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
+                refreshToken = jwtUtil.createRefreshToken(socialId);
             }
         }
 
