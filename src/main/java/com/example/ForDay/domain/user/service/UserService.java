@@ -102,9 +102,10 @@ public class UserService {
     public UserInfoResDto getUserInfo(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
+        int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(currentUser.getId()).orElse(0);
         return new UserInfoResDto(toProfileMainResizedUrl(currentUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
                 currentUser.getNickname(),
-                currentUser.getTotalCollectedStickerCount() == null ? 0 : currentUser.getTotalCollectedStickerCount());
+                totalStickerCount);
     }
 
     @Transactional

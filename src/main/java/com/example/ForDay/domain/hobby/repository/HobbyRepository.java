@@ -26,4 +26,7 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
             @Param("userId") String userId,
             @Param("status") HobbyStatus status
     );
+
+    @Query("SELECT SUM(h.currentStickerNum) FROM Hobby h WHERE h.user.id = :userId")
+    Optional<Integer> sumCurrentStickerNumByUserId(@Param("userId") String userId);
 }
