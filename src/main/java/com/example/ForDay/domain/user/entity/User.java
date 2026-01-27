@@ -95,4 +95,11 @@ public class User extends BaseTimeEntity {
     public void obtainHobbyCard() {
         this.hobbyCardCount++;
     }
+
+    public void switchAccount(String email, Role role, SocialType socialType, String socialId) {
+        this.email = email;
+        this.role = role;
+        this.socialType = socialType;
+        this.socialId = socialId;
+    }
 }

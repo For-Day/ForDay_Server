@@ -1,10 +1,7 @@
 package com.example.ForDay.domain.auth.service;
 
-import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
+import com.example.ForDay.domain.auth.dto.request.*;
 import com.example.ForDay.domain.auth.dto.response.*;
-import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.user.entity.User;
@@ -17,6 +14,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
+import com.example.ForDay.global.util.UserUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +38,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppleService appleService;
     private final HobbyRepository hobbyRepository;
+    private final UserUtil userUtil;
 
     @Transactional
     public LoginResDto kakaoLogin(KakaoLoginReqDto reqDto) {
@@ -204,6 +203,33 @@ public class AuthService {
         return new TokenValidateResDto(true);
     }
 
+    @Transactional
+    public SwitchAccountResDto switchAccount(@Valid SwitchAccountReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user); // 현재 유저
+        if(!currentUser.getRole().equals(Role.GUEST)) {
+            throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
+        }
+
+        String accessToken = "";
+        String refreshToken = "";
+        switch (reqDto.getSocialType()) {
+            case KAKAO -> {
+                // kakao 회원 정보 받아오기
+                KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getSocialCode());
+
+                String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
+
+                currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
+                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
+                refreshToken = jwtUtil.createRefreshToken(socialId);
+            }
+            case APPLE -> {
+
+            }
+        }
+
+        return new SwitchAccountResDto(reqDto.getSocialType(), accessToken, refreshToken);
+    }
     // 유틸 메서드
 
     private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {
