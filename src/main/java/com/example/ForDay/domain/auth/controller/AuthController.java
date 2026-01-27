@@ -57,11 +57,13 @@ public class AuthController implements AuthControllerDocs {
         return authService.tokenValidate();
     }
 
+    @Override
     @PatchMapping("/switch-account")
     public SwitchAccountResDto switchAccount(@RequestBody @Valid SwitchAccountReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
         return authService.switchAccount(reqDto, user);
     }
 
+    @Override
     @DeleteMapping("/withdraw")
     public UserWithDrawResDto userWithDraw(@AuthenticationPrincipal CustomUserDetails user) {
         return authService.userWithDraw(user);
