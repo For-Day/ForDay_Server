@@ -1,6 +1,6 @@
 package com.example.ForDay.domain.record.service;
 
-import com.example.ForDay.domain.friend.FriendRelationRepository;
+import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;

@@ -23,6 +23,7 @@ public class GetUserFeedListResDto {
         private Long recordId;
         private String thumbnailImageUrl;
         private String sticker;
+        private String memo;
         private LocalDateTime createdAt;
     }
 }
