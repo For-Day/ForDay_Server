@@ -102,7 +102,7 @@ public class UserService {
     public UserInfoResDto getUserInfo(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        return new UserInfoResDto(toProfileMainResizedUrl(currentUser.getProfileImageUrl()),
+        return new UserInfoResDto(toProfileMainResizedUrl(currentUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
                 currentUser.getNickname(),
                 currentUser.getTotalCollectedStickerCount() == null ? 0 : currentUser.getTotalCollectedStickerCount());
     }
@@ -118,13 +118,18 @@ public class UserService {
             return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
+        // 새로 업데이트 하는 경우 기존 url 삭제
         String oldImageUrl = currentUser.getProfileImageUrl();
         if (oldImageUrl != null && !oldImageUrl.isBlank()) {
+            String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
             String oldMainResizedUrl = toProfileMainResizedUrl(oldImageUrl);
-            String oldKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
+            String oldResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
 
-            if (s3Service.existsByKey(oldKey)) {
+            if (s3Service.existsByKey(oldKey)) { // 원래 원본 이미지 url 삭제
                 s3Service.deleteByKey(oldKey);
+            }
+            if(s3Service.existsByKey(oldResizedKey)) { // 원래 리사이즈 이미지 url 삭제
+                s3Service.deleteByKey(oldResizedKey);
             }
         }
 
@@ -201,6 +206,13 @@ public class UserService {
             return originalUrl;
         }
         return originalUrl.replace("/temp/", "/resized/main/");
+    }
+
+    private static String toProfileListResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/list/");
     }
 
     private static String toFeedThumbResizedUrl(String originalUrl) {

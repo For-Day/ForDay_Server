@@ -670,15 +670,26 @@ public class HobbyService {
             verifyHobbyOwner(hobby, currentUser);
 
             // cover_image/temp/~~~~
-            String originalCoverImageUrl = reqDto.getCoverImageUrl();
+            String newCoverImageUrl = reqDto.getCoverImageUrl();
             // cover_image/resized/thumb/~~~~
-            String resizedCoverImageUrl = toCoverMainResizedUrl(originalCoverImageUrl);
+            String resizedCoverImageUrl = toCoverMainResizedUrl(newCoverImageUrl);
 
             // S3 존재 여부 검증
-            String originalCoverKey = s3Service.extractKeyFromFileUrl(reqDto.getCoverImageUrl());
+            String newCoverKey = s3Service.extractKeyFromFileUrl(newCoverImageUrl);
             String resizedCoverImageKey = s3Service.extractKeyFromFileUrl(resizedCoverImageUrl);
-            if (!s3Service.existsByKey(originalCoverKey) && !s3Service.existsByKey(resizedCoverImageKey)) {
+            if (!s3Service.existsByKey(newCoverKey) && !s3Service.existsByKey(resizedCoverImageKey)) {
                 throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+            }
+
+            String oldCoverImageUrl = hobby.getCoverImageUrl();
+
+            if(oldCoverImageUrl != null && !oldCoverImageUrl.isBlank()) {
+                String oldKey = s3Service.extractKeyFromFileUrl(oldCoverImageUrl);
+                String resizedOldKey = s3Service.extractKeyFromFileUrl(toCoverMainResizedUrl(oldCoverImageUrl));
+                if(s3Service.existsByKey(oldKey)) {
+                    s3Service.deleteByKey(oldKey);
+                    s3Service.deleteByKey(resizedOldKey);
+                }
             }
 
             hobby.updateCoverImage(resizedCoverImageUrl); // cover 이미지는 resize된 경로 자체를 저장
