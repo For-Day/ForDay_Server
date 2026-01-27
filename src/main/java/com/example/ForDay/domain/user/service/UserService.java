@@ -116,13 +116,13 @@ public class UserService {
         String newImageUrl = reqDto.getProfileImageUrl();
         String resizedImageUrl = toProfileMainResizedUrl(newImageUrl);
 
+        // 원본이 그대로 저장되므로 db에도 원본이 url이 이미 있는지 확인
         if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
             return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
         String originalKey = s3Service.extractKeyFromFileUrl(newImageUrl);
         String resizedKey = s3Service.extractKeyFromFileUrl(resizedImageUrl);
-
         if (!s3Service.existsByKey(originalKey) && !s3Service.existsByKey(resizedKey)) {
             throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
         }

@@ -678,7 +678,7 @@ public class HobbyService {
             // S3 존재 여부 검증
             String originalCoverKey = s3Service.extractKeyFromFileUrl(reqDto.getCoverImageUrl());
             String resizedCoverImageKey = s3Service.extractKeyFromFileUrl(resizedCoverImageUrl);
-            if (!s3Service.existsByKey(originalCoverKey) || !s3Service.existsByKey(resizedCoverImageKey)) {
+            if (!s3Service.existsByKey(originalCoverKey) && !s3Service.existsByKey(resizedCoverImageKey)) {
                 throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
             }
 
@@ -698,7 +698,8 @@ public class HobbyService {
 
             Hobby hobby = activityRecord.getHobby();
 
-            hobby.updateCoverImage(activityRecord.getImageUrl());
+            // createCoverLambda 를 이용하여 /activity_record/temp/ -> /cover_image/resized/thumb
+            hobby.updateCoverImage(activityRecord.getImageUrl()); // 여기도 resize된 url 저장되도록
             updatedUrl = hobby.getCoverImageUrl();
             targetHobbyId = hobby.getId();
         }
