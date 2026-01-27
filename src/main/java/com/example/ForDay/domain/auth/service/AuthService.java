@@ -258,4 +258,10 @@ public class AuthService {
     private static boolean hasNickname(User user) {
         return StringUtils.hasText(user.getNickname());
     }
+
+    public UserWithDrawResDto userWithDraw(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        currentUser.withdraw();
+        return new UserWithDrawResDto("회원탈퇴되었습니다.", currentUser.getDeletedAt());
+    }
 }
