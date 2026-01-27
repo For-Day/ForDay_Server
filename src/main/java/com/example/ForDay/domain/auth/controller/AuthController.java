@@ -1,13 +1,7 @@
 package com.example.ForDay.domain.auth.controller;
 
-import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
-import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
-import com.example.ForDay.domain.auth.dto.response.LoginResDto;
-import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
-import com.example.ForDay.domain.auth.dto.response.TokenValidateResDto;
+import com.example.ForDay.domain.auth.dto.request.*;
+import com.example.ForDay.domain.auth.dto.response.*;
 import com.example.ForDay.domain.auth.service.AuthService;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -61,5 +55,17 @@ public class AuthController implements AuthControllerDocs {
     @GetMapping("/validate")
     public TokenValidateResDto tokenValidate() {
         return authService.tokenValidate();
+    }
+
+    @Override
+    @PatchMapping("/switch-account")
+    public SwitchAccountResDto switchAccount(@RequestBody @Valid SwitchAccountReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) {
+        return authService.switchAccount(reqDto, user);
+    }
+
+    @Override
+    @DeleteMapping("/withdraw")
+    public UserWithDrawResDto userWithDraw(@AuthenticationPrincipal CustomUserDetails user) {
+        return authService.userWithDraw(user);
     }
 }

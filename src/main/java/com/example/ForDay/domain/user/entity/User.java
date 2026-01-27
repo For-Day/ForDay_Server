@@ -66,6 +66,12 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Integer hobbyCardCount = 0;
 
+    @Builder.Default
+    private boolean deleted = false;
+
+    @Builder.Default
+    private LocalDateTime deletedAt = null;
+
     // 게스트 마지막 활동일시 업데이트
     public void updateLastActivity() {
         this.lastActivityAt = LocalDateTime.now();
@@ -94,5 +100,30 @@ public class User extends BaseTimeEntity {
 
     public void obtainHobbyCard() {
         this.hobbyCardCount++;
+    }
+
+    public void switchAccount(String email, Role role, SocialType socialType, String socialId) {
+        this.email = email;
+        this.role = role;
+        this.socialType = socialType;
+        this.socialId = socialId;
+    }
+
+    public void withdraw() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
+
+        this.email = null;
+
+        // 닉네임 유니크 해제 (재가입 시 중복 방지)
+        if (this.nickname != null) {
+            this.nickname = "WITHDRAWN_" + this.id.substring(0, 8);
+        }
+
+        if (this.socialId != null && !this.socialId.startsWith("withdrawn_")) {
+            this.socialId = "withdrawn_" + this.socialId;
+        }
+
+        this.profileImageUrl = null;
     }
 }

@@ -656,54 +656,7 @@ public interface HobbyControllerDocs {
                     description = "활동 목록 조회 성공",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = GetActivityListResDto.class),
-                            examples = @ExampleObject(
-                                    value = """
-                                            {
-                                              "status": 200,
-                                              "success": true,
-                                              "data": {
-                                                "activities": [
-                                                  {
-                                                    "activityId": 1,
-                                                    "content": "미라클 모닝 아침 독서",
-                                                    "aiRecommended": false,
-                                                    "deletable": false,
-                                                    "stickers": [
-                                                      {
-                                                        "activityRecordId": 1,
-                                                        "sticker": "smile.jpg"
-                                                      },
-                                                      {
-                                                        "activityRecordId": 2,
-                                                        "sticker": "smile.jpg"
-                                                      }
-                                                    ]
-                                                  },
-                                                  {
-                                                    "activityId": 2,
-                                                    "content": "미라클 모닝 아침 독서",
-                                                    "aiRecommended": false,
-                                                    "deletable": true,
-                                                    "stickers": []
-                                                  },
-                                                  {
-                                                    "activityId": 3,
-                                                    "content": "미라클 모닝 아침 독서",
-                                                    "aiRecommended": true,
-                                                    "deletable": false,
-                                                    "stickers": [
-                                                      {
-                                                        "activityRecordId": 3,
-                                                        "sticker": "smile.jpg"
-                                                      }
-                                                    ]
-                                                  }
-                                                ]
-                                              }
-                                            }
-                                            """
-                            )
+                            schema = @Schema(implementation = GetActivityListResDto.class)
                     )
             ),
             @ApiResponse(
