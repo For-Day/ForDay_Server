@@ -11,7 +11,6 @@ import java.util.Optional;
 
 public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyRepositoryCustom {
     long countByStatusAndUser(HobbyStatus hobbyStatus, User currentUser);
-    boolean existsByIdAndStatus(Long id, HobbyStatus hobbyStatus);
 
     Optional<Hobby> findTopByUserIdAndStatusOrderByCreatedAtDesc(String userId, HobbyStatus status);
 
@@ -27,4 +26,7 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
             @Param("userId") String userId,
             @Param("status") HobbyStatus status
     );
+
+    @Query("SELECT SUM(h.currentStickerNum) FROM Hobby h WHERE h.user.id = :userId")
+    Optional<Integer> sumCurrentStickerNumByUserId(@Param("userId") String userId);
 }

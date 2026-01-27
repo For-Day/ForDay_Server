@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.friend;
+package com.example.ForDay.domain.friend.repository;
 
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import org.springframework.data.jpa.repository.JpaRepository;

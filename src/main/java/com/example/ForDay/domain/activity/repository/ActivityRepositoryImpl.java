@@ -18,7 +18,6 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
     private final JPAQueryFactory queryFactory;
 
     QActivity activity = QActivity.activity;
-    QActivityRecord activityRecord = QActivityRecord.activityRecord;
 
     @Override
     public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, Integer size) { // Hobby 객체 대신 ID만 받음

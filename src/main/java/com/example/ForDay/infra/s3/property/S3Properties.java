@@ -1,4 +1,4 @@
-package com.example.ForDay.infra.s3;
+package com.example.ForDay.infra.s3.property;
 
 import lombok.Getter;
 import lombok.Setter;

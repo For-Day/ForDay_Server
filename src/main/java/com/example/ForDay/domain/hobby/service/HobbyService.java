@@ -1,6 +1,8 @@
 package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.entity.OtherActivity;
+import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -11,16 +13,15 @@ import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.dto.response.AiOthersActivityResult;
 import com.example.ForDay.global.ai.service.AiActivityService;
-import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.RedisUtil;
+import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.S3Service;
+import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
+import com.example.ForDay.infra.s3.service.S3Service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -55,9 +54,11 @@ public class HobbyService {
     private final HobbyInfoRepository hobbyInfoRepository;
     private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
-    private final RedisUtil redisUtil;
+    private final TodayRecordRedisService todayRecordRedisService;
     private final UserSummaryAIService userSummaryAIService;
     private final S3Service s3Service;
+    private final OtherActivityRepository otherActivityRepository;
+    private final CoverLambdaInvoker invoker;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -210,52 +211,19 @@ public class HobbyService {
     @Transactional(readOnly = true)
     public OthersActivityRecommendResDto othersActivityRecommendV1(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        Hobby hobby = getHobby(hobbyId);
-        verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
 
-        Long hobbyCardId = hobby.getHobbyInfoId();
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
 
-        log.info("[OTHERS-AI-RECOMMEND][START] hobbyCardId={}", hobbyCardId);
+        Long hobbyInfoId = hobby.getHobbyInfoId();
 
-        // 1. HobbyCard 존재 여부 검증
-        if (!hobbyInfoRepository.existsById(hobbyCardId)) {
-            log.warn("[OTHERS-AI-RECOMMEND][NOT-FOUND] hobbyCardId={} is not exist", hobbyCardId);
-            throw new CustomException(ErrorCode.HOBBY_CARD_NOT_FOUND);
-        }
+        List<OtherActivity> activities = otherActivityRepository.findRandomThreeByHobbyInfoId(hobbyInfoId);
 
-        // 2. AI 추천 서비스 호출
-        log.info("[OTHERS-AI-RECOMMEND][AI-CALL] Calling AI service for hobby: {}", hobbyCardId);
-        AiOthersActivityResult aiResult = aiActivityService.othersActivityRecommend(hobby);
-
-        // 3. 응답 결과 검증
-        if (aiResult.getOtherActivities() == null || aiResult.getOtherActivities().isEmpty()) {
-            log.error("[OTHERS-AI-RECOMMEND][INVALID-RESPONSE] AI returned null or empty result for hobby: {}",
-                    hobbyCardId);
-            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
-        }
-
-        // 4. DTO 매핑
-        log.debug("[OTHERS-AI-RECOMMEND][MAPPING] Mapping AI result to DTO. Size: {}",
-                aiResult.getOtherActivities().size());
-
-        List<OthersActivityRecommendResDto.ActivityDto> activities = aiResult.getOtherActivities().stream()
-                .map(routine -> new OthersActivityRecommendResDto.ActivityDto(
-                        routine.getId(),
-                        routine.getContent()
-                ))
+        List<OthersActivityRecommendResDto.ActivityDto> list = activities.stream()
+                .map(OthersActivityRecommendResDto.ActivityDto::from)
                 .toList();
 
-        // 5. 성공 로그 및 반환
-        log.info("[OTHERS-AI-RECOMMEND][SUCCESS] Successfully generated activities for hobbyCardId={}, count={}",
-                hobbyCardId,
-                activities.size()
-        );
-
-        return new OthersActivityRecommendResDto(
-                "다른 포비들의 인기 활동을 조회했습니다.",
-                activities
-        );
+        return new OthersActivityRecommendResDto("다른 하비들이 많이 하는 활동 목록 조회에 성공하셨습니다.", list);
     }
 
     @Transactional
@@ -585,8 +553,8 @@ public class HobbyService {
 
         // 오늘 기록 여부 (Redis)
         boolean recordedToday =
-                redisUtil.hasKey(
-                        redisUtil.createRecordKey(currentUser.getId(), hobby.getId())
+                todayRecordRedisService.hasKey(
+                        todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId())
                 );
         log.debug("recordedToday={}", recordedToday);
 
@@ -691,7 +659,7 @@ public class HobbyService {
     }
 
     @Transactional
-    public SetHobbyCoverImageResDto setHobbyCoverImage(@Valid SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) {
+    public SetHobbyCoverImageResDto setHobbyCoverImage(@Valid SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) throws Exception {
         User currentUser = userUtil.getCurrentUser(user);
         String updatedUrl;
         Long targetHobbyId;
@@ -701,13 +669,33 @@ public class HobbyService {
             Hobby hobby = getHobby(reqDto.getHobbyId());
             verifyHobbyOwner(hobby, currentUser);
 
+            // cover_image/temp/~~~~
+            String newCoverImageUrl = reqDto.getCoverImageUrl();
+            // cover_image/resized/thumb/~~~~
+            String resizedCoverImageUrl = toCoverMainResizedUrl(newCoverImageUrl);
+
             // S3 존재 여부 검증
-            String key = s3Service.extractKeyFromFileUrl(reqDto.getCoverImageUrl());
-            if (!s3Service.existsByKey(key)) {
+            String newCoverImageKey = s3Service.extractKeyFromFileUrl(newCoverImageUrl);
+            String resizedCoverImageKey = s3Service.extractKeyFromFileUrl(resizedCoverImageUrl);
+            if (!s3Service.existsByKey(newCoverImageKey) && !s3Service.existsByKey(resizedCoverImageKey)) {
                 throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
             }
 
-            hobby.updateCoverImage(reqDto.getCoverImageUrl());
+            // 기존 url 삭제
+            String oldCoverImageUrl = hobby.getCoverImageUrl();
+            if(oldCoverImageUrl != null && !oldCoverImageUrl.isBlank()) {
+                String oldCoverKey = s3Service.extractKeyFromFileUrl(oldCoverImageUrl);
+                String resizedCoverUrl = toCoverMainResizedUrl(oldCoverImageUrl);
+                String resizedCoverKey = s3Service.extractKeyFromFileUrl(resizedCoverUrl);
+                if(s3Service.existsByKey(oldCoverKey)) {
+                    s3Service.deleteByKey(oldCoverKey);
+                }
+                if(s3Service.existsByKey(resizedCoverKey)) {
+                    s3Service.deleteByKey(resizedCoverKey);
+                }
+            }
+
+            hobby.updateCoverImage(newCoverImageUrl); // 원본 url을 db에 저장
             updatedUrl = hobby.getCoverImageUrl();
             targetHobbyId = hobby.getId();
         }
@@ -721,9 +709,39 @@ public class HobbyService {
                 throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
             }
 
-            Hobby hobby = activityRecord.getHobby();
+            String activityRecordImageUrl = activityRecord.getImageUrl();
+            String activityRecordKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
 
-            hobby.updateCoverImage(activityRecord.getImageUrl());
+           /* if (!activityRecordKey.startsWith("activity_record/temp/")) {
+                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+            }
+
+            String dstKey = activityRecordKey
+                    .replace("activity_record/temp/", "cover_image/resized/thumb/");
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("action", "SET_COVER");
+            payload.put("srcBucket", "forday-s3-bucket");
+            payload.put("dstBucket", "forday-s3-bucket");
+            payload.put("srcKey", activityRecordKey);   // 예: activity_record/temp/uuid_xxx.jpg
+            payload.put("dstKey", dstKey);   // 예: cover_image/resized/thumb/uuid_xxx.jpg
+            payload.put("size", 96);         // 48 표시라면 2배 저장
+            payload.put("format", "jpeg");
+
+            invoker.invokeSync(payload);
+
+            String oldCoverUrl = hobby.getCoverImageUrl();
+            if (oldCoverUrl != null) {
+                String oldKey = s3Service.extractKeyFromFileUrl(oldCoverUrl);
+                if (s3Service.existsByKey(oldKey)) {
+                    s3Service.deleteByKey(oldKey);
+                }
+            }*/
+
+            Hobby hobby = activityRecord.getHobby();
+            // createCoverLambda 를 이용하여 /activity_record/temp/ -> /cover_image/resized/thumb
+            hobby.updateCoverImage(activityRecordImageUrl); // 여기도 resize된 url 저장되도록
+
             updatedUrl = hobby.getCoverImageUrl();
             targetHobbyId = hobby.getId();
         }
@@ -737,6 +755,13 @@ public class HobbyService {
                 reqDto.getRecordId(),
                 updatedUrl
         );
+    }
+
+    private static String toCoverMainResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/thumb/");
     }
 
 

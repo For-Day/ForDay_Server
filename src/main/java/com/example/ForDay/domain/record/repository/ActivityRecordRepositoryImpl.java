@@ -63,6 +63,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         record.id,
                         record.imageUrl,
                         record.sticker,
+                        record.memo,
                         record.createdAt
                 ))
                 .from(record)

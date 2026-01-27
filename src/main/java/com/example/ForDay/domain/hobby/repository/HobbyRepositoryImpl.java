@@ -9,8 +9,8 @@ import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.user.dto.response.GetHobbyInProgressResDto;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.global.util.RedisUtil;
+import com.example.ForDay.domain.hobby.service.AiCallCountService;
+import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -24,12 +24,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     private final JPAQueryFactory queryFactory;
-    private final RedisUtil redisUtil;
-    private final AiCallCountService aiCallCountService;
 
     QHobby hobby = QHobby.hobby;
     QActivity activity = QActivity.activity;
-    QActivityRecord activityRecord = QActivityRecord.activityRecord;
 
     @Override
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long targetHobbyId, User currentUser) {
