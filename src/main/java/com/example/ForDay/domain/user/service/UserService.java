@@ -123,14 +123,20 @@ public class UserService {
         if (oldImageUrl != null && !oldImageUrl.isBlank()) {
             String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
             String oldMainResizedUrl = toProfileMainResizedUrl(oldImageUrl);
-            String oldResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
+            String oldMainResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
+
+            //String oldListResizedUrl = toProfileListResizedUrl(oldImageUrl);
+            //String oldListResizedKey = s3Service.extractKeyFromFileUrl(oldListResizedUrl);
 
             if (s3Service.existsByKey(oldKey)) { // 원래 원본 이미지 url 삭제
                 s3Service.deleteByKey(oldKey);
             }
-            if(s3Service.existsByKey(oldResizedKey)) { // 원래 리사이즈 이미지 url 삭제
-                s3Service.deleteByKey(oldResizedKey);
+            if(s3Service.existsByKey(oldMainResizedKey)) { // 원래 리사이즈 이미지 url 삭제
+                s3Service.deleteByKey(oldMainResizedKey);
             }
+            /*if(s3Service.existsByKey(oldListResizedKey)) {
+                s3Service.deleteByKey(oldListResizedKey);
+            }*/
         }
 
         String newKey = s3Service.extractKeyFromFileUrl(newImageUrl); // 새로 설정하는 원본 key
@@ -153,6 +159,8 @@ public class UserService {
         int inProgressHobbyCount = (int) hobbyList.stream()
                 .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
                 .count();
+
+        // 커버 사이즈용 이미지 url 반환하도록 나중에 수정하기
 
         int hobbyCardCount = currentUser.getHobbyCardCount();
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
