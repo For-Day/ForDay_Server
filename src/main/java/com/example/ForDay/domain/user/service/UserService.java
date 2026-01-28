@@ -158,10 +158,16 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user, String userId) {
+        User targetUser;
 
-        List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(currentUser);
+        if(userId != null) {
+            targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        } else {
+           targetUser = userUtil.getCurrentUser(user);
+        }
+
+        List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(targetUser);
 
         int inProgressHobbyCount = (int) hobbyList.stream()
                 .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
@@ -169,7 +175,7 @@ public class UserService {
 
         // 커버 사이즈용 이미지 url 반환하도록 나중에 수정하기
 
-        int hobbyCardCount = currentUser.getHobbyCardCount();
+        int hobbyCardCount = targetUser.getHobbyCardCount();
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
     }
 

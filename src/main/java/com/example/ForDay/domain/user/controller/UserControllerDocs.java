@@ -126,7 +126,7 @@ public interface UserControllerDocs {
                     useReturnTypeSchema = true // GetHobbyInProgressResDto 구조 자동 반영
             )
     })
-    GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user);
+    GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "userId", required = false) String userId);
 
 
     @Operation(
