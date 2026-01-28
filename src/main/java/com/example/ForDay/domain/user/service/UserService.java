@@ -97,12 +97,20 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserInfoResDto getUserInfo(CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    public UserInfoResDto getUserInfo(CustomUserDetails user, String userId) {
+        User targetUser;
+        String targetId;
+        if(userId != null) {
+            targetId = userId;
+            targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        } else {
+            targetUser = userUtil.getCurrentUser(user);
+            targetId = targetUser.getId();
+        }
 
-        int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(currentUser.getId()).orElse(0);
-        return new UserInfoResDto(toProfileMainResizedUrl(currentUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
-                currentUser.getNickname(),
+        int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
+        return new UserInfoResDto(toProfileMainResizedUrl(targetUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
+                targetUser.getNickname(),
                 totalStickerCount);
     }
 
