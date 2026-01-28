@@ -11,7 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GetUserFeedListResDto {
-    private int totalFeedCount;
+    private Long totalFeedCount;
     private Long lastRecordId;
     private List<FeedDto> feedList;
     private boolean hasNext;

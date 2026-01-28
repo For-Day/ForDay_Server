@@ -4,7 +4,6 @@ import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
-import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
@@ -32,7 +31,6 @@ public class UserService {
     private final S3Service s3Service;
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
-    private final UserRecordCountRepository userRecordCountRepository;
     private final HobbyCardRepository hobbyCardRepository;
 
     @Transactional
@@ -168,13 +166,16 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public GetUserFeedListResDto getUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
+    public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String userId = currentUser.getId();
 
-        int totalFeedCount = userRecordCountRepository.findRecordCountByUserId(userId).orElse(0);
+        Long totalFeedCount = null;
+        if(lastRecordId == null) {
+            totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, userId);
+        }
 
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyId, lastRecordId, feedSize, userId);
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, userId);
 
         boolean hasNext = false;
         if (feedList.size() > feedSize) {

@@ -1,10 +1,7 @@
 package com.example.ForDay.domain.auth.service;
 
-import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
+import com.example.ForDay.domain.auth.dto.request.*;
 import com.example.ForDay.domain.auth.dto.response.*;
-import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.user.entity.User;
@@ -17,6 +14,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
+import com.example.ForDay.global.util.UserUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +38,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppleService appleService;
     private final HobbyRepository hobbyRepository;
+    private final UserUtil userUtil;
 
     @Transactional
     public LoginResDto kakaoLogin(KakaoLoginReqDto reqDto) {
@@ -204,6 +203,49 @@ public class AuthService {
         return new TokenValidateResDto(true);
     }
 
+    @Transactional
+    public SwitchAccountResDto switchAccount(@Valid SwitchAccountReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user); // 현재 유저
+        if(!currentUser.getRole().equals(Role.GUEST)) {
+            throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
+        }
+
+        String accessToken = "";
+        String refreshToken = "";
+        switch (reqDto.getSocialType()) {
+            case KAKAO -> {
+                // kakao 회원 정보 받아오기
+                KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getSocialCode());
+
+                String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
+
+                currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
+                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
+                refreshToken = jwtUtil.createRefreshToken(socialId);
+            }
+            case APPLE -> {
+                // 프론트에서 code값을 보내면서 로그인/회원가입 요청을 한다.
+                // code와 애플 설정값을 이용하여 직접 JWT 토큰 생성후 apple api에 유저 정보 요청을 보낸다. -> 응답으로 idToken과 accessToken을 받는다.
+                AppleTokenResDto appleTokenResDto = appleService.getAppleToken(reqDto.getSocialCode());
+
+                // 응답으로 받은 idToken에 대해 공개키로 무결성 검증을 진행한다.  (공개키 생성은 애플 api에 요청해서 받아오기)
+                // 공개키 받아서 검증 후 payload 읽기
+                Claims claims = appleService.verifyAndParseAppleIdToken(appleTokenResDto);
+
+                // 사용자 정보에서 socialId와 email 추출
+                String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
+                String email = claims.containsKey("email")
+                        ? claims.get("email", String.class)
+                        : null;
+
+                currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
+                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
+                refreshToken = jwtUtil.createRefreshToken(socialId);
+            }
+        }
+
+        return new SwitchAccountResDto(reqDto.getSocialType(), accessToken, refreshToken);
+    }
     // 유틸 메서드
 
     private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {
@@ -215,5 +257,11 @@ public class AuthService {
 
     private static boolean hasNickname(User user) {
         return StringUtils.hasText(user.getNickname());
+    }
+
+    public UserWithDrawResDto userWithDraw(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        currentUser.withdraw();
+        return new UserWithDrawResDto("회원탈퇴 되었습니다.", currentUser.getDeletedAt());
     }
 }

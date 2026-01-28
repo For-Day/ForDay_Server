@@ -11,7 +11,6 @@ import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.record.repository.UserRecordCountRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -38,7 +37,6 @@ public class ActivityService {
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final HobbyCardRepository hobbyCardRepository;
-    private final UserRecordCountRepository userRecordCountRepository;
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -173,7 +171,6 @@ public class ActivityService {
                 .imageUrl(hobby.getCoverImageUrl())
                 .build();
         hobbyCardRepository.save(hobbyCard);
-        userRecordCountRepository.incrementRecordCount(currentUser.getId());
 
         currentUser.obtainHobbyCard();
     }

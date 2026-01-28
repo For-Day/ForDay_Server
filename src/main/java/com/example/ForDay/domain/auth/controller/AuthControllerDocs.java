@@ -1,13 +1,8 @@
 package com.example.ForDay.domain.auth.controller;
 
-import com.example.ForDay.domain.auth.dto.request.AppleLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.GuestLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.KakaoLoginReqDto;
-import com.example.ForDay.domain.auth.dto.request.RefreshReqDto;
-import com.example.ForDay.domain.auth.dto.response.GuestLoginResDto;
-import com.example.ForDay.domain.auth.dto.response.LoginResDto;
-import com.example.ForDay.domain.auth.dto.response.RefreshResDto;
-import com.example.ForDay.domain.auth.dto.response.TokenValidateResDto;
+import com.example.ForDay.domain.auth.dto.request.*;
+import com.example.ForDay.domain.auth.dto.response.*;
+import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -271,4 +266,35 @@ public interface AuthControllerDocs {
             )
     })
     TokenValidateResDto tokenValidate();
+
+    @Operation(
+            summary = "게스트 계정 전환",
+            description = "현재 게스트 계정을 카카오 또는 애플 소셜 계정으로 전환합니다. (게스트 권한만 호출 가능)"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "계정 전환 성공",
+                    content = @Content(schema = @Schema(implementation = SwitchAccountResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 부족 (이미 정식 회원이거나 게스트가 아님)",
+                    content = @Content(schema = @Schema(implementation = CustomException.class))
+            )
+    })
+    SwitchAccountResDto switchAccount(
+            @RequestBody @Valid SwitchAccountReqDto reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 삭제(Soft Delete)합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "탈퇴 성공",
+                    content = @Content(schema = @Schema(implementation = UserWithDrawResDto.class))
+            )
+    })
+    public UserWithDrawResDto userWithDraw(@AuthenticationPrincipal CustomUserDetails user);
 }

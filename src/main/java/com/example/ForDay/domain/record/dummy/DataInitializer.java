@@ -1,66 +1,66 @@
 package com.example.ForDay.domain.record.dummy;
 
+import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
-import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
-import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
-import com.example.ForDay.domain.user.type.Role;
-import com.example.ForDay.domain.user.type.SocialType;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-//@Component
+import java.util.List;
+
+@Component
+@Profile("local")
 @RequiredArgsConstructor
-public class DataInitializer implements CommandLineRunner {
+public class DataInitializer {
 
-    private final ActivityRecordReactionRepository reactionRepository;
-    private final ActivityRecordRepository recordRepository;
+    private final ActivityRecordRepository activityRecordRepository;
     private final UserRepository userRepository;
+    private final HobbyRepository hobbyRepository;
+    private final ActivityRepository activityRepository;
 
-    @Override
-    @Transactional
-    public void run(String... args) {
-        // 1. ID가 43인 활동 기록 조회
-        ActivityRecord record = recordRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("ID 43인 ActivityRecord가 존재하지 않습니다."));
+    private void insertDummyRecords() {
+        User user = userRepository.findById("7746f373-4dea-41af-8512-b3a3ad3f2608")
+                .orElseThrow(() -> new IllegalStateException("User not found"));
 
-        // 3. 반복문을 통한 30명의 사용자 및 리액션 생성
-        for (int i = 1; i <= 30; i++) {
-            String nickname = "테스터" + i;
-            String socialId = "test_user_" + i;
+        // hobby 1 → activity 1,2,3
+        createRecords(user, 1L, List.of(1L, 2L, 3L));
 
-            // 유저 조회 또는 생성
-            User testUser = userRepository.save(User.builder()
-                    .role(Role.GUEST)
-                    .socialType(SocialType.GUEST)
-                    .nickname(nickname)
-                    .socialId(socialId)
-                    .build());
+        // hobby 2 → activity 4~9
+        createRecords(user, 2L, List.of(4L, 5L, 6L, 7L, 8L, 9L));
+    }
 
-            // i값에 따라 리액션 타입을 골고루 분배 (AWESOME, GREAT, AMAZING, FIGHTING)
-            RecordReactionType type = RecordReactionType.AWESOME;
+    private void createRecords(
+            User user,
+            Long hobbyId,
+            List<Long> activityIds
+    ) {
+        Hobby hobby = hobbyRepository.findById(hobbyId)
+                .orElseThrow(() -> new IllegalStateException("Hobby not found: " + hobbyId));
 
-            // 중복 생성 방지 체크
-            boolean exists = reactionRepository.existsByActivityRecordAndReactedUserAndReactionType(
-                    record, testUser, type);
+        for (Long activityId : activityIds) {
+            Activity activity = activityRepository.findById(activityId)
+                    .orElseThrow(() -> new IllegalStateException("Activity not found: " + activityId));
 
-            if (!exists) {
-                ActivityRecordReaction reaction = ActivityRecordReaction.builder()
-                        .activityRecord(record)
-                        .reactedUser(testUser)
-                        .reactionType(type)
-                        .readWriter(false)
+            for (int i = 1; i <= 3; i++) {
+                ActivityRecord record = ActivityRecord.builder()
+                        .user(user)
+                        .hobby(hobby)
+                        .activity(activity)
+                        .sticker("STICKER_" + i)
+                        .memo("activity " + activityId + " record " + i)
+                        .visibility(RecordVisibility.PUBLIC)
+                        .imageUrl("https://dummy.image/activity_" + activityId + "_" + i + ".jpg")
                         .build();
 
-                reactionRepository.save(reaction);
+                activityRecordRepository.save(record);
             }
         }
-
-        System.out.println("✅ 더미 데이터 생성 완료: ID 1 기록에 대해 30명의 리액션이 추가되었습니다.");
     }
 }
