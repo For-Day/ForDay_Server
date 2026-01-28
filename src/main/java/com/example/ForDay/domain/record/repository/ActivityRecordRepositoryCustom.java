@@ -11,7 +11,9 @@ import java.util.Optional;
 public interface ActivityRecordRepositoryCustom {
     List<GetStickerInfoResDto.StickerDto> getStickerInfo(Long hobbyId, Integer page, Integer size, User currentUser);
 
-    List<GetUserFeedListResDto.FeedDto> findUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, String userId);
+    List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId);
 
     Optional<RecordDetailQueryDto> findDetailDtoById(Long recordId);
+
+    Long countRecordByHobbyIds(List<Long> hobbyIds, String userId);
 }

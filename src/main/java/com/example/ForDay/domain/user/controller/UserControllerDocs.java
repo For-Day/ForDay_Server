@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
+
 @Tag(name = "User", description = "사용자 프로필 및 계정 관련 API")
 public interface UserControllerDocs {
 
@@ -140,8 +142,8 @@ public interface UserControllerDocs {
     })
     @GetMapping("/feeds")
     public GetUserFeedListResDto getUserFeedList(
-            @Parameter(description = "필터링할 취미 ID (입력하지 않으면 전체 피드 조회)", example = "12")
-            @RequestParam(name = "hobbyId", required = false) Long hobbyId,
+            @Parameter(description = "필터링할 취미 ID 목록 (입력하지 않으면 (빈리스트이면) 전체 피드 조회)", example = "1, 2, 3")
+            @RequestParam(name = "hobbyId", required = false) List<Long> hobbyIds,
 
             @Parameter(description = "마지막으로 조회된 기록 ID (첫 페이지 요청 시에는 비워둠)", example = "455")
             @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
