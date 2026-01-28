@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
+//@Component
 @Profile("local")
 @RequiredArgsConstructor
 public class DataInitializer {
