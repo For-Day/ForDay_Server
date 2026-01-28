@@ -64,8 +64,9 @@ public class UserController implements UserControllerDocs {
     @GetMapping("/hobby-cards")
     public GetUserHobbyCardListResDto getUserHobbyCardList(@RequestParam(name = "lastHobbyCardId", required = false) Long lastHobbyCardId,
                                                            @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
-                                                           @AuthenticationPrincipal CustomUserDetails user) {
-        return userService.getUserHobbyCardList(lastHobbyCardId, size, user);
+                                                           @AuthenticationPrincipal CustomUserDetails user,
+                                                           @RequestParam(name = "userId", required = false) String userId) {
+        return userService.getUserHobbyCardList(lastHobbyCardId, size, user, userId);
     }
 
 }

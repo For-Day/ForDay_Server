@@ -168,5 +168,6 @@ public interface UserControllerDocs {
             @Parameter(description = "한 번에 가져올 데이터 개수", example = "20")
             @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
 
-            @AuthenticationPrincipal CustomUserDetails user);
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(name = "userId", required = false) String userId);
 }

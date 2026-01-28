@@ -209,10 +209,16 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user, String userId) {
+        User targetUser;
 
-        List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, currentUser);
+        if(userId != null) {
+            targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        } else {
+            targetUser = userUtil.getCurrentUser(user);
+        }
+
+        List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, targetUser);
 
         boolean hasNext = false;
         if (cardDtoList.size() > size) {
