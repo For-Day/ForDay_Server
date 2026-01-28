@@ -35,8 +35,8 @@ public class UserController implements UserControllerDocs {
 
     @Override
     @GetMapping("/info")
-    public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user) {
-        return userService.getUserInfo(user);
+    public UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "userId", required = false) String userId) {
+        return userService.getUserInfo(user, userId);
     }
 
     @Override
@@ -47,8 +47,8 @@ public class UserController implements UserControllerDocs {
 
     @Override
     @GetMapping("/hobbies/in-progress")
-    public GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user) {
-        return userService.getHobbyInProgress(user);
+    public GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "userId", required = false) String userId) {
+        return userService.getHobbyInProgress(user, userId);
     }
 
     @Override

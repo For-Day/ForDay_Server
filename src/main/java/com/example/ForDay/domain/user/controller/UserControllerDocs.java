@@ -80,13 +80,13 @@ public interface UserControllerDocs {
 
     @Operation(
             summary = "사용자 정보 조회",
-            description = "마이페이지 등에 표시될 사용자의 닉네임, 프로필 이미지, 총 스티커 개수를 조회합니다."
+            description = "마이페이지 등에 표시될 사용자의 닉네임, 프로필 이미지, 총 스티커 개수를 조회합니다. 자신의 정보 조회시 userId는 null, 다른 사용자 정보 조회시 해당 사용자 userId를 넣습니다."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
-    UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user);
+    UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user,  @RequestParam(name = "userId", required = false) String userId);
 
     @Operation(
             summary = "프로필 이미지 변경",
@@ -126,7 +126,7 @@ public interface UserControllerDocs {
                     useReturnTypeSchema = true // GetHobbyInProgressResDto 구조 자동 반영
             )
     })
-    GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user);
+    GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "userId", required = false) String userId);
 
 
     @Operation(
