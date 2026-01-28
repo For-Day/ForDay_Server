@@ -21,9 +21,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private final JPAQueryFactory queryFactory;
 
     private final QActivityRecord record = QActivityRecord.activityRecord;
-    private final QHobby hobby = QHobby.hobby;
     private final QUser user = QUser.user;
-    private final QActivityRecord activityRecord = QActivityRecord.activityRecord;
     private final QActivity activity = QActivity.activity;
 
     @Override
@@ -56,7 +54,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
 
     @Override
-    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(Long hobbyId, Long lastRecordId, Integer feedSize, String userId) {
+    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserFeedListResDto.FeedDto.class,
@@ -70,7 +68,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .where(
                         record.user.id.eq(userId),
                         ltLastRecordId(lastRecordId),
-                        eqHobbyId(hobbyId)
+                        hobbyIdIn(hobbyIds)
                 )
                 .orderBy(record.id.desc())
                 .limit(feedSize + 1)
@@ -99,9 +97,26 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .fetchOne());
     }
 
-    private BooleanExpression eqHobbyId(Long hobbyId) {
-        return hobbyId != null ? record.hobby.id.eq(hobbyId) : null;
+    @Override
+    public Long countRecordByHobbyIds(List<Long> hobbyIds, String userId) {
+        Long count = queryFactory
+                .select(record.count())
+                .from(record)
+                .where(
+                        record.user.id.eq(userId),
+                        hobbyIdIn(hobbyIds)
+                )
+                .fetchOne();
+
+        return count == null ? 0L : count;
     }
+
+    private BooleanExpression hobbyIdIn(List<Long> hobbyIds) {
+        if (hobbyIds == null || hobbyIds.isEmpty()) return null;
+        return record.hobby.id.in(hobbyIds);
+    }
+
+
 
     private BooleanExpression ltLastRecordId(Long lastRecordId) {
         return lastRecordId != null ? record.id.lt(lastRecordId) : null;

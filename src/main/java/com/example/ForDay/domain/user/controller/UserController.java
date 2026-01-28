@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/users")
@@ -51,11 +53,11 @@ public class UserController implements UserControllerDocs {
 
     @Override
     @GetMapping("/feeds")
-    public GetUserFeedListResDto getUserFeedList(@RequestParam(name = "hobbyId", required = false) Long hobbyId,
+    public GetUserFeedListResDto getUserFeedList(@RequestParam(name = "hobbyId", required = false) List<Long> hobbyIds,
                                                  @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
                                                  @RequestParam(name = "feedSize", required = false, defaultValue = "24") Integer feedSize,
                                                  @AuthenticationPrincipal CustomUserDetails user) {
-        return userService.getUserFeedList(hobbyId, lastRecordId, feedSize, user);
+        return userService.getUserFeedList(hobbyIds, lastRecordId, feedSize, user);
     }
 
     @Override
