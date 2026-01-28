@@ -13,6 +13,7 @@ import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -59,6 +60,7 @@ public class HobbyService {
     private final S3Service s3Service;
     private final OtherActivityRepository otherActivityRepository;
     private final CoverLambdaInvoker invoker;
+    private final UserRepository userRepository;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -98,7 +100,9 @@ public class HobbyService {
 
         // 온보딩이 완료되지 않은 경우에만 완료로 전환되도록 설정
         if (!currentUser.isOnboardingCompleted()) {
+            log.info("[Before Update] onboarding status: {}", currentUser.isOnboardingCompleted());
             currentUser.completeOnboarding();
+            userRepository.save(currentUser);
         }
 
         return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
