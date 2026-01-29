@@ -200,17 +200,33 @@ public class ActivityRecordService {
         validateRecordAuthority(activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUser.getId());
 
         if(activityRecordScrapRepository.existsByActivityRecordIdAndUserId(recordId, currentUser.getId())) {
-            return new AddActivityRecordScrapResDto("이미 스크랩한 활동 기록입니다.", recordId, true);
+            throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
         }
 
         ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
 
         activityRecordScrapRepository.save(ActivityRecordScarp.builder()
-                .activityRecord(recordProxy) // DTO가 아닌 엔터티(프록시)를 전달
+                .activityRecord(recordProxy)
                 .user(currentUser)
                 .build());
 
-        return new AddActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, false);
+        return new AddActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, true);
+    }
+
+    @Transactional
+    public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+
+        Optional<ActivityRecordScarp> scarp = activityRecordScrapRepository.findByActivityRecordIdAndUserId(activityRecord.getId(), currentUser.getId());
+        if(scarp.isEmpty()) {
+            return new DeleteActivityRecordScrapResDto("스크랩이 존재하지 않거나 이미 삭제되었습니다.", activityRecord.getId(), false);
+        }
+        ActivityRecordScarp activityRecordScarp = scarp.get();
+
+        activityRecordScrapRepository.delete(activityRecordScarp);
+
+        return new DeleteActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, false);
     }
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {
