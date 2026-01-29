@@ -3,6 +3,7 @@ package com.example.ForDay.domain.record.service;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
@@ -47,6 +48,9 @@ public class ActivityRecordService {
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
         boolean isRecordOwner = Objects.equals(currentUserId, detail.writerId());
+
+        // 차단 여부와 탈퇴 회원 여부 확인
+        checkBlockedAndDeletedUser(currentUserId, detail.writerId(), detail.writerDeleted());
 
         if (!isRecordOwner) {
             validateRecordAuthority(detail.visibility(), detail.writerId(), currentUserId);
@@ -141,6 +145,38 @@ public class ActivityRecordService {
         return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", type, recordId);
     }
 
+    @Transactional
+    public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+
+        String newImageUrl = reqDto.getImageUrl();
+        if(Strings.hasText(newImageUrl)) {
+            if(!activityRecord.getImageUrl().equals(newImageUrl)) {
+                // 이미지 수정하는 경우
+                String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
+                if(!s3Service.existsByKey(s3Key)) {
+                    throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+                }
+            }
+            activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), reqDto.getImageUrl());
+            activityRecordRepository.save(activityRecord);
+        }
+        return new UpdateActivityRecordResDto("활동 기록이 정상적으로 수정되었습니다.", activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
+    }
+
+    @Transactional
+    public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        activityRecordRepository.delete(activityRecord);
+        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
+    }
+
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {
         if (writerId.equals(currentUserId)) return;
 
@@ -155,7 +191,8 @@ public class ActivityRecordService {
     }
 
     private boolean checkFriendship(String writerId, String currentUserId) {
-        return friendRelationRepository.existsAcceptedFriendship(writerId, currentUserId);
+        return friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(
+                currentUserId, writerId, FriendRelationStatus.FOLLOW);
     }
 
     private void verifyRecordOwner(ActivityRecord record, User user) {
@@ -211,33 +248,13 @@ public class ActivityRecordService {
                 .build();
     }
 
-    public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
-        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-        Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
-
-        String newImageUrl = reqDto.getImageUrl();
-        if(Strings.hasText(newImageUrl)) {
-            if(!activityRecord.getImageUrl().equals(newImageUrl)) {
-                // 이미지 수정하는 경우
-                String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
-                if(!s3Service.existsByKey(s3Key)) {
-                    throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-                }
-            }
-            activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), reqDto.getImageUrl());
-            activityRecordRepository.save(activityRecord);
+    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
+        // 한쪽이라도 차단 관계가 있는지 확인
+        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
-        return new UpdateActivityRecordResDto("활동 기록이 정상적으로 수정되었습니다.", activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
-    }
 
-    public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
-        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        activityRecordRepository.delete(activityRecord);
-        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
+        // 타겟유저가 탈퇴한 회원인 경우
+        if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
     }
 }

@@ -89,6 +89,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         user.id,
                         user.nickname,
                         user.profileImageUrl,
+                        user.deleted,
                         activity.content
                 ))
                 .from(record)
