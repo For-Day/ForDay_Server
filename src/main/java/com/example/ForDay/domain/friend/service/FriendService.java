@@ -35,6 +35,7 @@ public class FriendService {
         User targetUser = userRepository.findById(reqDto.getUserId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // 유저가 탈퇴한 경우
         if(targetUser.isDeleted()) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
@@ -49,7 +50,7 @@ public class FriendService {
 
         // 상대방이 나를 차단했는지 확인
         Optional<FriendRelation> blockedByTarget = friendRelationRepository
-                .findByRequesterIdAndTargetId(targetUserId, currentUserId);
+                .findByRequesterIdAndTargetUserId(targetUserId, currentUserId);
 
         if (blockedByTarget.isPresent() && blockedByTarget.get().getRelationStatus() == FriendRelationStatus.BLOCK) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
@@ -57,7 +58,7 @@ public class FriendService {
 
         // 내가 맺은 관계 확인
         Optional<FriendRelation> myRelation = friendRelationRepository
-                .findByRequesterIdAndTargetId(currentUserId, targetUserId);
+                .findByRequesterIdAndTargetUserId(currentUserId, targetUserId);
 
         if (myRelation.isPresent()) {
             FriendRelation relation = myRelation.get();
@@ -93,7 +94,7 @@ public class FriendService {
 
         // 내가 맺은 관계 조회 (나 -> 상대)
         FriendRelation myRelation = friendRelationRepository
-                .findByRequesterIdAndTargetId(currentUserId, targetUserId)
+                .findByRequesterIdAndTargetUserId(currentUserId, targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
         // 현재 상태가 FOLLOW일 때만 삭제 가능. 만약 내가 상대를 BLOCK 중이라면 삭제(언팔로우) 대상이 아님.
@@ -104,7 +105,7 @@ public class FriendService {
         // 상대방이 나를 차단했는지 확인
         // 친구 추가와 동일하게 상대가 나를 차단했다면 정보 노출 방지를 위해 '찾을 수 없음' 처리
         Optional<FriendRelation> blockedByTarget = friendRelationRepository
-                .findByRequesterIdAndTargetId(targetUserId, currentUserId);
+                .findByRequesterIdAndTargetUserId(targetUserId, currentUserId);
 
         if (blockedByTarget.isPresent() && blockedByTarget.get().getRelationStatus() == FriendRelationStatus.BLOCK) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
@@ -134,7 +135,7 @@ public class FriendService {
 
         // 상대방이 나를 차단했는지 확인
         Optional<FriendRelation> blockedByTarget = friendRelationRepository
-                .findByRequesterIdAndTargetId(targetUserId, currentUserId);
+                .findByRequesterIdAndTargetUserId(targetUserId, currentUserId);
 
         if (blockedByTarget.isPresent() && blockedByTarget.get().getRelationStatus() == FriendRelationStatus.BLOCK) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
@@ -142,7 +143,7 @@ public class FriendService {
 
         // 나의 차단 로직 수행
         Optional<FriendRelation> myRelation = friendRelationRepository
-                .findByRequesterIdAndTargetId(currentUserId, targetUserId);
+                .findByRequesterIdAndTargetUserId(currentUserId, targetUserId);
 
         if (myRelation.isPresent()) {
             FriendRelation relation = myRelation.get();

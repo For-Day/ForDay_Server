@@ -11,12 +11,11 @@ import java.util.Optional;
 
 public interface FriendRelationRepository extends JpaRepository<FriendRelation, Long>, FriendRelationRepositoryCustom {
     @Query("SELECT COUNT(f) > 0 FROM FriendRelation f " +
-            "WHERE f.relationStatus = 'ACCEPTED' " +
-            "AND ((f.requesterId.id = :writerId AND f.targetId.id = :currentUserId) " +
-            "OR (f.requesterId.id = :currentUserId AND f.targetId.id = :writerId))")
-    boolean existsAcceptedFriendship(@Param("writerId") String writerId,
-                                     @Param("currentUserId") String currentUserId);
+            "WHERE f.relationStatus = 'FOLLOW' " +
+            "AND ((f.requester.id = :writerId AND f.targetUser.id = :currentUserId) " +
+            "OR (f.requester.id = :currentUserId AND f.targetUser.id = :writerId))")
+    boolean existsAcceptedFriendship(@Param("writerId") String writerId, @Param("currentUserId") String currentUserId);
 
-    Optional<FriendRelation> findByRequesterIdAndTargetId(String id, String id1);
+    Optional<FriendRelation> findByRequesterIdAndTargetUserId(String id, String id1);
 
 }

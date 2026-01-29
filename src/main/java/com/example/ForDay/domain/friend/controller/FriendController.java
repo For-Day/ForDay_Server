@@ -25,7 +25,7 @@ public class FriendController {
         return friendService.addFriend(reqDto, user);
     }
 
-    @PostMapping("/{friendId}")
+    @DeleteMapping("/{friendId}")
     public DeleteFriendResDto deleteFriend(@RequestParam(name = "friendId") String friendId,
                                            @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.deleteFriend(friendId, user);
