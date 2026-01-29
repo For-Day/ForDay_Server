@@ -90,4 +90,17 @@ public class JwtUtil {
             return false;
         }
     }
+
+    // JwtUtil.java 내부 예시
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith(secretKey) // 필드에 선언된 Key 객체
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

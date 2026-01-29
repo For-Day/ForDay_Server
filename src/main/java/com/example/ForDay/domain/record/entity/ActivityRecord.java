@@ -50,4 +50,12 @@ public class ActivityRecord extends BaseTimeEntity {
     public void updateVisibility(RecordVisibility newVisibility) {
         this.visibility = newVisibility;
     }
+
+    public void updateRecord(Activity activity, String sticker, String memo, RecordVisibility visibility, String imageUrl) {
+        this.activity = activity;
+        this.sticker = sticker;
+        this.memo = memo;
+        this.visibility = visibility;
+        this.imageUrl = imageUrl;
+    }
 }
