@@ -5,6 +5,8 @@ import com.example.ForDay.domain.record.type.RecordVisibility;
 import java.time.LocalDateTime;
 
 public record RecordDetailQueryDto(
+        Long hobbyId,
+        Long activityId,
         Long recordId,
         String imageUrl,
         String memo,

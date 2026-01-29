@@ -79,6 +79,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     public Optional<RecordDetailQueryDto> findDetailDtoById(Long recordId) {
         return Optional.ofNullable(queryFactory
                 .select(Projections.constructor(RecordDetailQueryDto.class,
+                        record.hobby.id,
+                        record.activity.id,
                         record.id,
                         record.imageUrl,
                         record.memo,
