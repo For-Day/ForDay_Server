@@ -5,6 +5,7 @@ import com.example.ForDay.domain.friend.dto.request.BlockFriendReqDto;
 import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
 import com.example.ForDay.domain.friend.dto.response.BlockFriendResDto;
 import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
+import com.example.ForDay.domain.friend.dto.response.GetFriendListResDto;
 import com.example.ForDay.domain.friend.service.FriendService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -34,5 +35,10 @@ public class FriendController {
     public BlockFriendResDto blockFriend(@RequestBody @Valid BlockFriendReqDto reqDto,
                                          @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.blockFriend(reqDto, user);
+    }
+
+    @GetMapping
+    public GetFriendListResDto getFriendList(@AuthenticationPrincipal CustomUserDetails user) {
+        return friendService.getFriendList(user);
     }
 }

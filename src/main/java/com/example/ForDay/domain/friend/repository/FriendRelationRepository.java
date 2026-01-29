@@ -1,13 +1,15 @@
 package com.example.ForDay.domain.friend.repository;
 
+import com.example.ForDay.domain.friend.dto.response.GetFriendListResDto;
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
-public interface FriendRelationRepository extends JpaRepository<FriendRelation, Long> {
+public interface FriendRelationRepository extends JpaRepository<FriendRelation, Long>, FriendRelationRepositoryCustom {
     @Query("SELECT COUNT(f) > 0 FROM FriendRelation f " +
             "WHERE f.relationStatus = 'ACCEPTED' " +
             "AND ((f.requesterId.id = :writerId AND f.targetId.id = :currentUserId) " +
@@ -16,4 +18,5 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
                                      @Param("currentUserId") String currentUserId);
 
     Optional<FriendRelation> findByRequesterIdAndTargetId(String id, String id1);
+
 }

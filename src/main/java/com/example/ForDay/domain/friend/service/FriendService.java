@@ -5,6 +5,7 @@ import com.example.ForDay.domain.friend.dto.request.BlockFriendReqDto;
 import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
 import com.example.ForDay.domain.friend.dto.response.BlockFriendResDto;
 import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
+import com.example.ForDay.domain.friend.dto.response.GetFriendListResDto;
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -149,5 +151,28 @@ public class FriendService {
         }
 
         return new BlockFriendResDto("성공적으로 차단되었습니다.", targetUser.getNickname());
+    }
+
+    public GetFriendListResDto getFriendList(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        List<GetFriendListResDto.UserInfoDto> userInfoDtos = friendRelationRepository.findMyFriendList(currentUser.getId());
+
+        List<GetFriendListResDto.UserInfoDto> updatedList = userInfoDtos.stream()
+                .map(dto -> new GetFriendListResDto.UserInfoDto(
+                        dto.getUserId(),
+                        dto.getNickname(),
+                        toProfileMainResizedUrl(dto.getProfileImageUrl()) // 여기서 변환 처리
+                ))
+                .toList();
+
+        return new GetFriendListResDto("친구 목록이 성공적으로 조회되었습니다.", updatedList);
+    }
+
+    private String toProfileMainResizedUrl(String originalUrl) {
+        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+            return originalUrl;
+        }
+        return originalUrl.replace("/temp/", "/resized/main/");
     }
 }
