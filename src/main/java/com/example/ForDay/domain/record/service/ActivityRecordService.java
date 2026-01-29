@@ -228,6 +228,15 @@ public class ActivityRecordService {
             }
             activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), reqDto.getImageUrl());
         }
-        return new UpdateActivityRecordResDto(activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
+        return new UpdateActivityRecordResDto("활동 기록이 정상적으로 수정되었습니다.", activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
+    }
+
+    public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
+        ActivityRecord activityRecord = activityRecordRepository.findIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        activityRecordRepository.delete(activityRecord);
+        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
     }
 }

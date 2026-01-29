@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UpdateActivityRecordResDto {
+    private String message;
     private Long activityId;
     private String activityContent;
     private String sticker;
