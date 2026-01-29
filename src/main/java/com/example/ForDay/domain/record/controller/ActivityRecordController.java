@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
@@ -58,6 +59,14 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         return activityRecordService.cancelReactToRecord(recordId, reactionType, user);
+    }
+
+
+    @PutMapping("/{recordId}")
+    public UpdateActivityRecordResDto updateActivityRecord(@PathVariable(value = "recordId") Long recordId,
+                                                           @RequestBody @Valid UpdateActivityRecordReqDto reqDto,
+                                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordService.updateActivityRecord(recordId, reqDto, user);
     }
 
 }
