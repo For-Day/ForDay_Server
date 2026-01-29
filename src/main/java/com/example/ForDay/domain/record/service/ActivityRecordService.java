@@ -22,7 +22,6 @@ import com.example.ForDay.global.util.TimeUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import io.jsonwebtoken.lang.Strings;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +57,10 @@ public class ActivityRecordService {
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
-        return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction);
+        boolean scraped= false;
+        // 스크랩 여부 조회 추가 예정
+
+        return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction, scraped);
     }
 
     @Transactional
@@ -196,8 +198,10 @@ public class ActivityRecordService {
     private GetRecordDetailResDto buildGetRecordDetailResDtoFromDto(RecordDetailQueryDto detail,
                                                                     boolean isOwner,
                                                                     GetRecordDetailResDto.NewReactionDto newR,
-                                                                    GetRecordDetailResDto.UserReactionDto userR) {
+                                                                    GetRecordDetailResDto.UserReactionDto userR, boolean scraped) {
         return GetRecordDetailResDto.builder()
+                .hobbyId(detail.hobbyId())
+                .activityId(detail.activityId())
                 .activityContent(detail.activityContent())
                 .activityRecordId(detail.recordId())
                 .imageUrl(detail.imageUrl())
@@ -205,6 +209,12 @@ public class ActivityRecordService {
                 .createdAt(TimeUtil.formatLocalDateTime(detail.createdAt()))
                 .memo(detail.memo())
                 .recordOwner(isOwner)
+                .scraped(scraped)
+                .userInfo(!isOwner ? GetRecordDetailResDto.UserInfoDto.builder()
+                        .userId(detail.writerId())
+                        .nickname(detail.writerNickname())
+                        .profileImageUrl(detail.imageUrl())
+                        .build() : null)
                 .visibility(detail.visibility())
                 .newReaction(newR)
                 .userReaction(userR)
