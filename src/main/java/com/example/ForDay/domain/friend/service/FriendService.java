@@ -165,10 +165,19 @@ public class FriendService {
         return new BlockFriendResDto("성공적으로 차단되었습니다.", targetUser.getNickname());
     }
 
-    public GetFriendListResDto getFriendList(CustomUserDetails user) {
+    public GetFriendListResDto getFriendList(CustomUserDetails user, String lastUserId, Integer size) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        List<GetFriendListResDto.UserInfoDto> userInfoDtos = friendRelationRepository.findMyFriendList(currentUser.getId());
+        List<GetFriendListResDto.UserInfoDto> userInfoDtos = friendRelationRepository.findMyFriendList(currentUser.getId(), lastUserId, size);
+
+        boolean hasNext = false;
+        if (userInfoDtos.size() > size) {
+            hasNext = true;
+            userInfoDtos.remove(size.intValue());
+        }
+
+        String nextLastUserId = userInfoDtos.isEmpty() ? null :
+                userInfoDtos.get(userInfoDtos.size() - 1).getUserId();
 
         List<GetFriendListResDto.UserInfoDto> updatedList = userInfoDtos.stream()
                 .map(dto -> new GetFriendListResDto.UserInfoDto(
@@ -178,7 +187,7 @@ public class FriendService {
                 ))
                 .toList();
 
-        return new GetFriendListResDto("친구 목록이 성공적으로 조회되었습니다.", updatedList);
+        return new GetFriendListResDto("친구 목록이 성공적으로 조회되었습니다.", updatedList, nextLastUserId, hasNext);
     }
 
     private String toProfileMainResizedUrl(String originalUrl) {

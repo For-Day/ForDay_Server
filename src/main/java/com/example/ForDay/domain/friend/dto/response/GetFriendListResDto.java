@@ -12,6 +12,8 @@ import java.util.List;
 public class GetFriendListResDto {
     private String message;
     private List<UserInfoDto> userInfo;
+    private String lastUserId;
+    private boolean hasNext;
 
     @Data
     @NoArgsConstructor

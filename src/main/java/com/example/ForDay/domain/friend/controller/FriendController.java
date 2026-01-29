@@ -38,7 +38,9 @@ public class FriendController {
     }
 
     @GetMapping
-    public GetFriendListResDto getFriendList(@AuthenticationPrincipal CustomUserDetails user) {
-        return friendService.getFriendList(user);
+    public GetFriendListResDto getFriendList(@RequestParam(name = "lastUserId", required = false) String lastUserId,
+                                             @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
+                                             @AuthenticationPrincipal CustomUserDetails user) {
+        return friendService.getFriendList(user, lastUserId, size);
     }
 }

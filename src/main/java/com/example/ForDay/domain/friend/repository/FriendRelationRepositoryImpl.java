@@ -5,6 +5,7 @@ import com.example.ForDay.domain.friend.entity.QFriendRelation;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -17,7 +18,7 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
     private QFriendRelation relation = QFriendRelation.friendRelation;
 
     @Override
-    public List<GetFriendListResDto.UserInfoDto> findMyFriendList(String currentUserId) {
+    public List<GetFriendListResDto.UserInfoDto> findMyFriendList(String currentUserId, String lastUserId, Integer size) {
         return queryFactory
                 .select(Projections.constructor(GetFriendListResDto.UserInfoDto.class,
                         user.id,
@@ -29,9 +30,18 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
                 .where(
                         relation.requester.id.eq(currentUserId),
                         relation.relationStatus.eq(FriendRelationStatus.FOLLOW),
-                        user.deleted.isFalse()
+                        user.deleted.isFalse(),
+                        ltLastUserId(lastUserId)
                 )
-                .orderBy(relation.createdAt.desc())
+                .orderBy(relation.createdAt.desc(), user.id.desc())
+                .limit(size + 1)
                 .fetch();
+    }
+
+    private BooleanExpression ltLastUserId(String lastUserId) {
+        if (lastUserId == null || lastUserId.isEmpty()) {
+            return null;
+        }
+        return user.id.lt(lastUserId);
     }
 }
