@@ -214,7 +214,7 @@ public class ActivityRecordService {
     public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-        ActivityRecord activityRecord = activityRecordRepository.findIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
         Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
 
         String newImageUrl = reqDto.getImageUrl();
@@ -227,6 +227,7 @@ public class ActivityRecordService {
                 }
             }
             activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), reqDto.getImageUrl());
+            activityRecordRepository.save(activityRecord);
         }
         return new UpdateActivityRecordResDto("활동 기록이 정상적으로 수정되었습니다.", activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
     }
@@ -234,7 +235,7 @@ public class ActivityRecordService {
     public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-        ActivityRecord activityRecord = activityRecordRepository.findIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         activityRecordRepository.delete(activityRecord);
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());

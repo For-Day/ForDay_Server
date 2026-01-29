@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
@@ -160,4 +161,59 @@ public interface ActivityRecordControllerDocs {
             @RequestParam(name = "reactionType") RecordReactionType reactionType,
             @AuthenticationPrincipal CustomUserDetails user
     );
+
+    @Operation(
+            summary = "활동 기록 수정",
+            description = "기존에 작성된 활동 기록을 수정합니다. 본인의 기록만 수정 가능하며, S3 이미지 존재 여부를 체크합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "활동 기록 수정 성공",
+                    content = @Content(schema = @Schema(implementation = UpdateActivityRecordResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "조회 실패 (기록 없음 / 활동 없음 / S3 이미지 없음)",
+                    content = @Content(examples = {
+                            @ExampleObject(name = "S3_IMAGE_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"S3_IMAGE_NOT_FOUND\", \"message\": \"S3에 해당 이미지가 존재하지 않습니다.\"}}"),
+                            @ExampleObject(name = "ACTIVITY_RECORD_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"),
+                            @ExampleObject(name = "ACTIVITY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_NOT_FOUND\", \"message\": \"존재하지 않는 활동입니다.\"}}")
+                    })
+            )
+    })
+    UpdateActivityRecordResDto updateActivityRecord(
+            @Parameter(description = "수정하려는 활동 기록의 ID", example = "1")
+            @PathVariable(value = "recordId") Long recordId,
+
+            @RequestBody @Valid UpdateActivityRecordReqDto reqDto,
+
+            @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "활동 기록 삭제",
+            description = "지정한 활동 기록을 삭제합니다. 본인이 작성한 기록만 삭제할 수 있습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "활동 기록 삭제 성공",
+                    content = @Content(schema = @Schema(implementation = DeleteActivityRecordResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "삭제 실패 - 기록을 찾을 수 없음",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "ACTIVITY_RECORD_NOT_FOUND",
+                                    value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"
+                            )
+                    })
+            )
+    })
+    DeleteActivityRecordResDto deleteActivityRecord(
+            @Parameter(description = "삭제하고자 하는 활동 기록의 ID", example = "2")
+            @PathVariable(value = "recordId") Long recordId,
+
+            @AuthenticationPrincipal CustomUserDetails user);
 }

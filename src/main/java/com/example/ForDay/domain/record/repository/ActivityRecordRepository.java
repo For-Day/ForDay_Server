@@ -29,5 +29,5 @@ public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, 
             "WHERE ar.id = :recordId")
     Optional<ActivityRecord> findByIdWithHobby(@Param("recordId") Long recordId);
 
-    Optional<ActivityRecord> findIdAndUserId(Long recordId, String id);
+    Optional<ActivityRecord> findByIdAndUserId(Long recordId, String currentUserId);
 }

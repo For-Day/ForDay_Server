@@ -62,6 +62,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
     }
 
 
+    @Override
     @PutMapping("/{recordId}")
     public UpdateActivityRecordResDto updateActivityRecord(@PathVariable(value = "recordId") Long recordId,
                                                            @RequestBody @Valid UpdateActivityRecordReqDto reqDto,
@@ -69,6 +70,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
         return activityRecordService.updateActivityRecord(recordId, reqDto, user);
     }
 
+    @Override
     @DeleteMapping("/{recordId}")
     public DeleteActivityRecordResDto deleteActivityRecord(@PathVariable(value = "recordId") Long recordId,
                                                            @AuthenticationPrincipal CustomUserDetails user) {
