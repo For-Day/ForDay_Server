@@ -347,5 +347,52 @@ class FriendServiceTest {
         assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
     }
 
+    @Test
+    void 친구목록조회_나를_차단한_사람은_친구목록에서_제외() {
+        // given
+        // 유저 생성 및 저장 (A, B, C, D)
+        User userA = userRepository.save(User.builder().nickname("A").role(Role.USER).socialType(SocialType.KAKAO).socialId("A").build());
+        User userB = userRepository.save(User.builder().nickname("B").role(Role.USER).socialType(SocialType.KAKAO).socialId("B").build());
+        User userC = userRepository.save(User.builder().nickname("C").role(Role.USER).socialType(SocialType.KAKAO).socialId("C").build());
+        User userD = userRepository.save(User.builder().nickname("D").role(Role.USER).socialType(SocialType.KAKAO).socialId("D").build());
 
+        // A가 B, C, D를 순서대로 친구 추가 (A -> B, A -> C, A -> D)
+        addFriend(userA, userB);
+        addFriend(userA, userC);
+        addFriend(userA, userD);
+
+        // B가 A를 차단 (B -> A BLOCK)
+        friendRelationRepository.save(FriendRelation.builder()
+                .requester(userB)
+                .targetUser(userA)
+                .relationStatus(FriendRelationStatus.BLOCK)
+                .build());
+
+        // when
+        CustomUserDetails userDetails = new CustomUserDetails(userA);
+        GetFriendListResDto response = friendService.getFriendList(userDetails, null, 10);
+
+        // then
+        // 1. 전체 사이즈 검증 (B가 빠졌으므로 2명)
+        assertEquals(2, response.getUserInfo().size());
+
+        // 2. 정렬 순서 검증 (최신순: D -> C)
+        // Querydsl 로직에서 createdAt.desc() 이므로 가장 마지막에 추가된 D가 첫 번째여야 함
+        assertEquals(userD.getNickname(), response.getUserInfo().get(0).getNickname());
+        assertEquals(userC.getNickname(), response.getUserInfo().get(1).getNickname());
+
+        // 3. 차단한 유저(B)가 목록에 없는지 명시적 확인
+        boolean containsB = response.getUserInfo().stream()
+                .anyMatch(dto -> dto.getNickname().equals("B"));
+        assertFalse(containsB);
+    }
+
+    private void addFriend(User requester, User targetUser) {
+        FriendRelation relation = FriendRelation.builder()
+                .requester(requester)
+                .targetUser(targetUser)
+                .relationStatus(FriendRelationStatus.FOLLOW)
+                .build();
+        friendRelationRepository.save(relation);
+    }
 }
