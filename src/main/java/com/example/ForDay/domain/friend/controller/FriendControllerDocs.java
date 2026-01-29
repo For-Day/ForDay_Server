@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface FriendControllerDocs {
 
     @Operation(
-            summary = "친구 추가 (팔로우)",
+            summary = "친구 맺기 (팔로우)",
             description = "상대방의 ID를 이용해 친구 관계를 맺습니다. 상대방이 나를 차단했거나 내가 상대를 차단한 경우 404 에러를 반환하여 보안을 유지합니다."
     )
     @ApiResponses(value = {
@@ -48,7 +48,7 @@ public interface FriendControllerDocs {
     AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails user);
 
     @Operation(
-            summary = "친구 삭제 (언팔로우)",
+            summary = "친구 끊기 (언팔로우)",
             description = "상대방의 ID를 이용해 맺고 있는 친구 관계를 끊습니다. 상대방이 나를 차단했거나 실제 친구 관계가 아닐 경우 에러를 반환합니다."
     )
     @ApiResponses(value = {
