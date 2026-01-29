@@ -256,10 +256,10 @@ public class ActivityRecordService {
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
         if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
 
         // 타겟유저가 탈퇴한 회원인 경우
-        if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
 }
