@@ -258,6 +258,8 @@ public class UserService {
 
         if(userId != null) {
             targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            checkBlockedAndDeletedUser(userUtil.getCurrentUser(user).getId(), targetUser.getId(), targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
         }
