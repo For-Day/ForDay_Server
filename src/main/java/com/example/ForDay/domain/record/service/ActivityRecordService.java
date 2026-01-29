@@ -74,6 +74,9 @@ public class ActivityRecordService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
+
+        checkBlockedAndDeletedUser(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted());
+
         boolean isRecordOwner = Objects.equals(currentUserId, recordDetail.writerId());
 
         // 2. 이미 가져온 DTO 정보로 권한 검증
@@ -101,6 +104,8 @@ public class ActivityRecordService {
     public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
         ActivityRecord activityRecord = getActivityRecord(recordId);
         User currentUser = userUtil.getCurrentUser(user);
+
+        checkBlockedAndDeletedUser(currentUser.getId(), activityRecord.getUser().getId(), activityRecord.getUser().isDeleted());
 
         validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getUser().getId(), currentUser.getId());
 
