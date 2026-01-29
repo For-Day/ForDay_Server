@@ -56,8 +56,9 @@ public class UserController implements UserControllerDocs {
     public GetUserFeedListResDto getUserFeedList(@RequestParam(name = "hobbyId", required = false) List<Long> hobbyIds,
                                                  @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
                                                  @RequestParam(name = "feedSize", required = false, defaultValue = "24") Integer feedSize,
+                                                 @RequestParam(name = "userId", required = false) String userId,
                                                  @AuthenticationPrincipal CustomUserDetails user) {
-        return userService.getUserFeedList(hobbyIds, lastRecordId, feedSize, user);
+        return userService.getUserFeedList(hobbyIds, lastRecordId, feedSize, user, userId);
     }
 
     @Override

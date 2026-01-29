@@ -2,6 +2,7 @@ package com.example.ForDay.domain.friend.repository;
 
 import com.example.ForDay.domain.friend.dto.response.GetFriendListResDto;
 import com.example.ForDay.domain.friend.entity.FriendRelation;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,4 +20,6 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
     Optional<FriendRelation> findByRequesterIdAndTargetUserId(String id, String id1);
 
     boolean existsByRequesterIdAndTargetUserId(String currentUserId, String targetId);
+
+    boolean existsByRequesterIdAndTargetUserIdAndRelationStatus(String id, String id1, FriendRelationStatus friendRelationStatus);
 }
