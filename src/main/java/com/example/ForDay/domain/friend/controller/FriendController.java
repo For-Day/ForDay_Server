@@ -2,15 +2,13 @@ package com.example.ForDay.domain.friend.controller;
 
 import com.example.ForDay.domain.friend.dto.request.AddFriendReqDto;
 import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
+import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
 import com.example.ForDay.domain.friend.service.FriendService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,5 +20,11 @@ public class FriendController {
     public AddFriendResDto addFriend(@RequestBody @Valid AddFriendReqDto reqDto,
                                      @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.addFriend(reqDto, user);
+    }
+
+    @PostMapping("/{friendId}")
+    public DeleteFriendResDto deleteFriend(@RequestParam(name = "friendId") String friendId,
+                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return friendService.deleteFriend(friendId, user);
     }
 }

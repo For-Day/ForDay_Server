@@ -2,6 +2,7 @@ package com.example.ForDay.domain.friend.service;
 
 import com.example.ForDay.domain.friend.dto.request.AddFriendReqDto;
 import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
+import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
@@ -67,5 +68,38 @@ public class FriendService {
                 .build());
 
         return new AddFriendResDto("성공적으로 친구 맺기가 되었습니다.", targetUser.getNickname());
+    }
+
+    @Transactional
+    public DeleteFriendResDto deleteFriend(String friendId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        User targetUser = userRepository.findById(friendId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        String currentUserId = currentUser.getId();
+        String targetUserId = targetUser.getId();
+
+        // 내가 맺은 관계 조회 (나 -> 상대)
+        FriendRelation myRelation = friendRelationRepository
+                .findByRequesterIdAndTargetId(currentUserId, targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
+
+        // 현재 상태가 FOLLOW일 때만 삭제 가능. 만약 내가 상대를 BLOCK 중이라면 삭제(언팔로우) 대상이 아님.
+        if (myRelation.getRelationStatus() != FriendRelationStatus.FOLLOW) {
+            throw new CustomException(ErrorCode.FRIEND_NOT_FOUND);
+        }
+
+        // 상대방이 나를 차단했는지 확인
+        // 친구 추가와 동일하게 상대가 나를 차단했다면 정보 노출 방지를 위해 '찾을 수 없음' 처리
+        Optional<FriendRelation> blockedByTarget = friendRelationRepository
+                .findByRequesterIdAndTargetId(targetUserId, currentUserId);
+
+        if (blockedByTarget.isPresent() && blockedByTarget.get().getRelationStatus() == FriendRelationStatus.BLOCK) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        friendRelationRepository.delete(myRelation);
+
+        return new DeleteFriendResDto("성공적으로 친구 관계를 삭제했습니다.", targetUser.getNickname());
     }
 }
