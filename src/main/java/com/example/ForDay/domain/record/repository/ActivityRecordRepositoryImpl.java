@@ -2,9 +2,9 @@ package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
-import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
@@ -54,7 +54,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
 
     @Override
-    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId) {
+    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserFeedListResDto.FeedDto.class,
@@ -68,7 +68,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .where(
                         record.user.id.eq(userId),
                         ltLastRecordId(lastRecordId),
-                        hobbyIdIn(hobbyIds)
+                        hobbyIdIn(hobbyIds),
+                        record.visibility.in(visibilities)
                 )
                 .orderBy(record.id.desc())
                 .limit(feedSize + 1)
@@ -90,6 +91,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         user.id,
                         user.nickname,
                         user.profileImageUrl,
+                        user.deleted,
                         activity.content
                 ))
                 .from(record)

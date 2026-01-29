@@ -25,17 +25,17 @@ public class FriendRelation extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requester_id", nullable = false)
-    private User requesterId;
+    private User requester;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "target_id", nullable = false)
-    private User targetId;
+    private User targetUser;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "relation_status", nullable = false, length = 20)
     private FriendRelationStatus relationStatus;
 
-    @Builder.Default
-    private LocalDateTime respondedAt = null;
-
+    public void changeStatus(FriendRelationStatus friendRelationStatus) {
+        this.relationStatus = friendRelationStatus;
+    }
 }

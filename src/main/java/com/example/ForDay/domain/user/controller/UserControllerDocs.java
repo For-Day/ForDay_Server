@@ -151,6 +151,8 @@ public interface UserControllerDocs {
             @Parameter(description = "한 번에 가져올 피드 개수 (기본값: 24)", example = "24")
             @RequestParam(name = "feedSize", required = false, defaultValue = "24") Integer feedSize,
 
+            @RequestParam(name = "userId", required = false) String userId,
+
             @AuthenticationPrincipal CustomUserDetails user);
 
 

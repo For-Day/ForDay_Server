@@ -1,9 +1,12 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
@@ -19,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -32,6 +36,7 @@ public class UserService {
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
+    private final FriendRelationRepository friendRelationRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -101,8 +106,12 @@ public class UserService {
         User targetUser;
         String targetId;
         if(userId != null) {
+            // 다른 사용자 정보 조회시 (차단 관계, 탈퇴한 회원인지 고려)
+            User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            checkBlockedAndDeletedUser(currentUser.getId(), targetId, targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
             targetId = targetUser.getId();
@@ -163,6 +172,8 @@ public class UserService {
 
         if(userId != null) {
             targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            checkBlockedAndDeletedUser(userUtil.getCurrentUser(user).getId(), targetUser.getId(), targetUser.isDeleted());
         } else {
            targetUser = userUtil.getCurrentUser(user);
         }
@@ -180,16 +191,39 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        String userId = currentUser.getId();
+    public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user, String userId) {
+        User targetUser;
+
+        List<RecordVisibility> visibilities = new ArrayList<>();
+        String currentUserId = userUtil.getCurrentUser(user).getId();
+
+        if (userId == null || userId.equals(currentUserId)) {
+            // 내 피드 조회: 모든 권한 오픈
+            targetUser = userUtil.getCurrentUser(user);
+            visibilities.addAll(List.of(RecordVisibility.PUBLIC, RecordVisibility.FRIEND, RecordVisibility.PRIVATE));
+        } else {
+            // 남의 피드 조회
+            targetUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            // 차단 및 탈퇴 체크
+            checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
+
+            visibilities.add(RecordVisibility.PUBLIC);
+
+            if (friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(
+                    currentUserId, targetUser.getId(), FriendRelationStatus.FOLLOW)) {
+                visibilities.add(RecordVisibility.FRIEND);
+            }
+        }
+        String targetUserId = targetUser.getId();
 
         Long totalFeedCount = null;
         if(lastRecordId == null) {
-            totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, userId);
+            totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetUserId);
         }
 
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, userId);
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUserId, visibilities);
 
         boolean hasNext = false;
         if (feedList.size() > feedSize) {
@@ -214,6 +248,8 @@ public class UserService {
 
         if(userId != null) {
             targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            checkBlockedAndDeletedUser(userUtil.getCurrentUser(user).getId(), targetUser.getId(), targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
         }
@@ -229,6 +265,16 @@ public class UserService {
         Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
 
         return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
+    }
+
+    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
+        // 한쪽이라도 차단 관계가 있는지 확인
+        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // 타겟유저가 탈퇴한 회원인 경우
+        if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
     }
 
     private static String toProfileMainResizedUrl(String originalUrl) {
