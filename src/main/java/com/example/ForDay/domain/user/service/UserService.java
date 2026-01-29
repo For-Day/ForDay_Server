@@ -125,7 +125,7 @@ public class UserService {
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
-        if(friendRelationRepository.existsByRequesterIdAndTargetUserId(currentUserId, targetId) || friendRelationRepository.existsByRequesterIdAndTargetUserId(targetId, currentUserId)) {
+        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
