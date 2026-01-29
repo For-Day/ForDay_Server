@@ -16,27 +16,31 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/friends")
-public class FriendController {
+public class FriendController implements FriendControllerDocs {
     private final FriendService friendService;
 
+    @Override
     @PostMapping
     public AddFriendResDto addFriend(@RequestBody @Valid AddFriendReqDto reqDto,
                                      @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.addFriend(reqDto, user);
     }
 
+    @Override
     @DeleteMapping("/{friendId}")
     public DeleteFriendResDto deleteFriend(@RequestParam(name = "friendId") String friendId,
                                            @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.deleteFriend(friendId, user);
     }
 
+    @Override
     @PostMapping("/block")
     public BlockFriendResDto blockFriend(@RequestBody @Valid BlockFriendReqDto reqDto,
                                          @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.blockFriend(reqDto, user);
     }
 
+    @Override
     @GetMapping
     public GetFriendListResDto getFriendList(@RequestParam(name = "lastUserId", required = false) String lastUserId,
                                              @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
