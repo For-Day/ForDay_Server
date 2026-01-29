@@ -1,7 +1,9 @@
 package com.example.ForDay.domain.friend.service;
 
 import com.example.ForDay.domain.friend.dto.request.AddFriendReqDto;
+import com.example.ForDay.domain.friend.dto.request.BlockFriendReqDto;
 import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
+import com.example.ForDay.domain.friend.dto.response.BlockFriendResDto;
 import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
@@ -12,6 +14,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -101,5 +104,50 @@ public class FriendService {
         friendRelationRepository.delete(myRelation);
 
         return new DeleteFriendResDto("성공적으로 친구 관계를 삭제했습니다.", targetUser.getNickname());
+    }
+
+    @Transactional
+    public BlockFriendResDto blockFriend(BlockFriendReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        User targetUser = userRepository.findById(reqDto.getUserId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        String currentUserId = currentUser.getId();
+        String targetUserId = targetUser.getId();
+
+        if (currentUserId.equals(targetUserId)) {
+            throw new CustomException(ErrorCode.CANNOT_BLOCK_SELF);
+        }
+
+        // 상대방이 나를 차단했는지 확인
+        Optional<FriendRelation> blockedByTarget = friendRelationRepository
+                .findByRequesterIdAndTargetId(targetUserId, currentUserId);
+
+        if (blockedByTarget.isPresent() && blockedByTarget.get().getRelationStatus() == FriendRelationStatus.BLOCK) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // 나의 차단 로직 수행
+        Optional<FriendRelation> myRelation = friendRelationRepository
+                .findByRequesterIdAndTargetId(currentUserId, targetUserId);
+
+        if (myRelation.isPresent()) {
+            FriendRelation relation = myRelation.get();
+
+            if (relation.getRelationStatus() == FriendRelationStatus.BLOCK) {
+                return new BlockFriendResDto("이미 차단된 상태입니다.", targetUser.getNickname());
+            }
+
+            // FOLLOW 상태에서 BLOCK으로 변경
+            relation.changeStatus(FriendRelationStatus.BLOCK);
+        } else {
+            friendRelationRepository.save(FriendRelation.builder()
+                    .requester(currentUser)
+                    .targetUser(targetUser)
+                    .relationStatus(FriendRelationStatus.BLOCK)
+                    .build());
+        }
+
+        return new BlockFriendResDto("성공적으로 차단되었습니다.", targetUser.getNickname());
     }
 }

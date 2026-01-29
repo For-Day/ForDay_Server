@@ -70,8 +70,9 @@ public enum ErrorCode {
     INVALID_IMAGE_SOURCE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 리소스입니다."),
 
     // 친구 관련
-    CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신에게 챈구 맺기를 할 수 없습니다."),
-    FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 친구 관계입니다.");
+    CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신에게 친구 맺기를 할 수 없습니다."),
+    FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 친구 관계입니다."),
+    CANNOT_BLOCK_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 차단할 수 없습니다.");
     ;
 
     private final HttpStatus status;

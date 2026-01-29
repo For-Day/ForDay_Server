@@ -1,7 +1,9 @@
 package com.example.ForDay.domain.friend.controller;
 
 import com.example.ForDay.domain.friend.dto.request.AddFriendReqDto;
+import com.example.ForDay.domain.friend.dto.request.BlockFriendReqDto;
 import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
+import com.example.ForDay.domain.friend.dto.response.BlockFriendResDto;
 import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
 import com.example.ForDay.domain.friend.service.FriendService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -26,5 +28,11 @@ public class FriendController {
     public DeleteFriendResDto deleteFriend(@RequestParam(name = "friendId") String friendId,
                                            @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.deleteFriend(friendId, user);
+    }
+
+    @PostMapping("/block")
+    public BlockFriendResDto blockFriend(@RequestBody @Valid BlockFriendReqDto reqDto,
+                                         @AuthenticationPrincipal CustomUserDetails user) {
+        return friendService.blockFriend(reqDto, user);
     }
 }

@@ -34,4 +34,8 @@ public class FriendRelation extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "relation_status", nullable = false, length = 20)
     private FriendRelationStatus relationStatus;
+
+    public void changeStatus(FriendRelationStatus friendRelationStatus) {
+        this.relationStatus = friendRelationStatus;
+    }
 }
