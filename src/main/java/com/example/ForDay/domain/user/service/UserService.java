@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -32,6 +33,7 @@ public class UserService {
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
+    private final FriendRelationRepository friendRelationRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -101,8 +103,12 @@ public class UserService {
         User targetUser;
         String targetId;
         if(userId != null) {
+            // 다른 사용자 정보 조회시 (차단 관계, 탈퇴한 회원인지 고려)
+            User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            checkBlockedAndDeletedUser(currentUser.getId(), targetId, targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
             targetId = targetUser.getId();
@@ -112,6 +118,16 @@ public class UserService {
         return new UserInfoResDto(toProfileMainResizedUrl(targetUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
                 targetUser.getNickname(),
                 totalStickerCount);
+    }
+
+    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
+        // 한쪽이라도 차단 관계가 있는지 확인
+        if(friendRelationRepository.existsByRequesterIdAndTargetUserId(currentUserId, targetId) || friendRelationRepository.existsByRequesterIdAndTargetUserId(targetId, currentUserId)) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // 타겟유저가 탈퇴한 회원인 경우
+        if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
     }
 
     @Transactional

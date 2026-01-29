@@ -18,4 +18,5 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
 
     Optional<FriendRelation> findByRequesterIdAndTargetUserId(String id, String id1);
 
+    boolean existsByRequesterIdAndTargetUserId(String currentUserId, String targetId);
 }
