@@ -20,7 +20,7 @@ public class UserUtil {
     private final EntityManager em; // Repository 대신 EntityManager 주입
 
     public User getCurrentUser(CustomUserDetails user) {
-        //return userRepository.findBySocialId(user.getUsername());
+       // return userRepository.findBySocialId(user.getUsername());
         return user.getUser();
     }
 

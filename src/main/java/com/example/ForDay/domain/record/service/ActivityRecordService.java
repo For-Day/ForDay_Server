@@ -1,8 +1,11 @@
 package com.example.ForDay.domain.record.service;
 
+import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
@@ -17,6 +20,9 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.TimeUtil;
 import com.example.ForDay.global.util.UserUtil;
+import com.example.ForDay.infra.s3.service.S3Service;
+import io.jsonwebtoken.lang.Strings;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +37,8 @@ public class ActivityRecordService {
     private final UserUtil userUtil;
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordReactionRepository recordReactionRepository;
+    private final S3Service s3Service;
+    private final ActivityRepository activityRepository;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -201,5 +209,35 @@ public class ActivityRecordService {
                 .newReaction(newR)
                 .userReaction(userR)
                 .build();
+    }
+
+    public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+
+        String newImageUrl = reqDto.getImageUrl();
+        if(Strings.hasText(newImageUrl)) {
+            if(!activityRecord.getImageUrl().equals(newImageUrl)) {
+                // 이미지 수정하는 경우
+                String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
+                if(!s3Service.existsByKey(s3Key)) {
+                    throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+                }
+            }
+            activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), reqDto.getImageUrl());
+            activityRecordRepository.save(activityRecord);
+        }
+        return new UpdateActivityRecordResDto("활동 기록이 정상적으로 수정되었습니다.", activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
+    }
+
+    public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        activityRecordRepository.delete(activityRecord);
+        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
     }
 }

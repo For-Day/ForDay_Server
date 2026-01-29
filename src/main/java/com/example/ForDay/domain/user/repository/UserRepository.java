@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, String> {
     User findBySocialId(String socialId);
 
     @Modifying
@@ -23,6 +23,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
     int deleteOldGuests(@Param("threshold") LocalDateTime threshold);
 
     boolean existsByNickname(String nickname);
-
-    Optional<User> findById(String aLong);
 }
