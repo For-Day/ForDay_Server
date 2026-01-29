@@ -15,7 +15,6 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +34,10 @@ public class FriendService {
         User currentUser = userUtil.getCurrentUser(user);
         User targetUser = userRepository.findById(reqDto.getUserId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if(targetUser.isDeleted()) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
 
         String currentUserId = currentUser.getId();
         String targetUserId = targetUser.getId();
@@ -81,6 +84,10 @@ public class FriendService {
         User targetUser = userRepository.findById(friendId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if(targetUser.isDeleted()) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
         String currentUserId = currentUser.getId();
         String targetUserId = targetUser.getId();
 
@@ -113,6 +120,10 @@ public class FriendService {
         User currentUser = userUtil.getCurrentUser(user);
         User targetUser = userRepository.findById(reqDto.getUserId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if(targetUser.isDeleted()) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
 
         String currentUserId = currentUser.getId();
         String targetUserId = targetUser.getId();
