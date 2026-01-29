@@ -77,4 +77,10 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
         return activityRecordService.deleteActivityRecord(recordId, user);
     }
 
+    @PostMapping("/{recordId}")
+    public AddActivityRecordScrapResDto addActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
+                                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordService.addActivityRecordScrap(recordId, user);
+    }
+
 }

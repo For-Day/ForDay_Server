@@ -4,6 +4,7 @@ import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
+import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
@@ -11,8 +12,10 @@ import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.record.entity.ActivityRecordScarp;
 import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +43,7 @@ public class ActivityRecordService {
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final S3Service s3Service;
     private final ActivityRepository activityRepository;
+    private final ActivityRecordScrapRepository activityRecordScrapRepository;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -182,6 +187,30 @@ public class ActivityRecordService {
 
         activityRecordRepository.delete(activityRecord);
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
+    }
+
+    @Transactional
+    public AddActivityRecordScrapResDto addActivityRecordScrap(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        ActivityRecordWithUserDto activityRecordDto = activityRecordRepository.getActivityRecordWithUser(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        checkBlockedAndDeletedUser(currentUser.getId(), activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
+        validateRecordAuthority(activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUser.getId());
+
+        if(activityRecordScrapRepository.existsByActivityRecordIdAndUserId(recordId, currentUser.getId())) {
+            return new AddActivityRecordScrapResDto("이미 스크랩한 활동 기록입니다.", recordId, true);
+        }
+
+        ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
+
+        activityRecordScrapRepository.save(ActivityRecordScarp.builder()
+                .activityRecord(recordProxy) // DTO가 아닌 엔터티(프록시)를 전달
+                .user(currentUser)
+                .build());
+
+        return new AddActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, false);
     }
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {

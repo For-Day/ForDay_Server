@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class HobbyInfo {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "hobby_info_id")
     private Long id;
 
