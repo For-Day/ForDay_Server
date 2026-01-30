@@ -763,12 +763,29 @@ public class HobbyService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public GetHobbyStoryTabsResDto getHobbyStoryTabs(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        // 1. 해당 유저의 진행 중(IN_PROGRESS)인 취미를 최신 생성순(Id 내림차순)으로 조회
+        List<Hobby> activeHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
+                currentUser.getId(),
+                HobbyStatus.IN_PROGRESS
+        );
+
+        // 2. Hobby 엔티티 리스트를 HobbyTabInfoDto 리스트로 변환
+        List<GetHobbyStoryTabsResDto.HobbyTabInfoDto> tabInfos = activeHobbies.stream()
+                .map(GetHobbyStoryTabsResDto.HobbyTabInfoDto::from)
+                .toList();
+
+        // 3. 최종 응답 DTO 반환
+        return new GetHobbyStoryTabsResDto(tabInfos);
+    }
+
     private static String toCoverMainResizedUrl(String originalUrl) {
         if (originalUrl == null || !originalUrl.contains("/temp/")) {
             return originalUrl;
         }
         return originalUrl.replace("/temp/", "/resized/thumb/");
     }
-
-
 }

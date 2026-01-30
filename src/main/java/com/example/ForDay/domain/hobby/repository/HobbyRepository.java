@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyRepositoryCustom {
@@ -29,4 +30,6 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
 
     @Query("SELECT SUM(h.currentStickerNum) FROM Hobby h WHERE h.user.id = :userId")
     Optional<Integer> sumCurrentStickerNumByUserId(@Param("userId") String userId);
+
+    List<Hobby> findAllByUserIdAndStatusOrderByIdDesc(String currentUserId, HobbyStatus hobbyStatus);
 }
