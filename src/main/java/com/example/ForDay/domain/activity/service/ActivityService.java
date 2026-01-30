@@ -2,6 +2,8 @@ package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
 import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
@@ -40,6 +42,7 @@ public class ActivityService {
     private final TodayRecordRedisService todayRecordRedisService;
     private final HobbyCardRepository hobbyCardRepository;
     private final HobbyRepository hobbyRepository;
+    private final FriendRelationRepository friendRelationRepository;
 
 
     @Transactional
@@ -240,6 +243,8 @@ public class ActivityService {
         Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId()).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
         Activity activity = activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
 
+        checkBlockedAndDeletedUser(currentUser.getId(), activity.getUser().getId(), activity.getUser().isDeleted());
+
         Activity build = Activity.builder()
                 .user(currentUser)
                 .hobby(hobby)
@@ -260,5 +265,14 @@ public class ActivityService {
         if (!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
+    }
+
+    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
+        // 한쪽이라도 차단 관계가 있는지 확인
+        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+        // 타겟유저가 탈퇴한 회원인 경우
+        if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
 }

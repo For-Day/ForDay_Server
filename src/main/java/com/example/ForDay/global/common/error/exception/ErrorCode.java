@@ -64,6 +64,7 @@ public enum ErrorCode {
     DUPLICATE_REACTION(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 같은 반응을 하셨습니다."),
     REACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 리액션을 찾을 수 없거나 이미 취소되었습니다."),
     DUPLICATE_SCRAP(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 스크랩을 하셨습니다."),
+    ALREADY_RECORD_REPORTED(HttpStatus.CONFLICT, "해당 기록에 이미 신고하였습니다."),
 
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
