@@ -143,6 +143,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.setHobbyCoverImage(reqDto, user);
     }
 
+    @Override
     @PostMapping("/{hobbyId}/activities/{activityId}/collect")
     public CollectActivityResDto collectActivity(@PathVariable(name = "hobbyId") Long hobbyId,
                                                  @PathVariable(name = "activityId") Long activityId,
