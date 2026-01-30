@@ -4,6 +4,7 @@ import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryResDto;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.User;
@@ -23,4 +24,6 @@ public interface ActivityRecordRepositoryCustom {
     Optional<ActivityRecordWithUserDto>  getActivityRecordWithUser(Long recordId);
 
     Optional<ReportActivityRecordDto> getReportActivityRecord(Long recordId);
+
+    List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(Long targetHobbyId, Long lastRecordId, Integer size, String keyword, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds);
 }

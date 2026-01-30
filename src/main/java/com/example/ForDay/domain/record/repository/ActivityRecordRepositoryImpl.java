@@ -5,13 +5,17 @@ import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryResDto;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
+import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +29,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private final QActivityRecord record = QActivityRecord.activityRecord;
     private final QUser user = QUser.user;
     private final QActivity activity = QActivity.activity;
+    private final QActivityRecordReaction reaction = QActivityRecordReaction.activityRecordReaction;
 
     @Override
     public List<GetStickerInfoResDto.StickerDto> getStickerInfo(
@@ -152,6 +157,60 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         .where(record.id.eq(recordId))
                         .fetchOne()
         );
+    }
+
+    @Override
+    public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
+            Long targetHobbyId, Long lastRecordId, Integer size, String keyword,
+            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds) {
+
+        return queryFactory
+                .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
+                        record.id,
+                        record.imageUrl,
+                        record.sticker,
+                        record.activity.content,
+                        Projections.constructor(GetActivityRecordByStoryResDto.UserInfoDto.class,
+                                record.user.id,
+                                record.user.nickname,
+                                record.user.profileImageUrl
+                        ),
+                        JPAExpressions
+                                .select(reaction.count().gt(0L))
+                                .from(reaction)
+                                .where(reaction.activityRecord.id.eq(record.id)
+                                        .and(reaction.reactedUser.id.eq(currentUserId)))
+                ))
+                .from(record)
+                .join(record.activity, activity)
+                .join(record.user, user)
+                .where(
+                        record.hobby.id.eq(targetHobbyId),      // 1. 대상 취미 필터링
+                        record.user.id.ne(currentUserId),       // 2. 자신의 기록 제외
+                        ltLastRecordId(lastRecordId),           // 3. No-offset 페이징
+                        record.user.deleted.isFalse(),          // 4. 탈퇴한 유저 제외
+                        notInBlockList(blockFriendIds),         // 5. 차단 관계 유저 제외 (방어 로직)
+                        containsKeyword(keyword),               // 6. 키워드 검색 추가
+                        // 6. 공개 범위 및 본인/친구 권한 체크
+                        record.visibility.eq(RecordVisibility.PUBLIC)
+                                .or(
+                                        record.visibility.eq(RecordVisibility.FRIEND)
+                                                .and(record.user.id.in(myFriendIds))
+                                )
+                )
+                .orderBy(record.id.desc())
+                .limit(size)
+                .fetch();
+    }
+
+    private BooleanExpression notInBlockList(List<String> blockFriendIds) {
+        return (blockFriendIds == null || blockFriendIds.isEmpty())
+                ? null : record.user.id.notIn(blockFriendIds);
+    }
+
+    private BooleanExpression containsKeyword(String keyword) {
+        return (keyword == null || keyword.isBlank())
+                ? null : record.activity.content.contains(keyword);
     }
 
     private BooleanExpression hobbyIdIn(List<Long> hobbyIds) {
