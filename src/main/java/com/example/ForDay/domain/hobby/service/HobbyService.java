@@ -773,6 +773,8 @@ public class HobbyService {
                 HobbyStatus.IN_PROGRESS
         );
 
+        if(activeHobbies.isEmpty()) return null;
+
         // 2. Hobby 엔티티 리스트를 HobbyTabInfoDto 리스트로 변환
         List<GetHobbyStoryTabsResDto.HobbyTabInfoDto> tabInfos = activeHobbies.stream()
                 .map(GetHobbyStoryTabsResDto.HobbyTabInfoDto::from)
