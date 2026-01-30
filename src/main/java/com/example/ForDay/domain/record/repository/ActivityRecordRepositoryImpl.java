@@ -141,9 +141,11 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         .select(Projections.constructor(ReportActivityRecordDto.class,
                                 record.id,
                                 record,
+                                record.user,
                                 record.user.id,
                                 record.user.deleted,
-                                record.user.nickname
+                                record.user.nickname,
+                                record.visibility
                         ))
                         .from(record)
                         .join(record.user)

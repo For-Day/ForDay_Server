@@ -231,7 +231,7 @@ public class ActivityRecordService {
 
         activityRecordScrapRepository.delete(activityRecordScarp);
 
-        return new DeleteActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, false);
+        return new DeleteActivityRecordScrapResDto("스크랩 취소가 완료되었습니다.", recordId, false);
     }
 
     @Transactional
@@ -241,6 +241,9 @@ public class ActivityRecordService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         checkBlockedAndDeletedUser(currentUser.getId(), activityRecord.getWriterId(), activityRecord.isWriterDeleted());
+
+        // 기록의 공개 범위 고려
+        validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getWriterId(), currentUser.getId());
 
         if(activityRecordReportRepository.existsByReportedRecordIdAndReporterId(activityRecord.getRecordId(), currentUser.getId())) {
             throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);

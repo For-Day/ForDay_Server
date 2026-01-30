@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.dto;
 
 import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,4 +17,5 @@ public class ReportActivityRecordDto {
     private String writerId;
     private boolean writerDeleted;
     private String writerNickname;
+    private RecordVisibility visibility;
 }
