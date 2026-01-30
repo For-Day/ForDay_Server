@@ -199,4 +199,36 @@ public interface UserControllerDocs {
 
             @AuthenticationPrincipal CustomUserDetails user,
             @RequestParam(name = "userId", required = false) String userId);
+
+    @Operation(
+            summary = "스크랩 목록 조회",
+            description = "본인 또는 타인의 스크랩 목록을 조회합니다. 타인 조회 시 권한(공개 범위)에 따라 필터링된 결과가 반환됩니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "스크랩 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetUserScrapListResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자를 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "USER_NOT_FOUND",
+                            summary = "존재하지 않는 사용자 조회",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"USER_NOT_FOUND\", \"message\": \"사용자를 찾을 수 없습니다.\"}}"
+                    ))
+            )
+    })
+    GetUserScrapListResDto getUserScrapList(
+            @Parameter(description = "무한 스크롤 적용을 위한 마지막 조회 scrapId (첫 조회 시 null)", example = "59")
+            @RequestParam(name = "lastScrapId", required = false) Long lastScrapId,
+
+            @Parameter(description = "조회하고자 하는 스크랩 개수 (기본값 24)", example = "24")
+            @RequestParam(name = "size", required = false, defaultValue = "24") Integer size,
+
+            @AuthenticationPrincipal CustomUserDetails user,
+
+            @Parameter(description = "스크랩을 조회하고자 하는 유저의 ID (null일 경우 본인 조회)", example = "7746f373-4dea-41af-8512-b3a3ad3f2608")
+            @RequestParam(name = "userId", required = false) String userId);
 }
