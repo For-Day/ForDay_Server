@@ -78,18 +78,21 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
         return activityRecordService.deleteActivityRecord(recordId, user);
     }
 
+    @Override
     @PostMapping("/{recordId}/scrap")
     public AddActivityRecordScrapResDto addActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
                                                                @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordService.addActivityRecordScrap(recordId, user);
     }
 
+    @Override
     @DeleteMapping("/{recordId}/scrap")
     public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
                                                                      @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordService.deleteActivityRecordScrap(recordId, user);
     }
 
+    @Override
     @PostMapping("/{recordId}/report")
     public ReportActivityRecordResDto reportActivityRecord(@PathVariable(value = "recordId") Long recordId,
                                                            @RequestBody @Valid ReportActivityRecordReqDto reqDto,
