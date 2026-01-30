@@ -84,7 +84,16 @@ public interface UserControllerDocs {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자를 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "USER_NOT_FOUND",
+                            summary = "존재하지 않는 사용자",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"USER_NOT_FOUND\", \"message\": \"사용자를 찾을 수 없습니다.\"}}"
+                    ))
+            )
     })
     UserInfoResDto getUserInfo(@AuthenticationPrincipal CustomUserDetails user,  @RequestParam(name = "userId", required = false) String userId);
 
@@ -116,7 +125,7 @@ public interface UserControllerDocs {
     SetUserProfileImageResDto setUserProfileImage(@RequestBody @Valid SetUserProfileImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user);
 
     @Operation(
-            summary = "마이페이지 상단 취미 탭 조회",
+            summary = "유저 상단 취미 탭 조회",
             description = "현재 로그인한 사용자의 진행 중인 취미 개수, 전체 취미 카드 개수, 그리고 취미 리스트(진행 중 우선 정렬)를 조회합니다."
     )
     @ApiResponses(value = {
@@ -124,13 +133,22 @@ public interface UserControllerDocs {
                     responseCode = "200",
                     description = "조회 성공",
                     useReturnTypeSchema = true // GetHobbyInProgressResDto 구조 자동 반영
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자를 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "USER_NOT_FOUND",
+                            summary = "존재하지 않는 사용자",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"USER_NOT_FOUND\", \"message\": \"사용자를 찾을 수 없습니다.\"}}"
+                    ))
             )
     })
     GetHobbyInProgressResDto getHobbyInProgress(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(name = "userId", required = false) String userId);
 
 
     @Operation(
-            summary = "나의 활동 피드 목록 조회",
+            summary = "활동 피드 목록 조회",
             description = "사용자의 활동 기록을 최신순으로 조회합니다. 특정 취미 필터링 및 무한 스크롤(No-offset) 페이징을 지원합니다."
     )
     @ApiResponses(value = {
@@ -161,7 +179,16 @@ public interface UserControllerDocs {
             description = "사용자가 생성한 취미 카드들을 무한 스크롤 방식으로 조회합니다. 첫 조회 시 lastCardId는 비워둡니다."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공")
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자를 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "USER_NOT_FOUND",
+                            summary = "존재하지 않는 사용자",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"USER_NOT_FOUND\", \"message\": \"사용자를 찾을 수 없습니다.\"}}"
+                    ))
+            )
     })
     GetUserHobbyCardListResDto getUserHobbyCardList(
             @Parameter(description = "마지막으로 조회된 카드의 ID (첫 페이지 조회 시 null)", example = "45")

@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecordScarp;
+import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserScrapListResDto;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -32,6 +33,29 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                 .where(
                         ltLastScrapId(lastScrapId),
                         scrap.user.id.eq(targetUserId)
+                )
+                .orderBy(scrap.id.desc())
+                .limit(size + 1)
+                .fetch();
+    }
+
+    public List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String currentUserId, List<String> myFriendIds) {
+        return queryFactory
+                .select(Projections.constructor(GetUserScrapListResDto.ScrapDto.class,
+                        record.id,
+                        record.imageUrl,
+                        record.sticker,
+                        record.memo,
+                        scrap.createdAt
+                ))
+                .from(scrap)
+                .join(scrap.activityRecord, record)
+                .where(
+                        scrap.user.id.eq(targetUserId),
+                        ltLastScrapId(lastScrapId),
+                        record.visibility.eq(RecordVisibility.PUBLIC)
+                                .or(record.visibility.eq(RecordVisibility.FRIEND)
+                                        .and(record.user.id.in(myFriendIds).or(record.user.id.eq(currentUserId))))
                 )
                 .orderBy(scrap.id.desc())
                 .limit(size + 1)

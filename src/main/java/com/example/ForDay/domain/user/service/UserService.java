@@ -23,6 +23,7 @@ import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -272,37 +273,41 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
-        User targetUser;
+        User currentUser = userUtil.getCurrentUser(user);
+        String targetUserId = (userId == null) ? currentUser.getId() : userId;
 
-        if(userId == null) {
-            // 자신의 스크랩 목록 조회
-            targetUser = userUtil.getCurrentUser(user);
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-            long scrapCount = 0;
-            if(lastScrapId == null) {
-                scrapCount  = activityRecordScrapRepository.countByUserId(targetUser.getId());
-            }
-            List<GetUserScrapListResDto.ScrapDto> scrapDtos = activityRecordScrapRepository.getMyScrapList(lastScrapId, size, targetUser.getId());
-
-            boolean hasNext = false;
-            if (scrapDtos.size() > size) {
-                hasNext = true;
-                scrapDtos.remove(size.intValue());
-            }
-
-            Long lastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getRecordId();
-
-            return new GetUserScrapListResDto(scrapCount, lastId, scrapDtos, hasNext);
-        } else {
-            // 다른 사람의 피드 조회시
-            targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-            User currentUser = userUtil.getCurrentUser(user);
-
-            // 차단 및 탈퇴 확인
+        if (userId != null) {
             checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
-
-            // 현재 유저의 친구 id 목록 조회??
         }
+
+        List<GetUserScrapListResDto.ScrapDto> scrapDtos;
+        if (userId == null) {
+            scrapDtos = activityRecordScrapRepository.getMyScrapList(lastScrapId, size, currentUser.getId());
+        } else {
+            List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId());
+            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds);
+        }
+
+        boolean hasNext = false;
+        if (scrapDtos.size() > size) {
+            hasNext = true;
+            scrapDtos.remove(size.intValue());
+        }
+
+        long scrapCount = (lastScrapId == null) ? scrapDtos.size() : 0; // 혹은 count 쿼리 별도 실행
+
+        // 썸네일용 이미지 url 반환
+        scrapDtos.forEach(scrapDto -> {
+            if (StringUtils.hasText(scrapDto.getThumbnailImageUrl())) {
+                scrapDto.setThumbnailImageUrl(toFeedThumbResizedUrl(scrapDto.getThumbnailImageUrl()));
+            }
+        });
+
+        Long lastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getRecordId();
+        return new GetUserScrapListResDto(scrapCount, lastId, scrapDtos, hasNext);
     }
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {

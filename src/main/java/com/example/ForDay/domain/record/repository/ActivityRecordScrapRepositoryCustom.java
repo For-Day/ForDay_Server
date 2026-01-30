@@ -7,4 +7,6 @@ import java.util.List;
 public interface ActivityRecordScrapRepositoryCustom {
 
     List<GetUserScrapListResDto.ScrapDto> getMyScrapList(Long lastScrapId, Integer size, String targetUserId);
+
+    List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String id, List<String> myFriendIds);
 }
