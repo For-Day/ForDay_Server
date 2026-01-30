@@ -8,5 +8,5 @@ public interface ActivityRecordScrapRepositoryCustom {
 
     List<GetUserScrapListResDto.ScrapDto> getMyScrapList(Long lastScrapId, Integer size, String targetUserId);
 
-    List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String id, List<String> myFriendIds);
+    List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String id, List<String> myFriendIds, List<String> blockFriendIds);
 }

@@ -288,7 +288,8 @@ public class UserService {
             scrapDtos = activityRecordScrapRepository.getMyScrapList(lastScrapId, size, currentUser.getId());
         } else {
             List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId());
-            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds);
+            List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId());
+            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds);
         }
 
         boolean hasNext = false;

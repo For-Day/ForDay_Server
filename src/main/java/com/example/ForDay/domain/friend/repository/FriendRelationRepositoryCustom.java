@@ -7,4 +7,6 @@ import java.util.List;
 public interface FriendRelationRepositoryCustom {
 
     List<GetFriendListResDto.UserInfoDto> findMyFriendList(String id, String lastUserId, Integer size);
+
+    List<String> findAllBlockedIdsByUserId(String userId);
 }
