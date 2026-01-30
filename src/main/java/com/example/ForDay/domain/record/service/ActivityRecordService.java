@@ -4,15 +4,22 @@ import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
+import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
+import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.record.entity.ActivityRecordReport;
+import com.example.ForDay.domain.record.entity.ActivityRecordScarp;
 import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
@@ -29,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +47,8 @@ public class ActivityRecordService {
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final S3Service s3Service;
     private final ActivityRepository activityRepository;
+    private final ActivityRecordScrapRepository activityRecordScrapRepository;
+    private final ActivityRecordReportRepository activityRecordReportRepository;;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -57,12 +67,10 @@ public class ActivityRecordService {
 
         List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
 
-
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
-        boolean scraped= false;
-        // 스크랩 여부 조회 추가 예정
+        boolean scraped= activityRecordScrapRepository.existsByActivityRecordIdAndUserId(detail.recordId(), currentUserId);
 
         return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction, scraped);
     }
@@ -182,6 +190,72 @@ public class ActivityRecordService {
 
         activityRecordRepository.delete(activityRecord);
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
+    }
+
+    @Transactional
+    public AddActivityRecordScrapResDto addActivityRecordScrap(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        ActivityRecordWithUserDto activityRecordDto = activityRecordRepository.getActivityRecordWithUser(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        checkBlockedAndDeletedUser(currentUser.getId(), activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
+        validateRecordAuthority(activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUser.getId());
+
+        if(activityRecordScrapRepository.existsByActivityRecordIdAndUserId(recordId, currentUser.getId())) {
+            throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
+        }
+
+        ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
+
+        activityRecordScrapRepository.save(ActivityRecordScarp.builder()
+                .activityRecord(recordProxy)
+                .user(currentUser)
+                .build());
+
+        return new AddActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, true);
+    }
+
+    @Transactional
+    public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ActivityRecord activityRecord = getActivityRecord(recordId);
+
+        Optional<ActivityRecordScarp> scarp = activityRecordScrapRepository.findByActivityRecordIdAndUserId(activityRecord.getId(), currentUser.getId());
+        if(scarp.isEmpty()) {
+            return new DeleteActivityRecordScrapResDto("스크랩이 존재하지 않거나 이미 삭제되었습니다.", activityRecord.getId(), false);
+        }
+        ActivityRecordScarp activityRecordScarp = scarp.get();
+
+        activityRecordScrapRepository.delete(activityRecordScarp);
+
+        return new DeleteActivityRecordScrapResDto("스크랩 취소가 완료되었습니다.", recordId, false);
+    }
+
+    @Transactional
+    public ReportActivityRecordResDto reportActivityRecord(Long recordId, ReportActivityRecordReqDto reqDto, CustomUserDetails user) throws CustomException {
+        User currentUser = userUtil.getCurrentUser(user);
+        ReportActivityRecordDto activityRecord = activityRecordRepository.getReportActivityRecord(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        checkBlockedAndDeletedUser(currentUser.getId(), activityRecord.getWriterId(), activityRecord.isWriterDeleted());
+
+        // 기록의 공개 범위 고려
+        validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getWriterId(), currentUser.getId());
+
+        if(activityRecordReportRepository.existsByReportedRecordIdAndReporterId(activityRecord.getRecordId(), currentUser.getId())) {
+            throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);
+        }
+
+        ActivityRecordReport report = ActivityRecordReport.builder()
+                .reporter(currentUser)
+                .reportedUser(activityRecord.getWriter())
+                .reportedRecord(activityRecord.getActivityRecord())
+                .reason(reqDto.getReason())
+                .build();
+        activityRecordReportRepository.save(report);
+
+        return new ReportActivityRecordResDto(recordId, activityRecord.getWriterId(), activityRecord.getWriterNickname(), "기록이 정상적으로 신고되었습니다.");
     }
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {

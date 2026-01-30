@@ -11,7 +11,10 @@ import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RequiredArgsConstructor
 public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCustom{
@@ -48,6 +51,33 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
                 .orderBy(relation.createdAt.desc(), user.id.desc())
                 .limit(size + 1)
                 .fetch();
+    }
+
+    @Override
+    public List<String> findAllBlockedIdsByUserId(String userId) {
+        QFriendRelation friendRelation = QFriendRelation.friendRelation;
+
+        // 1. 내가 차단한 사람들
+        List<String> blockedByMe = queryFactory
+                .select(friendRelation.targetUser.id)
+                .from(friendRelation)
+                .where(friendRelation.requester.id.eq(userId)
+                        .and(friendRelation.relationStatus.eq(FriendRelationStatus.BLOCK)))
+                .fetch();
+
+        // 2. 나를 차단한 사람들
+        List<String> blockedMe = queryFactory
+                .select(friendRelation.requester.id)
+                .from(friendRelation)
+                .where(friendRelation.targetUser.id.eq(userId)
+                        .and(friendRelation.relationStatus.eq(FriendRelationStatus.BLOCK)))
+                .fetch();
+
+        // 두 리스트 합치기 (중복 제거를 위해 Set 활용 가능)
+        Set<String> allBlockedIds = new HashSet<>(blockedByMe);
+        allBlockedIds.addAll(blockedMe);
+
+        return new ArrayList<>(allBlockedIds);
     }
 
     private BooleanExpression ltLastUserId(String lastUserId) {

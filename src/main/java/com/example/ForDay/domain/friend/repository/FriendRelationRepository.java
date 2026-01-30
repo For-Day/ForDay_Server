@@ -22,4 +22,10 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
     boolean existsByRequesterIdAndTargetUserId(String currentUserId, String targetId);
 
     boolean existsByRequesterIdAndTargetUserIdAndRelationStatus(String id, String id1, FriendRelationStatus friendRelationStatus);
+
+    @Query("SELECT CASE WHEN f.requester.id = :userId THEN f.targetUser.id ELSE f.requester.id END " +
+            "FROM FriendRelation f " +
+            "WHERE (f.requester.id = :userId OR f.targetUser.id = :userId) " +
+            "AND f.relationStatus = 'FOLLOW'")
+    List<String> findAllFriendIdsByUserId(@Param("userId") String userId);
 }

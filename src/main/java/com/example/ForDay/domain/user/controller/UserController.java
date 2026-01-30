@@ -70,4 +70,12 @@ public class UserController implements UserControllerDocs {
         return userService.getUserHobbyCardList(lastHobbyCardId, size, user, userId);
     }
 
+    @GetMapping("/scraps")
+    public GetUserScrapListResDto getUserScrapList(@RequestParam(name = "lastScrapId", required = false) Long lastScrapId,
+                                                           @RequestParam(name = "size", required = false, defaultValue = "24") Integer size,
+                                                           @AuthenticationPrincipal CustomUserDetails user,
+                                                           @RequestParam(name = "userId", required = false) String userId) {
+        return userService.getUserScrapList(lastScrapId, size, user, userId);
+    }
+
 }

@@ -6,6 +6,8 @@ import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
@@ -21,6 +23,7 @@ import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +40,7 @@ public class UserService {
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
     private final FriendRelationRepository friendRelationRepository;
+    private final ActivityRecordScrapRepository activityRecordScrapRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -265,6 +269,46 @@ public class UserService {
         Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
 
         return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String targetUserId = (userId == null) ? currentUser.getId() : userId;
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (userId != null) {
+            checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
+        }
+
+        List<GetUserScrapListResDto.ScrapDto> scrapDtos;
+        if (userId == null) {
+            scrapDtos = activityRecordScrapRepository.getMyScrapList(lastScrapId, size, currentUser.getId());
+        } else {
+            List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId());
+            List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId());
+            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds);
+        }
+
+        boolean hasNext = false;
+        if (scrapDtos.size() > size) {
+            hasNext = true;
+            scrapDtos.remove(size.intValue());
+        }
+
+        long scrapCount = (lastScrapId == null) ? activityRecordScrapRepository.countByUserId(targetUserId) : 0; // 혹은 count 쿼리 별도 실행
+
+        // 썸네일용 이미지 url 반환
+        scrapDtos.forEach(scrapDto -> {
+            if (StringUtils.hasText(scrapDto.getThumbnailImageUrl())) {
+                scrapDto.setThumbnailImageUrl(toFeedThumbResizedUrl(scrapDto.getThumbnailImageUrl()));
+            }
+        });
+
+        Long lastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getScrapId();
+        return new GetUserScrapListResDto(scrapCount, lastId, scrapDtos, hasNext);
     }
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {

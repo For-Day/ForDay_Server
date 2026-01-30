@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
+import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
@@ -214,6 +215,150 @@ public interface ActivityRecordControllerDocs {
     DeleteActivityRecordResDto deleteActivityRecord(
             @Parameter(description = "삭제하고자 하는 활동 기록의 ID", example = "2")
             @PathVariable(value = "recordId") Long recordId,
+
+            @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "활동 기록 스크랩",
+            description = "특정 활동 기록(recordId)을 본인의 보관함에 스크랩합니다. 접근 권한(공개 범위)에 따라 제한될 수 있습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "스크랩 성공",
+                    content = @Content(schema = @Schema(implementation = AddActivityRecordScrapResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "이미 스크랩한 경우",
+                    content = @Content(examples = @ExampleObject(
+                            name = "DUPLICATE_SCRAP",
+                            summary = "중복 스크랩 방지",
+                            value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"DUPLICATE_SCRAP\", \"message\": \"해당 기록에는 이미 스크랩을 하셨습니다.\"}}"
+                    ))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 부족 (비공개 또는 친구 공개)",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "FRIEND_ONLY_ACCESS",
+                                    summary = "친구만 스크랩 가능",
+                                    value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"FRIEND_ONLY_ACCESS\", \"message\": \"이 글은 친구에게만 접근 권한이 있습니다.\"}}"
+                            ),
+                            @ExampleObject(
+                                    name = "PRIVATE_RECORD",
+                                    summary = "작성자만 스크랩 가능",
+                                    value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"PRIVATE_RECORD\", \"message\": \"이 글은 작성자에게만 권한이 있습니다.\"}}"
+                            )
+                    })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "기록을 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "ACTIVITY_RECORD_NOT_FOUND",
+                            summary = "존재하지 않는 활동 기록",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"
+                    ))
+            )
+    })
+    AddActivityRecordScrapResDto addActivityRecordScrap(
+            @Parameter(description = "스크랩하고자 하는 활동 기록의 ID", example = "1")
+            @PathVariable(value = "recordId") Long recordId,
+            @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "활동 기록 스크랩 취소",
+            description = "기존에 스크랩했던 활동 기록을 취소합니다. 이미 취소되었거나 존재하지 않는 스크랩에 대해서도 성공 응답을 반환합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "스크랩 취소 성공 (두 가지 케이스)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "SUCCESS_DELETE",
+                                            summary = "정상 취소 완료",
+                                            value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"스크랩 취소가 완료되었습니다.\", \"recordId\": 7, \"scraped\": false}}"
+                                    ),
+                                    @ExampleObject(
+                                            name = "ALREADY_DELETED",
+                                            summary = "이미 삭제된 상태",
+                                            value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"스크랩이 존재하지 않거나 이미 삭제되었습니다.\", \"recordId\": 7, \"scraped\": false}}"
+                                    )
+                            }
+                    )
+            )
+    })
+    DeleteActivityRecordScrapResDto deleteActivityRecordScrap(
+            @Parameter(description = "스크랩을 취소하고자 하는 활동 기록의 ID", example = "7")
+            @PathVariable(value = "recordId") Long recordId,
+            @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "활동 기록 신고",
+            description = "특정 활동 기록(recordId)을 신고합니다. 신고 사유를 필수로 입력해야 하며, 게시글의 공개 범위 및 상태에 따라 신고가 제한될 수 있습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "신고 완료",
+                    content = @Content(schema = @Schema(implementation = ReportActivityRecordResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청 (사유 누락 등)",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"message\": \"신고 사유는 필수입니다.\"}"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 부족 (비공개 또는 친구 공개)",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "FRIEND_ONLY_ACCESS",
+                                    summary = "친구가 아닌 경우",
+                                    value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"FRIEND_ONLY_ACCESS\", \"message\": \"이 글은 친구에게만 접근 권한이 있습니다.\"}}"
+                            ),
+                            @ExampleObject(
+                                    name = "PRIVATE_RECORD",
+                                    summary = "나만 보기 기록인 경우",
+                                    value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"PRIVATE_RECORD\", \"message\": \"이 글은 작성자에게만 권한이 있습니다.\"}}"
+                            )
+                    })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "기록을 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "ACTIVITY_RECORD_NOT_FOUND",
+                            summary = "존재하지 않거나 접근 불가한 기록",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"
+                    ))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "중복 신고",
+                    content = @Content(examples = @ExampleObject(
+                            name = "ALREADY_RECORD_REPORTED",
+                            summary = "이미 신고한 기록",
+                            value = "{\"status\": 409, \"success\": false, \"data\": {\"errorClassName\": \"ALREADY_RECORD_REPORTED\", \"message\": \"해당 기록에 이미 신고하였습니다.\"}}"
+                    ))
+            )
+    })
+    @PostMapping("/{recordId}/report")
+    ReportActivityRecordResDto reportActivityRecord(
+            @Parameter(description = "신고할 활동 기록의 ID", example = "1")
+            @PathVariable(value = "recordId") Long recordId,
+
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "신고 사유",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = ReportActivityRecordReqDto.class))
+            )
+            @RequestBody @Valid ReportActivityRecordReqDto reqDto,
 
             @AuthenticationPrincipal CustomUserDetails user);
 }

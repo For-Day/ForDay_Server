@@ -2,7 +2,9 @@ package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
+import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
+import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
@@ -113,6 +115,43 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .fetchOne();
 
         return count == null ? 0L : count;
+    }
+
+    @Override
+    public Optional<ActivityRecordWithUserDto> getActivityRecordWithUser(Long recordId) {
+        return Optional.ofNullable(
+                queryFactory
+                        .select(Projections.constructor(ActivityRecordWithUserDto.class,
+                                record.id,
+                                record.visibility,
+                                record.user.id,
+                                record.user.deleted
+                        ))
+                        .from(record)
+                        .join(record.user) // 명시적 조인 추가 (필요 시)
+                        .where(record.id.eq(recordId))
+                        .fetchOne()
+        );
+    }
+
+    @Override
+    public Optional<ReportActivityRecordDto> getReportActivityRecord(Long recordId) {
+        return Optional.ofNullable(
+                queryFactory
+                        .select(Projections.constructor(ReportActivityRecordDto.class,
+                                record.id,
+                                record,
+                                record.user,
+                                record.user.id,
+                                record.user.deleted,
+                                record.user.nickname,
+                                record.visibility
+                        ))
+                        .from(record)
+                        .join(record.user)
+                        .where(record.id.eq(recordId))
+                        .fetchOne()
+        );
     }
 
     private BooleanExpression hobbyIdIn(List<Long> hobbyIds) {

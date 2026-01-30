@@ -1,9 +1,14 @@
 package com.example.ForDay.domain.activity.service;
 
+import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
+import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
 import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -37,6 +42,9 @@ public class ActivityService {
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final HobbyCardRepository hobbyCardRepository;
+    private final HobbyRepository hobbyRepository;
+    private final FriendRelationRepository friendRelationRepository;
+
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -230,6 +238,25 @@ public class ActivityService {
         return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
     }
 
+    @Transactional
+    public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId()).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        ActivityRecordCollectInfo activity = activityRepository.getCollectActivityInfo(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+
+        checkBlockedAndDeletedUser(currentUser.getId(), activity.getUserId(), activity.isUserDeleted());
+
+        Activity build = Activity.builder()
+                .user(currentUser)
+                .hobby(hobby)
+                .content(activity.getContent())
+                .aiRecommended(false)
+                .build();
+        activityRepository.save(build);
+
+        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동이 정상적으로 담겼습니다.");
+    }
+
     // 유틸 클래스
     private Activity getActivityByUserId(Long activityId, String userId) {
         return activityRepository.findByIdAndUserId(activityId, userId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
@@ -239,5 +266,14 @@ public class ActivityService {
         if (!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
+    }
+
+    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
+        // 한쪽이라도 차단 관계가 있는지 확인
+        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+            throw new CustomException(ErrorCode.ACTIVITY_NOT_FOUND);
+        }
+        // 타겟유저가 탈퇴한 회원인 경우
+        if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
 }

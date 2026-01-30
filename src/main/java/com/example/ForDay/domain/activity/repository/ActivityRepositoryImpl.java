@@ -1,9 +1,12 @@
 package com.example.ForDay.domain.activity.repository;
 
+import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHobbyActivitiesResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
@@ -12,6 +15,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
@@ -77,6 +81,22 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
         }
 
         return new GetActivityListResDto(activities);
+    }
+
+    @Override
+    public Optional<ActivityRecordCollectInfo> getCollectActivityInfo(Long activityId) {
+        return Optional.ofNullable(
+                queryFactory
+                        .select(Projections.constructor(ActivityRecordCollectInfo.class,
+                                activity.user.id,
+                                activity.user.deleted,
+                                activity.content
+                        ))
+                        .from(activity)
+                        .join(activity.user)
+                        .where(activity.id.eq(activityId))
+                        .fetchOne()
+        );
     }
 }
 
