@@ -14,14 +14,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRepositoryCustom {
     private final JPAQueryFactory queryFactory;
-    private QActivityRecord record;
-    private QActivityRecordScarp scrap;
+    private final QActivityRecord record = QActivityRecord.activityRecord;
+    private final QActivityRecordScarp scrap = QActivityRecordScarp.activityRecordScarp;
 
     @Override
     public List<GetUserScrapListResDto.ScrapDto> getMyScrapList(Long lastScrapId, Integer size, String targetUserId) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserScrapListResDto.ScrapDto.class,
+                        scrap.id,
                         record.id,
                         record.imageUrl,
                         record.sticker,
@@ -42,6 +43,7 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
     public List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String currentUserId, List<String> myFriendIds) {
         return queryFactory
                 .select(Projections.constructor(GetUserScrapListResDto.ScrapDto.class,
+                        scrap.id,
                         record.id,
                         record.imageUrl,
                         record.sticker,

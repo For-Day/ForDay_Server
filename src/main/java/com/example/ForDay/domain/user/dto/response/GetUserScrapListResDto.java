@@ -20,6 +20,7 @@ public class GetUserScrapListResDto {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ScrapDto {
+        private Long scrapId;
         private Long recordId;
         private String thumbnailImageUrl;
         private String sticker;

@@ -297,7 +297,7 @@ public class UserService {
             scrapDtos.remove(size.intValue());
         }
 
-        long scrapCount = (lastScrapId == null) ? scrapDtos.size() : 0; // 혹은 count 쿼리 별도 실행
+        long scrapCount = (lastScrapId == null) ? activityRecordScrapRepository.countByUserId(targetUserId) : 0; // 혹은 count 쿼리 별도 실행
 
         // 썸네일용 이미지 url 반환
         scrapDtos.forEach(scrapDto -> {
@@ -306,7 +306,7 @@ public class UserService {
             }
         });
 
-        Long lastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getRecordId();
+        Long lastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getScrapId();
         return new GetUserScrapListResDto(scrapCount, lastId, scrapDtos, hasNext);
     }
 
