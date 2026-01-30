@@ -1175,8 +1175,7 @@ public interface HobbyControllerDocs {
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"S3_IMAGE_NOT_FOUND\", \"message\": \"S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.\"}}"))
             )
     })
-    @PatchMapping("/cover-image")
-    public SetHobbyCoverImageResDto setHobbyCoverImage(
+    SetHobbyCoverImageResDto setHobbyCoverImage(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "case 1: hobbyId + coverImageUrl 전달 | case 2: recordId 전달 (hobbyId 자동 매칭)",
                     content = @Content(examples = {
@@ -1186,4 +1185,40 @@ public interface HobbyControllerDocs {
             )
             @RequestBody @Valid SetHobbyCoverImageReqDto reqDto,
             @AuthenticationPrincipal CustomUserDetails user) throws Exception;
+
+    @Operation(
+            summary = "활동 담기",
+            description = "특정 활동(Activity)을 사용자의 취미(Hobby) 보관함에 담습니다. 이때 hobbyId는 반드시 로그인한 본인의 것이어야 합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "활동 담기 성공",
+                    content = @Content(schema = @Schema(implementation = CollectActivityResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "취미 또는 활동을 찾을 수 없음",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "HOBBY_NOT_FOUND",
+                                    summary = "존재하지 않는 취미",
+                                    value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"HOBBY_NOT_FOUND\", \"message\": \"존재하지 않는 취미입니다.\"}}"
+                            ),
+                            @ExampleObject(
+                                    name = "ACTIVITY_NOT_FOUND",
+                                    summary = "존재하지 않는 활동",
+                                    value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_NOT_FOUND\", \"message\": \"존재하지 않는 활동입니다.\"}}"
+                            )
+                    })
+            )
+    })
+    CollectActivityResDto collectActivity(
+            @Parameter(description = "활동을 담고자 하는 취미의 ID (본인 소유 필수)", example = "13")
+            @PathVariable(name = "hobbyId") Long hobbyId,
+
+            @Parameter(description = "담고자 하는 활동의 ID", example = "12")
+            @PathVariable(name = "activityId") Long activityId,
+
+            @AuthenticationPrincipal CustomUserDetails user);
 }

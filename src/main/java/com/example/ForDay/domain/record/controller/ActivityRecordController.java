@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.controller;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
+import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/records")
-public class ActivityRecordController implements ActivityRecordControllerDocs{
+public class ActivityRecordController implements ActivityRecordControllerDocs {
     private final ActivityRecordService activityRecordService;
 
     @Override
@@ -77,4 +78,25 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
         return activityRecordService.deleteActivityRecord(recordId, user);
     }
 
+    @Override
+    @PostMapping("/{recordId}/scrap")
+    public AddActivityRecordScrapResDto addActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
+                                                               @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordService.addActivityRecordScrap(recordId, user);
+    }
+
+    @Override
+    @DeleteMapping("/{recordId}/scrap")
+    public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
+                                                                     @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordService.deleteActivityRecordScrap(recordId, user);
+    }
+
+    @Override
+    @PostMapping("/{recordId}/report")
+    public ReportActivityRecordResDto reportActivityRecord(@PathVariable(value = "recordId") Long recordId,
+                                                           @RequestBody @Valid ReportActivityRecordReqDto reqDto,
+                                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordService.reportActivityRecord(recordId, reqDto, user);
+    }
 }

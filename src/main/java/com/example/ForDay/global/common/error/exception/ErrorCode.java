@@ -58,16 +58,23 @@ public enum ErrorCode {
     // 활동 기록 관련
     ALREADY_RECORDED_TODAY(HttpStatus.BAD_REQUEST, "오늘 해당 취미에 대한 활동 기록을 이미 작성하였습니다."),
     ACTIVITY_RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동 기록입니다."),
-    PRIVATE_RECORD(HttpStatus.FORBIDDEN, "이 글은 작성자만 볼 수 있습니다."),
-    FRIEND_ONLY_ACCESS(HttpStatus.FORBIDDEN, "이 글은 친구만 조회할 수 있습니다."),
+    PRIVATE_RECORD(HttpStatus.FORBIDDEN, "이 글은 작성자에게만 권한이 있습니다."),
+    FRIEND_ONLY_ACCESS(HttpStatus.FORBIDDEN, "이 글은 친구에게만 접근 권한이 있습니다."),
     NOT_ACTIVITY_RECORD_OWNER(HttpStatus.FORBIDDEN, "활동 기록 소유자가 아닙니다."),
     DUPLICATE_REACTION(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 같은 반응을 하셨습니다."),
     REACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 리액션을 찾을 수 없거나 이미 취소되었습니다."),
+    DUPLICATE_SCRAP(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 스크랩을 하셨습니다."),
+    ALREADY_RECORD_REPORTED(HttpStatus.CONFLICT, "해당 기록에 이미 신고하였습니다."),
 
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
     DUPLICATE_HOBBY_REQUEST(HttpStatus.CONFLICT, "같은 취미에 대한 충복 요청입니다. (닉네임 설정을 완료하세요.)"),
-    INVALID_IMAGE_SOURCE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 리소스입니다.")
+    INVALID_IMAGE_SOURCE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 리소스입니다."),
+
+    // 친구 관련
+    CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신에게 친구 맺기를 할 수 없습니다."),
+    FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 친구 관계입니다."),
+    CANNOT_BLOCK_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 차단할 수 없습니다."),
     ;
 
     private final HttpStatus status;

@@ -39,7 +39,8 @@ public class Activity extends BaseTimeEntity {
     private Integer collectedStickerNum = 0;
 
     @Column(name = "last_recorded_at")
-    private LocalDateTime lastRecordedAt;
+    @Builder.Default
+    private LocalDateTime lastRecordedAt = null;
 
     public void record() {
         this.collectedStickerNum++;

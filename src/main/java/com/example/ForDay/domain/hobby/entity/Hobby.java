@@ -54,7 +54,8 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "status", nullable = false, length = 20)
     private HobbyStatus status;
 
-    private String coverImageUrl;
+    @Builder.Default
+    private String coverImageUrl = null;
 
 
     public void record() {
