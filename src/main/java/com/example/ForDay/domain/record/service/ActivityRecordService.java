@@ -7,6 +7,7 @@ import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.recent.service.RecentRedisService;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
@@ -54,6 +55,7 @@ public class ActivityRecordService {
     private final ActivityRecordReportRepository activityRecordReportRepository;
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
+    private final RecentRedisService recentRedisService;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -269,6 +271,7 @@ public class ActivityRecordService {
 
         if(Strings.hasText(keyword)) {
             // 최근 검색어 저장 로직
+            recentRedisService.createRecentKeyword(currentUser.getId(), keyword);
         }
 
         Hobby targetHobby = (hobbyId != null)
