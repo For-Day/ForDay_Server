@@ -67,12 +67,10 @@ public class ActivityRecordService {
 
         List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
 
-
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
         boolean scraped= activityRecordScrapRepository.existsByActivityRecordIdAndUserId(detail.recordId(), currentUserId);
-        // 스크랩 여부 조회 추가 예정
 
         return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction, scraped);
     }

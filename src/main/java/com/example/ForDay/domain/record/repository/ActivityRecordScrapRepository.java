@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface ActivityRecordScrapRepository extends JpaRepository<ActivityRecordScarp, Long> {
+public interface ActivityRecordScrapRepository extends JpaRepository<ActivityRecordScarp, Long>, ActivityRecordScrapRepositoryCustom {
     boolean existsByActivityRecordIdAndUserId(Long activityRecordId, String id);
 
     Optional<ActivityRecordScarp> findByActivityRecordIdAndUserId(Long id, String id1);
+
+    long countByUserId(String id);
 }

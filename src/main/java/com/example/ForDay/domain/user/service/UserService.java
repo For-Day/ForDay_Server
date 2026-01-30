@@ -6,6 +6,8 @@ import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
@@ -37,6 +39,7 @@ public class UserService {
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
     private final FriendRelationRepository friendRelationRepository;
+    private final ActivityRecordScrapRepository activityRecordScrapRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -265,6 +268,41 @@ public class UserService {
         Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
 
         return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
+        User targetUser;
+
+        if(userId == null) {
+            // 자신의 스크랩 목록 조회
+            targetUser = userUtil.getCurrentUser(user);
+
+            long scrapCount = 0;
+            if(lastScrapId == null) {
+                scrapCount  = activityRecordScrapRepository.countByUserId(targetUser.getId());
+            }
+            List<GetUserScrapListResDto.ScrapDto> scrapDtos = activityRecordScrapRepository.getMyScrapList(lastScrapId, size, targetUser.getId());
+
+            boolean hasNext = false;
+            if (scrapDtos.size() > size) {
+                hasNext = true;
+                scrapDtos.remove(size.intValue());
+            }
+
+            Long lastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getRecordId();
+
+            return new GetUserScrapListResDto(scrapCount, lastId, scrapDtos, hasNext);
+        } else {
+            // 다른 사람의 피드 조회시
+            targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+            User currentUser = userUtil.getCurrentUser(user);
+
+            // 차단 및 탈퇴 확인
+            checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
+
+            // 현재 유저의 친구 id 목록 조회??
+        }
     }
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {

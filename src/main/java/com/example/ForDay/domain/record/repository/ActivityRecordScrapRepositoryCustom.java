@@ -1,0 +1,10 @@
+package com.example.ForDay.domain.record.repository;
+
+import com.example.ForDay.domain.user.dto.response.GetUserScrapListResDto;
+
+import java.util.List;
+
+public interface ActivityRecordScrapRepositoryCustom {
+
+    List<GetUserScrapListResDto.ScrapDto> getMyScrapList(Long lastScrapId, Integer size, String targetUserId);
+}
