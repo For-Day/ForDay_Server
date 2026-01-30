@@ -239,9 +239,9 @@ public class ActivityService {
 
     @Transactional
     public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    /*    User currentUser = userUtil.getCurrentUser(user);
         Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId()).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
-        Activity activity = activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+        Activity activity = activityRepository.getCollectActivityInfo(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
 
         checkBlockedAndDeletedUser(currentUser.getId(), activity.getUser().getId(), activity.getUser().isDeleted());
 
@@ -253,7 +253,8 @@ public class ActivityService {
                 .build();
         activityRepository.save(build);
 
-        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동이 정상적으로 담겼습니다.");
+        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동이 정상적으로 담겼습니다.");*/
+        return null;
     }
 
     // 유틸 클래스

@@ -265,7 +265,6 @@ public class HobbyService {
         User currentUser = userUtil.getCurrentUser(user); // 쿼리 0회 (이미 필터에서 로드됨)
         log.info("[GetHobbyActivities] 조회 시작 - UserId: {}, HobbyId: {}", currentUser.getId(), hobbyId);
 
-
         if (!hobbyRepository.existsByIdAndUserId(hobbyId, currentUser.getId())) {
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
@@ -285,6 +284,9 @@ public class HobbyService {
         Hobby targetHobby = (hobbyId != null)
                 ? getHobby(hobbyId)
                 : getLatestInProgressHobby(currentUser);
+
+        if(targetHobby == null) return null;
+
         GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfo(targetHobby.getId(), currentUser);
 
         if (response == null) return null;
