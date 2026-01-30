@@ -56,7 +56,7 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                         scrap.user.id.eq(targetUserId),          // 1. 조회 대상 유저의 스크랩
                         ltLastScrapId(lastScrapId),              // 2. No-offset 페이징
                         record.user.deleted.isFalse(),         // 3. 탈퇴한 유저 제외
-                        scrap.user.id.notIn(blockFriendIds),     // 4. 차단 관계 유저 제외
+                        record.user.id.notIn(blockFriendIds),   // 4. 차단 관계 유저 제외
 
                         // 5. 공개 범위 및 본인/친구 권한 체크
                         record.visibility.eq(RecordVisibility.PUBLIC)
