@@ -48,7 +48,7 @@ public class ActivityRecordService {
     private final S3Service s3Service;
     private final ActivityRepository activityRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
-    private final ActivityRecordReportRepository activityRecordReportRepository;
+    private final ActivityRecordReportRepository activityRecordReportRepository;;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -71,7 +71,7 @@ public class ActivityRecordService {
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
-        boolean scraped= false;
+        boolean scraped= activityRecordScrapRepository.existsByActivityRecordIdAndUserId(detail.recordId(), currentUserId);
         // 스크랩 여부 조회 추가 예정
 
         return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction, scraped);
