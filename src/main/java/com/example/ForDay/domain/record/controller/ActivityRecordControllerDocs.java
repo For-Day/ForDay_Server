@@ -216,4 +216,54 @@ public interface ActivityRecordControllerDocs {
             @PathVariable(value = "recordId") Long recordId,
 
             @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "활동 기록 스크랩",
+            description = "특정 활동 기록(recordId)을 본인의 보관함에 스크랩합니다. 접근 권한(공개 범위)에 따라 제한될 수 있습니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "스크랩 성공",
+                    content = @Content(schema = @Schema(implementation = AddActivityRecordScrapResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "이미 스크랩한 경우",
+                    content = @Content(examples = @ExampleObject(
+                            name = "DUPLICATE_SCRAP",
+                            summary = "중복 스크랩 방지",
+                            value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"DUPLICATE_SCRAP\", \"message\": \"해당 기록에는 이미 스크랩을 하셨습니다.\"}}"
+                    ))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "권한 부족 (비공개 또는 친구 공개)",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "FRIEND_ONLY_ACCESS",
+                                    summary = "친구만 스크랩 가능",
+                                    value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"FRIEND_ONLY_ACCESS\", \"message\": \"이 글은 친구에게만 접근 권한이 있습니다.\"}}"
+                            ),
+                            @ExampleObject(
+                                    name = "PRIVATE_RECORD",
+                                    summary = "작성자만 스크랩 가능",
+                                    value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"PRIVATE_RECORD\", \"message\": \"이 글은 작성자에게만 권한이 있습니다.\"}}"
+                            )
+                    })
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "기록을 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(
+                            name = "ACTIVITY_RECORD_NOT_FOUND",
+                            summary = "존재하지 않는 활동 기록",
+                            value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"
+                    ))
+            )
+    })
+    AddActivityRecordScrapResDto addActivityRecordScrap(
+            @Parameter(description = "스크랩하고자 하는 활동 기록의 ID", example = "1")
+            @PathVariable(value = "recordId") Long recordId,
+            @AuthenticationPrincipal CustomUserDetails user);
 }
