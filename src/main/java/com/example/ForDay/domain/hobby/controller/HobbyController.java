@@ -38,13 +38,13 @@ public class HobbyController implements HobbyControllerDocs {
 
     @GetMapping("/activities/ai/recommend/test")
     public ActivityAIRecommendResDto testActivityAiRecommend(@RequestParam(name = "hobbyId") Long hobbyId,
-                                                         @AuthenticationPrincipal CustomUserDetails user) throws Exception {
+                                                             @AuthenticationPrincipal CustomUserDetails user) throws Exception {
         return hobbyService.testActivityAiRecommend(hobbyId, user);
     }
 
     @Override
     @GetMapping("/activities/others/v1")
-    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId,  @AuthenticationPrincipal CustomUserDetails user) {
+    public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId, @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.othersActivityRecommendV1(hobbyId, user);
     }
 
@@ -141,5 +141,12 @@ public class HobbyController implements HobbyControllerDocs {
     @PatchMapping("/cover-image")
     public SetHobbyCoverImageResDto setHobbyCoverImage(@RequestBody @Valid SetHobbyCoverImageReqDto reqDto, @AuthenticationPrincipal CustomUserDetails user) throws Exception {
         return hobbyService.setHobbyCoverImage(reqDto, user);
+    }
+
+    @PostMapping("/{hobbyId}/activities/{activityId}/collect")
+    public CollectActivityResDto collectActivity(@PathVariable(name = "hobbyId") Long hobbyId,
+                                                 @PathVariable(name = "activityId") Long activityId,
+                                                 @AuthenticationPrincipal CustomUserDetails user) {
+        return activityService.collectActivity(hobbyId, activityId, user);
     }
 }

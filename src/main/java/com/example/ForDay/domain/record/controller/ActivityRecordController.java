@@ -88,5 +88,4 @@ public class ActivityRecordController implements ActivityRecordControllerDocs{
                                                                @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordService.deleteActivityRecordScrap(recordId, user);
     }
-
 }

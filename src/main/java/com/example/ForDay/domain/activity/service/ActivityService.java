@@ -2,8 +2,10 @@ package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
 import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -37,6 +39,8 @@ public class ActivityService {
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final HobbyCardRepository hobbyCardRepository;
+    private final HobbyRepository hobbyRepository;
+
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -228,6 +232,23 @@ public class ActivityService {
         );
 
         return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
+    }
+
+    @Transactional
+    public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId()).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        Activity activity = activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+
+        Activity build = Activity.builder()
+                .user(currentUser)
+                .hobby(hobby)
+                .content(activity.getContent())
+                .aiRecommended(false)
+                .build();
+        activityRepository.save(build);
+
+        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동이 정상적으로 담겼습니다.");
     }
 
     // 유틸 클래스
