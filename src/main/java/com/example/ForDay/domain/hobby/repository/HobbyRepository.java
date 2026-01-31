@@ -3,6 +3,7 @@ package com.example.ForDay.domain.hobby.repository;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,4 +35,8 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
     List<Hobby> findAllByUserIdAndStatusOrderByIdDesc(String currentUserId, HobbyStatus hobbyStatus);
 
     Optional<Hobby> findByIdAndUserIdAndStatus(Long hobbyId, String id, HobbyStatus hobbyStatus);
+
+    boolean existsByHobbyInfoId(Long hobbyInfoId);
+
+    boolean existsByHobbyName(String hobbyName);
 }

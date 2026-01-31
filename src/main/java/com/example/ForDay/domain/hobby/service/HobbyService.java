@@ -85,6 +85,18 @@ public class HobbyService {
             throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
         }
 
+        // 중복 취미 생성 체크
+        if (reqDto.getHobbyInfoId() != null && reqDto.getHobbyInfoId() >= 1) {
+            if (hobbyRepository.existsByHobbyInfoId(reqDto.getHobbyInfoId())) {
+                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
+            }
+        }
+        if (StringUtils.hasText(reqDto.getHobbyName())) {
+            if (hobbyRepository.existsByHobbyName(reqDto.getHobbyName())) {
+                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
+            }
+        }
+
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
                 .hobbyInfoId(reqDto.getHobbyInfoId())

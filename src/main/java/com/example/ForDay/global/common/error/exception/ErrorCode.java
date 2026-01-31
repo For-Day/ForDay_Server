@@ -47,6 +47,7 @@ public enum ErrorCode {
     INVALID_HOBBY_EXTENSION_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 취미 기간 설정 타입입니다."),
     INVALID_PAGE_REQUEST(HttpStatus.BAD_REQUEST,"요청한 페이지가 존재하지 않습니다."),
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
+    ALREADY_HAVE_HOBBY(HttpStatus.CONFLICT, "이미 가지고 있는 취미입니다."),
 
     // 활동 관련
     ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."),
@@ -77,7 +78,8 @@ public enum ErrorCode {
     CANNOT_BLOCK_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 차단할 수 없습니다."),
 
     // 검색어 관련
-    KEYWORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 검색어입니다.");
+    KEYWORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 검색어입니다.")
+    ;
 
     private final HttpStatus status;
     private final String message;
