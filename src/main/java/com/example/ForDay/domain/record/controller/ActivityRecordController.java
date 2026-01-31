@@ -100,6 +100,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
         return activityRecordService.reportActivityRecord(recordId, reqDto, user);
     }
 
+    @Override
     @PostMapping("/stories")
     public GetActivityRecordByStoryResDto getActivityRecordByStory(@RequestParam(name = "hobbyId", required = false) Long hobbyId,
                                                                    @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
