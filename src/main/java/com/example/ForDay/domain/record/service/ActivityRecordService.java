@@ -33,6 +33,7 @@ import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.TimeUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -56,6 +57,7 @@ public class ActivityRecordService {
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final RecentRedisService recentRedisService;
+    private final S3Util s3Util;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -297,12 +299,12 @@ public class ActivityRecordService {
         recordDtos.forEach(dto -> {
             // 1. 기록 이미지 URL 변환 (Feed Thumbnail용)
             if (dto.getThumbnailUrl() != null) {
-                dto.setThumbnailUrl(toFeedThumbResizedUrl(dto.getThumbnailUrl()));
+                dto.setThumbnailUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailUrl()));
             }
             // 2. 유저 프로필 이미지 URL 변환 (Profile List용)
             if (dto.getUserInfo() != null && dto.getUserInfo().getProfileImageUrl() != null) {
                 String originalProfileUrl = dto.getUserInfo().getProfileImageUrl();
-                dto.getUserInfo().setProfileImageUrl(toProfileListResizedUrl(originalProfileUrl));
+                dto.getUserInfo().setProfileImageUrl(s3Util.toProfileListResizedUrl(originalProfileUrl));
             }
         });
 
@@ -406,19 +408,5 @@ public class ActivityRecordService {
 
         // 타겟유저가 탈퇴한 회원인 경우
         if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
-    }
-
-    private static String toProfileListResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/list/");
-    }
-
-    private static String toFeedThumbResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/thumb/");
     }
 }

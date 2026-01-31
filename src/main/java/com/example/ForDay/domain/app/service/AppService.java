@@ -96,7 +96,7 @@ public class AppService {
             String feedThumbResizedKey = s3Service.extractKeyFromFileUrl(feedThumbResizedUrl);
             if(s3Service.existsByKey(feedThumbResizedKey)) s3Service.deleteByKey(feedThumbResizedKey);
 
-        } else if (key.contains("profile_image")) {
+        } else if (key.contains("/profile_image")) {
             // 프로필 조회용 (/resized/main/)
             String profileMainResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
             String profileMainResizedKey = s3Service.extractKeyFromFileUrl(profileMainResizedUrl);
@@ -107,7 +107,7 @@ public class AppService {
             String profileListResizedKey = s3Service.extractKeyFromFileUrl(profileListResizedUrl);
             if(s3Service.existsByKey(profileListResizedKey)) s3Service.deleteByKey(profileListResizedKey);
 
-        } else if (key.contains("cover_image")) {
+        } else if (key.contains("/cover_image")) {
             // 썸네일용 (/resized/thumb/)
             String coverThumbResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
             String coverThumbResizedKey = s3Service.extractKeyFromFileUrl(coverThumbResizedUrl);

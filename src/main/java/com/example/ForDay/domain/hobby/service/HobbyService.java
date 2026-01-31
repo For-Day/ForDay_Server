@@ -23,6 +23,7 @@ import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3Util;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,7 @@ public class HobbyService {
     private final OtherActivityRepository otherActivityRepository;
     private final CoverLambdaInvoker invoker;
     private final UserRepository userRepository;
+    private final S3Util s3Util;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -678,7 +680,7 @@ public class HobbyService {
             // cover_image/temp/~~~~
             String newCoverImageUrl = reqDto.getCoverImageUrl();
             // cover_image/resized/thumb/~~~~
-            String resizedCoverImageUrl = toCoverMainResizedUrl(newCoverImageUrl);
+            String resizedCoverImageUrl = s3Util.toCoverMainResizedUrl(newCoverImageUrl);
 
             // S3 존재 여부 검증
             String newCoverImageKey = s3Service.extractKeyFromFileUrl(newCoverImageUrl);
@@ -691,7 +693,7 @@ public class HobbyService {
             String oldCoverImageUrl = hobby.getCoverImageUrl();
             if(oldCoverImageUrl != null && !oldCoverImageUrl.isBlank()) {
                 String oldCoverKey = s3Service.extractKeyFromFileUrl(oldCoverImageUrl);
-                String resizedCoverUrl = toCoverMainResizedUrl(oldCoverImageUrl);
+                String resizedCoverUrl = s3Util.toCoverMainResizedUrl(oldCoverImageUrl);
                 String resizedCoverKey = s3Service.extractKeyFromFileUrl(resizedCoverUrl);
                 if(s3Service.existsByKey(oldCoverKey)) {
                     s3Service.deleteByKey(oldCoverKey);
@@ -782,12 +784,5 @@ public class HobbyService {
 
         // 3. 최종 응답 DTO 반환
         return new GetHobbyStoryTabsResDto(tabInfos);
-    }
-
-    private static String toCoverMainResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/thumb/");
     }
 }
