@@ -210,7 +210,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
     private BooleanExpression containsKeyword(String keyword) {
         return (keyword == null || keyword.isBlank())
-                ? null : record.activity.content.contains(keyword);
+                ? null : record.activity.content.contains(keyword)  // 활동 내용
+                .or(record.memo.contains(keyword));  // 활동 기록 메모
     }
 
     private BooleanExpression hobbyIdIn(List<Long> hobbyIds) {
