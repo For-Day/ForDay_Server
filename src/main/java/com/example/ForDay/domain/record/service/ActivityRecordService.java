@@ -4,6 +4,10 @@ import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
+import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.recent.service.RecentRedisService;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
@@ -29,6 +33,7 @@ import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.TimeUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -48,7 +53,11 @@ public class ActivityRecordService {
     private final S3Service s3Service;
     private final ActivityRepository activityRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
-    private final ActivityRecordReportRepository activityRecordReportRepository;;
+    private final ActivityRecordReportRepository activityRecordReportRepository;
+    private final HobbyRepository hobbyRepository;
+    private final ActivityRecordReactionRepository activityRecordReactionRepository;
+    private final RecentRedisService recentRedisService;
+    private final S3Util s3Util;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -256,6 +265,63 @@ public class ActivityRecordService {
         activityRecordReportRepository.save(report);
 
         return new ReportActivityRecordResDto(recordId, activityRecord.getWriterId(), activityRecord.getWriterNickname(), "기록이 정상적으로 신고되었습니다.");
+    }
+
+    @Transactional(readOnly = true)
+    public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        if(Strings.hasText(keyword)) {
+            // 최근 검색어 저장 로직
+            recentRedisService.createRecentKeyword(currentUser.getId(), keyword);
+        }
+
+        Hobby targetHobby = (hobbyId != null)
+                ?  hobbyRepository.findByIdAndUserIdAndStatus(hobbyId, currentUser.getId(), HobbyStatus.IN_PROGRESS)
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND)) // 진행 중인 취미 찾도록
+                : getLatestInProgressHobby(currentUser);
+
+        if(targetHobby == null) return null;
+
+        Long hobbyInfoId = targetHobby.getHobbyInfoId();
+        if(hobbyInfoId == null) return null;
+
+        List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId()); // 현재 유저의 친구 목록 (공개 범위가 FRIEND 이면 조회되도록)
+        List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId()); // 차단 유저 목록 (조회시 배제)
+
+        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds);
+
+
+        boolean hasNext = false;
+        if (recordDtos.size() > size) {
+            hasNext = true;
+            recordDtos.remove(size.intValue());
+        }
+
+        // 썸네일용 이미지 url 반환 (기록 이미지 url & 유저 이미지 url)
+        recordDtos.forEach(dto -> {
+            // 1. 기록 이미지 URL 변환 (Feed Thumbnail용)
+            if (dto.getThumbnailUrl() != null) {
+                dto.setThumbnailUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailUrl()));
+            }
+            // 2. 유저 프로필 이미지 URL 변환 (Profile List용)
+            if (dto.getUserInfo() != null && dto.getUserInfo().getProfileImageUrl() != null) {
+                String originalProfileUrl = dto.getUserInfo().getProfileImageUrl();
+                dto.getUserInfo().setProfileImageUrl(s3Util.toProfileListResizedUrl(originalProfileUrl));
+            }
+        });
+
+        Long lastId = recordDtos.isEmpty() ? null : recordDtos.get(recordDtos.size() - 1).getRecordId();
+        return new GetActivityRecordByStoryResDto(hobbyInfoId, targetHobby.getId(), targetHobby.getHobbyName(), lastId, recordDtos, hasNext);
+    }
+
+    private Hobby getLatestInProgressHobby(User user) {
+        return hobbyRepository
+                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
+                        user.getId(),
+                        HobbyStatus.IN_PROGRESS
+                )
+                .orElse(null);
     }
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {

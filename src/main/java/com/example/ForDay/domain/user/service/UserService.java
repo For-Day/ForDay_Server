@@ -20,6 +20,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class UserService {
     private final HobbyCardRepository hobbyCardRepository;
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
+    private final S3Util s3Util;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -122,7 +124,7 @@ public class UserService {
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return new UserInfoResDto(toProfileMainResizedUrl(targetUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
+        return new UserInfoResDto(s3Util.toProfileMainResizedUrl(targetUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
                 targetUser.getNickname(),
                 totalStickerCount);
     }
@@ -131,7 +133,7 @@ public class UserService {
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String newImageUrl = reqDto.getProfileImageUrl(); // 새로 설정하는 원본 url
-        String resizedImageUrl = toProfileMainResizedUrl(newImageUrl); // 새로 설정하는 리사이즈 url
+        String resizedImageUrl = s3Util.toProfileMainResizedUrl(newImageUrl); // 새로 설정하는 리사이즈 url
 
         // 원본이 그대로 저장되므로 db에도 원본이 url이 이미 있는지 확인
         if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
@@ -142,7 +144,7 @@ public class UserService {
         String oldImageUrl = currentUser.getProfileImageUrl();
         if (oldImageUrl != null && !oldImageUrl.isBlank()) {
             String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
-            String oldMainResizedUrl = toProfileMainResizedUrl(oldImageUrl);
+            String oldMainResizedUrl = s3Util.toProfileMainResizedUrl(oldImageUrl);
             String oldMainResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
 
             //String oldListResizedUrl = toProfileListResizedUrl(oldImageUrl);
@@ -238,7 +240,7 @@ public class UserService {
         // resized url 호출하도록 수정
         feedList.forEach(feedDto -> {
             feedDto.setThumbnailImageUrl(
-                    toFeedThumbResizedUrl(feedDto.getThumbnailImageUrl())
+                    s3Util.toFeedThumbResizedUrl(feedDto.getThumbnailImageUrl())
             );
         });
 
@@ -303,7 +305,7 @@ public class UserService {
         // 썸네일용 이미지 url 반환
         scrapDtos.forEach(scrapDto -> {
             if (StringUtils.hasText(scrapDto.getThumbnailImageUrl())) {
-                scrapDto.setThumbnailImageUrl(toFeedThumbResizedUrl(scrapDto.getThumbnailImageUrl()));
+                scrapDto.setThumbnailImageUrl(s3Util.toFeedThumbResizedUrl(scrapDto.getThumbnailImageUrl()));
             }
         });
 
@@ -319,33 +321,5 @@ public class UserService {
 
         // 타겟유저가 탈퇴한 회원인 경우
         if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
-    }
-
-    private static String toProfileMainResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/main/");
-    }
-
-    private static String toProfileListResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/list/");
-    }
-
-    private static String toFeedThumbResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/thumb/");
-    }
-
-    private static String toCoverMainResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/thumb/");
     }
 }

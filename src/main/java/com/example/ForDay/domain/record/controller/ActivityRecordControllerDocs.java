@@ -348,7 +348,6 @@ public interface ActivityRecordControllerDocs {
                     ))
             )
     })
-    @PostMapping("/{recordId}/report")
     ReportActivityRecordResDto reportActivityRecord(
             @Parameter(description = "신고할 활동 기록의 ID", example = "1")
             @PathVariable(value = "recordId") Long recordId,
@@ -359,6 +358,31 @@ public interface ActivityRecordControllerDocs {
                     content = @Content(schema = @Schema(implementation = ReportActivityRecordReqDto.class))
             )
             @RequestBody @Valid ReportActivityRecordReqDto reqDto,
+
+            @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "소식 목록 조회 및 검색",
+            description = "소식페이지에서 특정 취미의 기록들을 조회합니다. 키워드 입력 시 검색 기능이 동작하며 검색어는 자동으로 저장됩니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공 (기록이 없으면 data가 null로 반환됨)",
+                    content = @Content(schema = @Schema(implementation = GetActivityRecordByStoryResDto.class))
+            )
+    })GetActivityRecordByStoryResDto getActivityRecordByStory(
+            @Parameter(description = "취미 ID (null이면 가장 최근 취미로 조회)", example = "14")
+            @RequestParam(name = "hobbyId", required = false) Long hobbyId,
+
+            @Parameter(description = "마지막으로 조회된 기록 ID (null이면 처음부터 조회)", example = "42")
+            @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
+
+            @Parameter(description = "조회할 기록 개수", example = "20")
+            @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
+
+            @Parameter(description = "검색 키워드 (입력 시 최근 검색어에 저장됨)", example = "고양이")
+            @RequestParam(name = "keyword", required = false) String keyword,
 
             @AuthenticationPrincipal CustomUserDetails user);
 }

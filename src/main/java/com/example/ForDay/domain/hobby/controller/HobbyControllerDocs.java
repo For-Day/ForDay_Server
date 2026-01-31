@@ -1221,4 +1221,23 @@ public interface HobbyControllerDocs {
             @PathVariable(name = "activityId") Long activityId,
 
             @AuthenticationPrincipal CustomUserDetails user);
+
+
+    @Operation(
+            summary = "취미 스토리 탭 조회",
+            description = "사용자가 진행 중인 취미 목록을 최신순으로 조회합니다. 결과가 없으면 빈 리스트를 반환합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetHobbyStoryTabsResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "200 (Empty)",
+                    description = "진행 중인 취미가 없을 때",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"tabInfo\": []}}"))
+            )
+    })
+    GetHobbyStoryTabsResDto getHobbyStoryTabs(@AuthenticationPrincipal CustomUserDetails user);
 }
