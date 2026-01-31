@@ -12,6 +12,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.infra.s3.property.S3Properties;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3Util;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class AppService {
     private final S3Service s3Service;
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
+    private final S3Util s3Util;
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
@@ -81,11 +83,38 @@ public class AppService {
 
     @Transactional
     public MessageResDto deleteS3Image(DeleteS3ImageReqDto reqDto) {
-        String key = s3Service.extractKeyFromFileUrl(reqDto.getImageUrl());
+        String imageUrl = reqDto.getImageUrl();
+        String key = s3Service.extractKeyFromFileUrl(imageUrl);
 
-        // 이미지가 존재하는지 먼저 확인
-        if(!s3Service.existsByKey(key)) throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+        if(!s3Service.existsByKey(key))
+            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
         s3Service.deleteByKey(key);
+
+        if(key.contains("/activity_record")) {
+            // 썸네일용 (/resized/thumb/)
+            String feedThumbResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
+            String feedThumbResizedKey = s3Service.extractKeyFromFileUrl(feedThumbResizedUrl);
+            if(s3Service.existsByKey(feedThumbResizedKey)) s3Service.deleteByKey(feedThumbResizedKey);
+
+        } else if (key.contains("profile_image")) {
+            // 프로필 조회용 (/resized/main/)
+            String profileMainResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
+            String profileMainResizedKey = s3Service.extractKeyFromFileUrl(profileMainResizedUrl);
+            if(s3Service.existsByKey(profileMainResizedKey)) s3Service.deleteByKey(profileMainResizedKey);
+
+            // 리스트 썸네일용 (/resized/list/)
+            String profileListResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
+            String profileListResizedKey = s3Service.extractKeyFromFileUrl(profileListResizedUrl);
+            if(s3Service.existsByKey(profileListResizedKey)) s3Service.deleteByKey(profileListResizedKey);
+
+        } else if (key.contains("cover_image")) {
+            // 썸네일용 (/resized/thumb/)
+            String coverThumbResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
+            String coverThumbResizedKey = s3Service.extractKeyFromFileUrl(coverThumbResizedUrl);
+            if(s3Service.existsByKey(coverThumbResizedKey)) s3Service.deleteByKey(coverThumbResizedKey);
+        } else {
+            throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+        }
         return new MessageResDto("이미지가 성공적으로 삭제되었습니다.");
     }
 }

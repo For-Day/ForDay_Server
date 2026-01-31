@@ -191,7 +191,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         record.user.deleted.isFalse(),          // 4. 탈퇴한 유저 제외
                         notInBlockList(blockFriendIds),         // 5. 차단 관계 유저 제외 (방어 로직)
                         containsKeyword(keyword),               // 6. 키워드 검색 추가
-                        // 6. 공개 범위 및 본인/친구 권한 체크
+                        // 7. 공개 범위 및 본인/친구 권한 체크
                         record.visibility.eq(RecordVisibility.PUBLIC)
                                 .or(
                                         record.visibility.eq(RecordVisibility.FRIEND)
@@ -218,8 +218,6 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
         if (hobbyIds == null || hobbyIds.isEmpty()) return null;
         return record.hobby.id.in(hobbyIds);
     }
-
-
 
     private BooleanExpression ltLastRecordId(Long lastRecordId) {
         return lastRecordId != null ? record.id.lt(lastRecordId) : null;
