@@ -287,12 +287,15 @@ public class HobbyService {
                 ? getHobby(hobbyId)
                 : getLatestInProgressHobby(currentUser);
 
-        if(targetHobby == null) return null;
+        if(targetHobby == null) {
+            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
+        }
 
         GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfo(targetHobby.getId(), currentUser);
 
-        if (response == null) return null;
-
+        if (response == null) {
+            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
+        }
         // AI 관련 로직 처리
         String socialId = currentUser.getSocialId();
         String userSummaryText = "";
