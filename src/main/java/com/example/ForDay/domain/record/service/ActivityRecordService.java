@@ -283,10 +283,13 @@ public class ActivityRecordService {
 
         if(targetHobby == null) return null;
 
+        Long hobbyInfoId = targetHobby.getHobbyInfoId();
+        if(hobbyInfoId == null) return null;
+
         List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId()); // 현재 유저의 친구 목록 (공개 범위가 FRIEND 이면 조회되도록)
         List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId()); // 차단 유저 목록 (조회시 배제)
 
-        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(targetHobby.getId(), lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds);
+        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds);
 
 
         boolean hasNext = false;
@@ -309,7 +312,7 @@ public class ActivityRecordService {
         });
 
         Long lastId = recordDtos.isEmpty() ? null : recordDtos.get(recordDtos.size() - 1).getRecordId();
-        return new GetActivityRecordByStoryResDto(targetHobby.getId(), lastId, recordDtos, hasNext);
+        return new GetActivityRecordByStoryResDto(hobbyInfoId, targetHobby.getId(), targetHobby.getHobbyName(), lastId, recordDtos, hasNext);
     }
 
     private Hobby getLatestInProgressHobby(User user) {

@@ -10,7 +10,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class GetActivityRecordByStoryResDto {
+    private Long hobbyInfoId;
     private Long hobbyId;
+    private String hobbyName;
     private Long lastRecordId;
     private List<RecordDto> recordList;
     private boolean hasNext;
@@ -23,6 +25,7 @@ public class GetActivityRecordByStoryResDto {
         private String thumbnailUrl;
         private String sticker;
         private String title;
+        private String memo;
         private UserInfoDto userInfo;
         private boolean pressedAweSome;
     }

@@ -82,22 +82,16 @@ public class RecentRedisService {
     }
 
     // 전체 검색어 삭제
-    public List<Long> deleteAllRecentKeywords(String userId) {
+    public void deleteAllRecentKeywords(String userId) {
         String key = KEY_PREFIX + userId;
 
         Set<ZSetOperations.TypedTuple<String>> allItems =
                 redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, -1);
 
         if (allItems == null || allItems.isEmpty()) {
-            return List.of();
+            return ;
         }
 
-        List<Long> deletedIds = allItems.stream()
-                .map(tuple -> tuple.getScore().longValue())
-                .toList();
-
         redisTemplate.delete(key);
-
-        return deletedIds;
     }
 }

@@ -161,7 +161,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
     @Override
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
-            Long targetHobbyId, Long lastRecordId, Integer size, String keyword,
+            Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
             String currentUserId, List<String> myFriendIds, List<String> blockFriendIds) {
 
         return queryFactory
@@ -170,6 +170,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         record.imageUrl,
                         record.sticker,
                         record.activity.content,
+                        record.memo,
                         Projections.constructor(GetActivityRecordByStoryResDto.UserInfoDto.class,
                                 record.user.id,
                                 record.user.nickname,
@@ -185,7 +186,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .join(record.activity, activity)
                 .join(record.user, user)
                 .where(
-                        record.hobby.id.eq(targetHobbyId),      // 1. 대상 취미 필터링
+                        record.hobby.hobbyInfoId.eq(hobbyInfoId),      // 1. 대상 취미 필터링
                         record.user.id.ne(currentUserId),       // 2. 자신의 기록 제외
                         ltLastRecordId(lastRecordId),           // 3. No-offset 페이징
                         record.user.deleted.isFalse(),          // 4. 탈퇴한 유저 제외

@@ -11,5 +11,4 @@ import java.util.List;
 @NoArgsConstructor
 public class DeleteAllRecentKeywordResDto {
     private String message;
-    private List<Long> deletedRecentIds;
 }

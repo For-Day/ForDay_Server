@@ -27,8 +27,8 @@ public class RecentService {
     @Transactional
     public DeleteAllRecentKeywordResDto deleteAllRecentKeyword(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        List<Long> recentIds = recentRedisService.deleteAllRecentKeywords(currentUser.getId());
-        return new DeleteAllRecentKeywordResDto("전체 검색어가 삭제되었습니다.", recentIds);
+        recentRedisService.deleteAllRecentKeywords(currentUser.getId());
+        return new DeleteAllRecentKeywordResDto("전체 검색어가 삭제되었습니다.");
     }
 
     @Transactional

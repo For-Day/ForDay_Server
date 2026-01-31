@@ -25,5 +25,5 @@ public interface ActivityRecordRepositoryCustom {
 
     Optional<ReportActivityRecordDto> getReportActivityRecord(Long recordId);
 
-    List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(Long targetHobbyId, Long lastRecordId, Integer size, String keyword, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds);
+    List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(Long hobbyInfoId, Long lastRecordId, Integer size, String keyword, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds);
 }
