@@ -20,54 +20,50 @@ public class RecentRedisService {
 
     private final RedisTemplate<String, String> redisTemplate;
     private static final String KEY_PREFIX = "recent:"; // recent:userId 형태
-    private static final int MAX_SIZE = 5; // 최대 5개 유지
+    private static final int MAX_SIZE = 20; // 최대 20개 유지
+    private static final int VIEW_SIZE = 5;
 
-    // 최근 검색어 생성
     public void createRecentKeyword(String userId, String keyword) {
-        String key = KEY_PREFIX + userId;
-        long now = System.currentTimeMillis();
+        String key = KEY_PREFIX + userId; // key 생성
+        double now = (double) System.currentTimeMillis();
 
-        // 중복 검색어일 경우 기존 데이터를 지우고 최신 score로 갱신
+        // 1. 중복 제거 및 최신화 (ZSet의 add는 기존 멤버가 있으면 Score만 갱신함)
         redisTemplate.opsForZSet().add(key, keyword, now);
 
-        // 5개 초과분 삭제 (index 0부터 -6까지 삭제하여 최신 5개만 남김)
-        redisTemplate.opsForZSet().removeRange(key, 0, -(MAX_SIZE + 1));
+        // 2. 20개 초과분 삭제 (0번부터 -21번까지 삭제하여 상위 20개 유지)
+        Long size = redisTemplate.opsForZSet().size(key);
+        if (size != null && size > MAX_SIZE) {
+            redisTemplate.opsForZSet().removeRange(key, 0, size - MAX_SIZE - 1);
+        }
 
-        // 유효기간 설정
         redisTemplate.expire(key, 30, TimeUnit.DAYS);
     }
 
 
      // 전체 목록 최신순 조회
-    @Transactional(readOnly = true)
-    public GetRecentKeywordResDto getRecentKeywords(String userId) {
-        String key = KEY_PREFIX + userId;
+     @Transactional(readOnly = true)
+     public GetRecentKeywordResDto getRecentKeywords(String userId) {
+         String key = KEY_PREFIX + userId;
 
-        // 1. Redis에서 검색어와 Score(타임스탬프)를 함께 가져옴
-        // ZSet의 Tuple에는 value(keyword)와 score(timestamp)가 들어있음
-        Set<ZSetOperations.TypedTuple<String>> typedTuples =
-                redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, MAX_SIZE - 1);
+         Set<ZSetOperations.TypedTuple<String>> typedTuples =
+                 redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, VIEW_SIZE - 1);
 
-        if (typedTuples == null || typedTuples.isEmpty()) {
-            return new GetRecentKeywordResDto(List.of());
-        }
+         if (typedTuples == null) return new GetRecentKeywordResDto(List.of());
 
-        // Tuple을 RecentDto로 변환
-        List<GetRecentKeywordResDto.RecentDto> recentList = typedTuples.stream()
-                .map(tuple -> {
-                    String keyword = tuple.getValue();
-                    Long timestamp = tuple.getScore().longValue(); // 저장할 때 넣은 System.currentTimeMillis()
+         List<GetRecentKeywordResDto.RecentDto> recentList = typedTuples.stream()
+                 .map(tuple -> {
+                     String keyword = tuple.getValue();
 
-                    // LocalDateTime으로 변환
-                    LocalDateTime createdAt = LocalDateTime.ofInstant(
-                            Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
+                     long timestamp = tuple.getScore().longValue();
+                     LocalDateTime createdAt = LocalDateTime.ofInstant(
+                             Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
 
-                    return new GetRecentKeywordResDto.RecentDto(timestamp, keyword, createdAt);
-                })
-                .toList();
+                     return new GetRecentKeywordResDto.RecentDto(timestamp, keyword, createdAt);
+                 })
+                 .toList();
 
-        return new GetRecentKeywordResDto(recentList);
-    }
+         return new GetRecentKeywordResDto(recentList);
+     }
 
 
     // 개별 검색어 삭제
