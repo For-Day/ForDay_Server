@@ -15,6 +15,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
+import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class FriendService {
     private final FriendRelationRepository friendRelationRepository;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
+    private final S3Util s3Util;
 
     @Transactional
     public AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails user) {
@@ -183,17 +185,10 @@ public class FriendService {
                 .map(dto -> new GetFriendListResDto.UserInfoDto(
                         dto.getUserId(),
                         dto.getNickname(),
-                        toProfileMainResizedUrl(dto.getProfileImageUrl()) // 여기서 변환 처리
+                        s3Util.toProfileMainResizedUrl(dto.getProfileImageUrl()) // 여기서 변환 처리
                 ))
                 .toList();
 
         return new GetFriendListResDto("친구 목록이 성공적으로 조회되었습니다.", updatedList, nextLastUserId, hasNext);
-    }
-
-    private String toProfileMainResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
-            return originalUrl;
-        }
-        return originalUrl.replace("/temp/", "/resized/main/");
     }
 }

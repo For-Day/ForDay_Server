@@ -11,6 +11,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "activity_records")
 @Getter
@@ -46,6 +49,18 @@ public class ActivityRecord extends BaseTimeEntity {
     private RecordVisibility visibility;
 
     private String imageUrl;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ActivityRecordReaction> reactions = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "reportedRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ActivityRecordReport> reports = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ActivityRecordScarp> scraps = new ArrayList<>();
 
     public void updateVisibility(RecordVisibility newVisibility) {
         this.visibility = newVisibility;

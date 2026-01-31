@@ -99,4 +99,14 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
                                                            @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordService.reportActivityRecord(recordId, reqDto, user);
     }
+
+    @Override
+    @PostMapping("/stories")
+    public GetActivityRecordByStoryResDto getActivityRecordByStory(@RequestParam(name = "hobbyId", required = false) Long hobbyId,
+                                                                   @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
+                                                                   @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
+                                                                   @RequestParam(name = "keyword", required = false) String keyword,
+                                                                   @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordService.getActivityRecordByStory(hobbyId, lastRecordId, size, keyword, user);
+    }
 }
