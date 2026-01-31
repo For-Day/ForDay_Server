@@ -309,7 +309,7 @@ public class ActivityRecordService {
         });
 
         Long lastId = recordDtos.isEmpty() ? null : recordDtos.get(recordDtos.size() - 1).getRecordId();
-        return new GetActivityRecordByStoryResDto(lastId, recordDtos, hasNext);
+        return new GetActivityRecordByStoryResDto(targetHobby.getId(), lastId, recordDtos, hasNext);
     }
 
     private Hobby getLatestInProgressHobby(User user) {

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/records")
+@RequestMapping("/recent")
 public class RecentController {
     private final RecentService recentService;
 
