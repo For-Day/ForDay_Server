@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.recent.controller;
 
+import com.example.ForDay.domain.recent.dto.response.DeleteAllRecentKeywordResDto;
 import com.example.ForDay.domain.recent.dto.response.GetRecentKeywordResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,4 +27,16 @@ public interface RecentControllerDocs {
     })
     GetRecentKeywordResDto getRecentKeyword(@AuthenticationPrincipal CustomUserDetails user);
 
+    @Operation(
+            summary = "최근 검색어 전체 삭제",
+            description = "사용자의 최근 검색어 목록을 모두 삭제합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "삭제 성공",
+                    content = @Content(schema = @Schema(implementation = DeleteAllRecentKeywordResDto.class))
+            )
+    })
+    DeleteAllRecentKeywordResDto deleteAllRecentKeyword(@AuthenticationPrincipal CustomUserDetails user);
 }

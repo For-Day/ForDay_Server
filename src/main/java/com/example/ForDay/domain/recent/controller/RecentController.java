@@ -12,19 +12,22 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/recent")
-public class RecentController {
+public class RecentController implements RecentControllerDocs{
     private final RecentService recentService;
 
+    @Override
     @GetMapping
     public GetRecentKeywordResDto getRecentKeyword(@AuthenticationPrincipal CustomUserDetails user) {
         return recentService.getRecentKeyword(user);
     }
 
+    @Override
     @DeleteMapping
     public DeleteAllRecentKeywordResDto deleteAllRecentKeyword(@AuthenticationPrincipal CustomUserDetails user) {
         return recentService.deleteAllRecentKeyword(user);
     }
 
+    @Override
     @DeleteMapping("/{recentId}")
     public DeleteRecentKeywordResDto deleteRecentKeyword(@RequestParam(name = "recentId") Long recentId,
                                                          @AuthenticationPrincipal CustomUserDetails user) {
