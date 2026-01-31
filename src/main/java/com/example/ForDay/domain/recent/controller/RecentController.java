@@ -29,7 +29,7 @@ public class RecentController implements RecentControllerDocs{
 
     @Override
     @DeleteMapping("/{recentId}")
-    public DeleteRecentKeywordResDto deleteRecentKeyword(@RequestParam(name = "recentId") Long recentId,
+    public DeleteRecentKeywordResDto deleteRecentKeyword(@PathVariable(name = "recentId") Long recentId,
                                                          @AuthenticationPrincipal CustomUserDetails user) {
         return recentService.deleteRecentKeyword(recentId, user);
     }
