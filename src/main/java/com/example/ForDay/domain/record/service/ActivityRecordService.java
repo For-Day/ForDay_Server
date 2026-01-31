@@ -275,8 +275,8 @@ public class ActivityRecordService {
         }
 
         Hobby targetHobby = (hobbyId != null)
-                ?  hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_HOBBY_OWNER))
+                ?  hobbyRepository.findByIdAndUserIdAndStatus(hobbyId, currentUser.getId(), HobbyStatus.IN_PROGRESS)
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND)) // 진행 중인 취미 찾도록
                 : getLatestInProgressHobby(currentUser);
 
         if(targetHobby == null) return null;

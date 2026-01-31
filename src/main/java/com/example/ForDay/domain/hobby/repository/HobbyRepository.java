@@ -32,4 +32,6 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
     Optional<Integer> sumCurrentStickerNumByUserId(@Param("userId") String userId);
 
     List<Hobby> findAllByUserIdAndStatusOrderByIdDesc(String currentUserId, HobbyStatus hobbyStatus);
+
+    Optional<Hobby> findByIdAndUserIdAndStatus(Long hobbyId, String id, HobbyStatus hobbyStatus);
 }
