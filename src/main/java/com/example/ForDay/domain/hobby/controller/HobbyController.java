@@ -168,6 +168,7 @@ public class HobbyController implements HobbyControllerDocs {
         return activityService.collectActivity(hobbyId, activityId, user);
     }
 
+    @Override
     @GetMapping("/stories/tabs")
     public GetHobbyStoryTabsResDto getHobbyStoryTabs(@AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getHobbyStoryTabs(user);
