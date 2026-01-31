@@ -51,6 +51,9 @@ public class ActivityRecord extends BaseTimeEntity {
     private String imageUrl;
 
     @Builder.Default
+    private boolean deleted = false;
+
+    @Builder.Default
     @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ActivityRecordReaction> reactions = new ArrayList<>();
 
@@ -72,5 +75,12 @@ public class ActivityRecord extends BaseTimeEntity {
         this.memo = memo;
         this.visibility = visibility;
         this.imageUrl = imageUrl;
+    }
+
+    public void deleteRecord() {
+        this.sticker = null;
+        this.memo = null;
+        this.imageUrl = null;
+        this.deleted = true;
     }
 }

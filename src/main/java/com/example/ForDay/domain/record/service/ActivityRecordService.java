@@ -197,8 +197,14 @@ public class ActivityRecordService {
         String currentUserId = currentUser.getId();
         ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        activityRecordRepository.delete(activityRecord);
-        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId());
+        // 이미 삭제된 경우 예외 처리
+        if(activityRecord.isDeleted()) {
+            throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
+        }
+        String deleteImageUrl = activityRecord.getImageUrl();
+        activityRecord.deleteRecord();
+
+        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
     }
 
     @Transactional
