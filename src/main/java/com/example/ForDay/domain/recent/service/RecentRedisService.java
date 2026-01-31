@@ -23,6 +23,17 @@ public class RecentRedisService {
     private static final int MAX_SIZE = 20; // 최대 20개 유지
     private static final int VIEW_SIZE = 5;
 
+    @Transactional(readOnly = true)
+    public boolean existsByRecentId(String userId, Long recentId) {
+        String key = KEY_PREFIX + userId;
+
+        // score(timestamp) 범위 조회를 통해 개수 확인 (동일 score가 있는지 체크)
+        Long count = redisTemplate.opsForZSet().count(key, (double) recentId, (double) recentId);
+
+        return count != null && count > 0;
+    }
+
+    @Transactional
     public void createRecentKeyword(String userId, String keyword) {
         String key = KEY_PREFIX + userId; // key 생성
         double now = (double) System.currentTimeMillis();
@@ -38,7 +49,6 @@ public class RecentRedisService {
 
         redisTemplate.expire(key, 30, TimeUnit.DAYS);
     }
-
 
      // 전체 목록 최신순 조회
      @Transactional(readOnly = true)
@@ -64,7 +74,6 @@ public class RecentRedisService {
 
          return new GetRecentKeywordResDto(recentList);
      }
-
 
     // 개별 검색어 삭제
     public Long deleteRecentKeyword(String userId, Long recentId) {

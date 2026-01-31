@@ -4,6 +4,8 @@ import com.example.ForDay.domain.recent.dto.response.DeleteAllRecentKeywordResDt
 import com.example.ForDay.domain.recent.dto.response.DeleteRecentKeywordResDto;
 import com.example.ForDay.domain.recent.dto.response.GetRecentKeywordResDto;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +36,13 @@ public class RecentService {
     @Transactional
     public DeleteRecentKeywordResDto deleteRecentKeyword(Long recentId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        Long deletedId = recentRedisService.deleteRecentKeyword(currentUser.getId(), recentId);
+        String currentUserId = currentUser.getId();
+
+        if(!recentRedisService.existsByRecentId(currentUserId, recentId)) {
+            throw new CustomException(ErrorCode.KEYWORD_NOT_FOUND);
+        }
+
+        Long deletedId = recentRedisService.deleteRecentKeyword(currentUserId, recentId);
         return new DeleteRecentKeywordResDto("개별 검색어가 삭제되었습니다.", deletedId);
     }
 }
