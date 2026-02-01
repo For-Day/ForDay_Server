@@ -166,7 +166,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     @Override
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
             Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
-            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds, List<Long> reportedRecordIds, StoryFilterType storyFilterType) {
+            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds,
+            List<Long> reportedRecordIds, StoryFilterType storyFilterType) {
 
         return queryFactory
                 .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
@@ -190,44 +191,44 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .join(record.activity, activity)
                 .join(record.user, user)
                 .where(
-                        record.hobby.hobbyInfoId.eq(hobbyInfoId),      // 1. 대상 취미 필터링
-                        record.user.id.ne(currentUserId),       // 2. 자신의 기록 제외
-                        ltLastRecordId(lastRecordId),           // 3. No-offset 페이징
-                        record.user.deleted.isFalse(),          // 4. 탈퇴한 유저 제외
-                        notInBlockList(blockFriendIds),         // 5. 차단 관계 유저 제외 (방어 로직)
+                        record.hobby.hobbyInfoId.eq(hobbyInfoId),
+                        record.user.id.ne(currentUserId),
+                        ltLastRecordId(lastRecordId),
+                        record.user.deleted.isFalse(),
+                        record.deleted.isFalse(), // Soft Delete 필터 추가
+                        notInBlockList(blockFriendIds),
                         notInReportedList(reportedRecordIds),
-                        containsKeyword(keyword),               // 6. 키워드 검색 추가
-                        applyStoryFilter(storyFilterType, myFriendIds) // 7. filterType에 따른 동적 로직 구현
+                        containsKeyword(keyword),
+
+                        // 핵심: 기존의 잘 되던 로직을 type 조건에 따라 분기
+                        getVisibilityCondition(storyFilterType, myFriendIds)
                 )
                 .orderBy(record.id.desc())
                 .limit(size)
                 .fetch();
     }
 
-    private BooleanExpression applyStoryFilter(StoryFilterType type, List<String> myFriendIds) {
+    /**
+     * 공개 범위 조건 (기존 성공 로직 기반)
+     */
+    private BooleanExpression getVisibilityCondition(StoryFilterType type, List<String> myFriendIds) {
+        // 1. 친구 필터일 때: PUBLIC 제외, 오직 내 친구의 FRIEND 글만
         if (type == StoryFilterType.MY_FRIEND) {
-            // [MY_FRIEND] 친구 공개인 게시글 중, 작성자가 내 친구인 경우만 조회 (PUBLIC 제외)
             return record.visibility.eq(RecordVisibility.FRIEND)
                     .and(record.user.id.in(myFriendIds));
         }
 
-        if (type == StoryFilterType.HOT) {
-            // [HOT] 나중에 구현 예정 (현재는 전체 조회와 동일하게 처리하거나 빈 조건 반환)
-            return record.visibility.eq(RecordVisibility.PUBLIC)
-                    .or(record.visibility.eq(RecordVisibility.FRIEND).and(record.user.id.in(myFriendIds)));
-        }
-
-        // [ALL] 기본 전체 조회: PUBLIC 전체 + FRIEND 중 내 친구인 것
+        // 2. ALL 또는 HOT (또는 null): 기존에 잘 되던 로직 그대로 사용 (괄호 처리 명시)
         return record.visibility.eq(RecordVisibility.PUBLIC)
-                .or(record.visibility.eq(RecordVisibility.FRIEND).and(record.user.id.in(myFriendIds)));
+                .or(record.visibility.eq(RecordVisibility.FRIEND)
+                        .and(record.user.id.in(myFriendIds)));
     }
 
     private BooleanExpression notInReportedList(List<Long> reportedRecordIds) {
-        if (reportedRecordIds == null || reportedRecordIds.isEmpty()) {
-            return null;
-        }
+        if (reportedRecordIds == null || reportedRecordIds.isEmpty()) return null;
         return record.id.notIn(reportedRecordIds);
     }
+
 
     private BooleanExpression notInBlockList(List<String> blockFriendIds) {
         return (blockFriendIds == null || blockFriendIds.isEmpty())

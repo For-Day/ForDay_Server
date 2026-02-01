@@ -90,7 +90,7 @@ class ActivityRecordScrapRepositoryImplTest {
         // getOtherScrapList 호출
         List<GetUserScrapListResDto.ScrapDto> result = activityRecordScrapRepository.getOtherScrapList(
                 null, 10, userB.getId(), userA.getId(), myFriendIds, blockFriendIds,
-                reportedRecordIds);
+                List.of());
 
         // 6. 결과 검증 (기록1, 기록3, 기록4만 조회되어야 함)
         assertEquals(3, result.size());
