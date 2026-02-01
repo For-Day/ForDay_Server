@@ -46,7 +46,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .select(Projections.constructor(
                         GetStickerInfoResDto.StickerDto.class,
                         record.id,
-                        record.sticker
+                        record.sticker,
+                        record.deleted
                 ))
                 .from(record)
                 .where(

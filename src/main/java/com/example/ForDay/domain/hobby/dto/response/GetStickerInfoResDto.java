@@ -27,5 +27,6 @@ public class GetStickerInfoResDto {
     public static class StickerDto {
         private Long activityRecordId;
         private String sticker;
+        private boolean deleted;
     }
 }
