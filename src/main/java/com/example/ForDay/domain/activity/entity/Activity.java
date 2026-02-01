@@ -55,4 +55,10 @@ public class Activity extends BaseTimeEntity {
     public boolean isDeletable() {
         return collectedStickerNum == 0; // 해당 활동에 대한 활동 기록이 없으면 삭제 가능
     }
+
+    public void deleteRecord() {
+        if(collectedStickerNum > 0) {
+            this.collectedStickerNum--;
+        }
+    }
 }

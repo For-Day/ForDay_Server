@@ -85,6 +85,18 @@ public class HobbyService {
             throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
         }
 
+        // 중복 취미 생성 체크
+        if (reqDto.getHobbyInfoId() != null && reqDto.getHobbyInfoId() >= 1) {
+            if (hobbyRepository.existsByHobbyInfoId(reqDto.getHobbyInfoId())) {
+                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
+            }
+        }
+        if (StringUtils.hasText(reqDto.getHobbyName())) {
+            if (hobbyRepository.existsByHobbyName(reqDto.getHobbyName())) {
+                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
+            }
+        }
+
         Hobby hobby = Hobby.builder()
                 .user(currentUser)
                 .hobbyInfoId(reqDto.getHobbyInfoId())
@@ -287,12 +299,15 @@ public class HobbyService {
                 ? getHobby(hobbyId)
                 : getLatestInProgressHobby(currentUser);
 
-        if(targetHobby == null) return null;
+        if(targetHobby == null) {
+            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
+        }
 
         GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfo(targetHobby.getId(), currentUser);
 
-        if (response == null) return null;
-
+        if (response == null) {
+            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
+        }
         // AI 관련 로직 처리
         String socialId = currentUser.getSocialId();
         String userSummaryText = "";

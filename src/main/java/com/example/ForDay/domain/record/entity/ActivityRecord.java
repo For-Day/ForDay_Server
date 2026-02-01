@@ -38,7 +38,7 @@ public class ActivityRecord extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String sticker;
 
     @Column(length = 100)
@@ -49,6 +49,9 @@ public class ActivityRecord extends BaseTimeEntity {
     private RecordVisibility visibility;
 
     private String imageUrl;
+
+    @Builder.Default
+    private boolean deleted = false;
 
     @Builder.Default
     @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -72,5 +75,12 @@ public class ActivityRecord extends BaseTimeEntity {
         this.memo = memo;
         this.visibility = visibility;
         this.imageUrl = imageUrl;
+    }
+
+    public void deleteRecord() {
+        this.sticker = null;
+        this.memo = null;
+        this.imageUrl = null;
+        this.deleted = true;
     }
 }

@@ -35,4 +35,9 @@ public class TodayRecordRedisService {
         LocalDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay();
         return Duration.between(now, midnight).getSeconds();
     }
+
+    public void deleteTodayRecordKey(String userId, Long hobbyId) {
+        String key = createRecordKey(userId, hobbyId);
+        redisTemplate.delete(key);
+    }
 }

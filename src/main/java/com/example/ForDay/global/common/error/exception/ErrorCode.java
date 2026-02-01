@@ -47,6 +47,7 @@ public enum ErrorCode {
     INVALID_HOBBY_EXTENSION_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 취미 기간 설정 타입입니다."),
     INVALID_PAGE_REQUEST(HttpStatus.BAD_REQUEST,"요청한 페이지가 존재하지 않습니다."),
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
+    ALREADY_HAVE_HOBBY(HttpStatus.CONFLICT, "이미 가지고 있는 취미입니다."),
 
     // 활동 관련
     ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."),
@@ -65,11 +66,15 @@ public enum ErrorCode {
     REACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 리액션을 찾을 수 없거나 이미 취소되었습니다."),
     DUPLICATE_SCRAP(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 스크랩을 하셨습니다."),
     ALREADY_RECORD_REPORTED(HttpStatus.CONFLICT, "해당 기록에 이미 신고하였습니다."),
+    ALREADY_DELETED_RECORD(HttpStatus.BAD_REQUEST,"이미 삭제된 기록입니다."),
 
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
     DUPLICATE_HOBBY_REQUEST(HttpStatus.CONFLICT, "같은 취미에 대한 충복 요청입니다. (닉네임 설정을 완료하세요.)"),
     INVALID_IMAGE_SOURCE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 리소스입니다."),
+    S3_DELETE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S3 이미지 삭제 중 오류가 발생했습니다."),
+
+    INVALID_IMAGE_URL(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 URL입니다."),
 
     // 친구 관련
     CANNOT_FOLLOW_SELF(HttpStatus.BAD_REQUEST, "자기 자신에게 친구 맺기를 할 수 없습니다."),
@@ -77,7 +82,8 @@ public enum ErrorCode {
     CANNOT_BLOCK_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 차단할 수 없습니다."),
 
     // 검색어 관련
-    KEYWORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 검색어입니다.");
+    KEYWORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 검색어입니다."),
+    ;
 
     private final HttpStatus status;
     private final String message;
