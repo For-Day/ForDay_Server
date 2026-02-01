@@ -37,15 +37,18 @@ import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.parameters.P;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ActivityRecordService {
@@ -230,6 +233,25 @@ public class ActivityRecordService {
 
         } else {
             activityRecord.deleteRecord();
+        }
+
+        if (deleteImageUrl != null) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        String deletedImageKey = s3Service.extractKeyFromFileUrl(deleteImageUrl);
+                        String feedThumbResizedUrl = s3Util.toFeedThumbResizedUrl(deleteImageUrl);
+                        String feedThumbResizedKey = s3Service.extractKeyFromFileUrl(feedThumbResizedUrl);
+
+                        s3Service.deleteByKey(deletedImageKey);
+                        s3Service.deleteByKey(feedThumbResizedKey);
+
+                    } catch (Exception e) {
+                        log.error("S3 파일 삭제 실패 (DB는 정상 삭제됨): {}", deleteImageUrl, e);
+                    }
+                }
+            });
         }
 
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
