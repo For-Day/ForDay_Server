@@ -22,14 +22,18 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -132,44 +136,50 @@ public class UserService {
     @Transactional
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        String newImageUrl = reqDto.getProfileImageUrl(); // 새로 설정하는 원본 url
-        String resizedImageUrl = s3Util.toProfileMainResizedUrl(newImageUrl); // 새로 설정하는 리사이즈 url
+        String newImageUrl = reqDto.getProfileImageUrl();
 
-        // 원본이 그대로 저장되므로 db에도 원본이 url이 이미 있는지 확인
         if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
             return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
-        // 새로 업데이트 하는 경우 기존 url 삭제
-        String oldImageUrl = currentUser.getProfileImageUrl();
-        if (oldImageUrl != null && !oldImageUrl.isBlank()) {
-            String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
-            String oldMainResizedUrl = s3Util.toProfileMainResizedUrl(oldImageUrl);
-            String oldMainResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
-
-            //String oldListResizedUrl = toProfileListResizedUrl(oldImageUrl);
-            //String oldListResizedKey = s3Service.extractKeyFromFileUrl(oldListResizedUrl);
-
-            if (s3Service.existsByKey(oldKey)) { // 원래 원본 이미지 url 삭제
-                s3Service.deleteByKey(oldKey);
-            }
-            if(s3Service.existsByKey(oldMainResizedKey)) { // 원래 리사이즈 이미지 url 삭제
-                s3Service.deleteByKey(oldMainResizedKey);
-            }
-            /*if(s3Service.existsByKey(oldListResizedKey)) {
-                s3Service.deleteByKey(oldListResizedKey);
-            }*/
-        }
-
-        String newKey = s3Service.extractKeyFromFileUrl(newImageUrl); // 새로 설정하는 원본 key
-        String resizedKey = s3Service.extractKeyFromFileUrl(resizedImageUrl); // 새로 설정하는 resize key
-        if (!s3Service.existsByKey(newKey) && !s3Service.existsByKey(resizedKey)) {
+        String newKey = s3Service.extractKeyFromFileUrl(newImageUrl);
+        if (!s3Service.existsByKey(newKey)) {
             throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
         }
 
-        currentUser.updateProfileImage(newImageUrl); // 원본 url을 db에 저장 사용 목적에 따라 url을 바꿔서 사용
+        String oldImageUrl = currentUser.getProfileImageUrl();
+
+        currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
-        return new SetUserProfileImageResDto(s3Service.createFileUrl(resizedKey), "프로필 이미지가 성공적으로 변경되었습니다.");
+
+        if (StringUtils.hasText(oldImageUrl)) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        // 원본 키
+                        String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
+                        // 리사이즈(Main) 키
+                        String oldMainResizedUrl = s3Util.toProfileMainResizedUrl(oldImageUrl);
+                        String oldMainResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
+                        // 리사이즈(List) 키
+                        String oldListResizedUrl = s3Util.toProfileListResizedUrl(oldImageUrl);
+                        String oldListResizedKey = s3Service.extractKeyFromFileUrl(oldListResizedUrl);
+
+                        s3Service.deleteByKey(oldKey);
+                        s3Service.deleteByKey(oldMainResizedKey);
+                        s3Service.deleteByKey(oldListResizedKey);
+
+                    } catch (Exception e) {
+                        log.error("기존 프로필 이미지 S3 삭제 실패: {}", oldImageUrl, e);
+                    }
+                }
+            });
+        }
+
+        // 응답은 메인 리사이즈 URL로 반환
+        String mainResizedUrl = s3Util.toProfileMainResizedUrl(newImageUrl);
+        return new SetUserProfileImageResDto(mainResizedUrl, "프로필 이미지가 성공적으로 변경되었습니다.");
     }
 
     @Transactional(readOnly = true)
