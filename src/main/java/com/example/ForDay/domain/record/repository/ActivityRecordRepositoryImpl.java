@@ -8,23 +8,29 @@ import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryResDto;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
+import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
+import com.querydsl.core.types.Order;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 @RequiredArgsConstructor
 public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCustom {
     private final JPAQueryFactory queryFactory;
+    private final RedisReactionService redisReactionService;
 
     private final QActivityRecord record = QActivityRecord.activityRecord;
     private final QUser user = QUser.user;
@@ -169,6 +175,14 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
             String currentUserId, List<String> myFriendIds, List<String> blockFriendIds,
             List<Long> reportedRecordIds, StoryFilterType storyFilterType) {
 
+        List<Long> hotIds = null;
+        if (storyFilterType == StoryFilterType.HOT) {
+            Double lastScore = (lastRecordId != null) ? redisReactionService.getScore(lastRecordId) : null;
+            // 커서 기반으로 넉넉하게(필터링 대비 size * 2) ID 리스트 확보
+            hotIds = redisReactionService.getHotRecordIdsByCursor(lastScore, lastRecordId, size);
+
+            if (hotIds.isEmpty()) return Collections.emptyList();
+        }
         return queryFactory
                 .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
                         record.id,
@@ -193,24 +207,32 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .where(
                         record.hobby.hobbyInfoId.eq(hobbyInfoId),
                         record.user.id.ne(currentUserId),
-                        ltLastRecordId(lastRecordId),
+                        storyFilterType == StoryFilterType.HOT ? record.id.in(hotIds) : ltLastRecordId(lastRecordId),
                         record.user.deleted.isFalse(),
                         record.deleted.isFalse(), // Soft Delete 필터 추가
                         notInBlockList(blockFriendIds),
                         notInReportedList(reportedRecordIds),
                         containsKeyword(keyword),
-
-                        // 핵심: 기존의 잘 되던 로직을 type 조건에 따라 분기
                         getVisibilityCondition(storyFilterType, myFriendIds)
                 )
-                .orderBy(record.id.desc())
+                .orderBy(createOrderSpecifier(storyFilterType, hotIds))
                 .limit(size)
                 .fetch();
     }
 
-    /**
-     * 공개 범위 조건 (기존 성공 로직 기반)
-     */
+    private OrderSpecifier<?>[] createOrderSpecifier(StoryFilterType type, List<Long> hotIds) {
+        if (type == StoryFilterType.HOT && hotIds != null && !hotIds.isEmpty()) {
+            return new OrderSpecifier<?>[]{
+                    // FIELD 함수를 사용하여 Redis가 정렬한 순서 그대로 DB 결과를 정렬
+                    new OrderSpecifier<>(Order.ASC, Expressions.stringTemplate("FIELD({0}, {1})",
+                            record.id, Expressions.constant(hotIds))),
+                    record.createdAt.desc()
+            };
+        }
+        // 기본값: 최신순
+        return new OrderSpecifier<?>[]{record.id.desc()};
+    }
+
     private BooleanExpression getVisibilityCondition(StoryFilterType type, List<String> myFriendIds) {
         // 1. 친구 필터일 때: PUBLIC 제외, 오직 내 친구의 FRIEND 글만
         if (type == StoryFilterType.MY_FRIEND) {
@@ -218,7 +240,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                     .and(record.user.id.in(myFriendIds));
         }
 
-        // 2. ALL 또는 HOT (또는 null): 기존에 잘 되던 로직 그대로 사용 (괄호 처리 명시)
+        // 2. ALL 또는 HOT
         return record.visibility.eq(RecordVisibility.PUBLIC)
                 .or(record.visibility.eq(RecordVisibility.FRIEND)
                         .and(record.user.id.in(myFriendIds)));

@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.record.repository;
 
+import com.example.ForDay.domain.record.dto.ReactionCountDto;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
@@ -10,6 +11,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,4 +37,10 @@ public interface ActivityRecordReactionRepository extends JpaRepository <Activit
     @Modifying
     @Query("delete from ActivityRecordReaction r where r.activityRecord = :record")
     void deleteByActivityRecord(@Param("record") ActivityRecord record);
+
+    @Query("SELECT new com.example.ForDay.domain.record.dto.ReactionCountDto(r.activityRecord.id, COUNT(r)) " +
+            "FROM ActivityRecordReaction r " +
+            "WHERE r.createdAt >= :start AND r.createdAt <= :end " +
+            "GROUP BY r.activityRecord.id")
+    List<ReactionCountDto> countReactionsByDate(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
