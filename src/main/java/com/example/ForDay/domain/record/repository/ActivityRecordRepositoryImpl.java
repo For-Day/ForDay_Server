@@ -77,7 +77,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         record.user.id.eq(userId),
                         ltLastRecordId(lastRecordId),
                         hobbyIdIn(hobbyIds),
-                        record.visibility.in(visibilities)
+                        record.visibility.in(visibilities),
+                        record.deleted.isFalse() // 삭제 안된 기록만 조회
                 )
                 .orderBy(record.id.desc())
                 .limit(feedSize + 1)
@@ -199,7 +200,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                 .or(
                                         record.visibility.eq(RecordVisibility.FRIEND)
                                                 .and(record.user.id.in(myFriendIds))
-                                )
+                                ),
+                        record.deleted.isFalse() // 8. 삭제되지 않은 기록만 조회
                 )
                 .orderBy(record.id.desc())
                 .limit(size)

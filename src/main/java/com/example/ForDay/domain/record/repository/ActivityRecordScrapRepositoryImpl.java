@@ -33,7 +33,8 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                 .join(scrap.activityRecord, record)
                 .where(
                         ltLastScrapId(lastScrapId),
-                        scrap.user.id.eq(targetUserId)
+                        scrap.user.id.eq(targetUserId),
+                        record.deleted.isFalse()
                 )
                 .orderBy(scrap.id.desc())
                 .limit(size + 1)
@@ -57,8 +58,8 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                         ltLastScrapId(lastScrapId),              // 2. No-offset 페이징
                         record.user.deleted.isFalse(),         // 3. 탈퇴한 유저 제외
                         record.user.id.notIn(blockFriendIds),   // 4. 차단 관계 유저 제외
-
-                        // 5. 공개 범위 및 본인/친구 권한 체크
+                        record.deleted.isFalse(), // 5. 삭제 안된 기록 조회
+                        // 6. 공개 범위 및 본인/친구 권한 체크
                         record.visibility.eq(RecordVisibility.PUBLIC)
                                 .or(
                                         record.visibility.eq(RecordVisibility.FRIEND)
