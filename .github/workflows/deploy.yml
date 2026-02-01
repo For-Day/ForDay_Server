@@ -1,4 +1,4 @@
-name: Deploy To EC2 (Blue-Green via Bastion)
+name: Deploy To EC2 (Blue-Green via SSM)
 
 on:
   push:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  # 1️⃣ BUILD JOB
+  # 1️⃣ BUILD JOB: Spring Boot 빌드 및 ECR 푸시
   build:
     runs-on: ubuntu-latest
     steps:
@@ -44,105 +44,55 @@ jobs:
           docker tag forday:latest 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           docker push 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
-  # 2️⃣ DEPLOY JOB
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Configure SSH (Bastion → Private)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Blue-Green Deploy via SSM
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-          cat <<EOF >> ~/.ssh/config
-          Host bastion
-            HostName ${{ secrets.BASTION_HOST }}
-            User ubuntu
-            IdentityFile ~/.ssh/id_rsa
-            StrictHostKeyChecking no
-
-          Host private
-            HostName ${{ secrets.EC2_PRIVATE_HOST }}
-            User ubuntu
-            IdentityFile ~/.ssh/id_rsa
-            ProxyJump bastion
-            StrictHostKeyChecking no
-          EOF
-
-      - name: Blue-Green Deploy
-        run: |
-          ssh private << 'EOF'
-            set -e
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --comment "Blue-Green Deploy with Docker Prune" \
+            --parameters 'commands=[
+              "set -e",
           
-            echo "▶ Detect current upstream from nginx env file"
-            if [ -f /etc/nginx/conf.d/service-env.inc ]; then
-              CURRENT_VAL=$(grep -oP '(?<=set \$service_url ).*(?=;)' /etc/nginx/conf.d/service-env.inc || echo "blue")
-            else
-              CURRENT_VAL="blue"
-            fi
+              "echo \"▶ 현재 서비스 상태 감지\"",
+              "if [ -f /etc/nginx/conf.d/service-env.inc ]; then CURRENT_VAL=$(grep -oP \"(?<=set \\$service_url ).*(?=;)\" /etc/nginx/conf.d/service-env.inc || echo \"blue\"); else CURRENT_VAL=\"blue\"; fi",
           
-            echo "현재 서비스 상태: $CURRENT_VAL"
+              "if [ \"$CURRENT_VAL\" = \"blue\" ]; then TARGET=\"green\"; TARGET_PORT=8081; OLD_TARGET=\"blue\"; else TARGET=\"blue\"; TARGET_PORT=8080; OLD_TARGET=\"green\"; fi",
+              "echo \"▶ Target: $TARGET (Port: $TARGET_PORT)\"",
           
-            if [ "$CURRENT_VAL" = "blue" ]; then
-              TARGET="green"
-              TARGET_PORT=8081
-              OLD_TARGET="blue"
-            else
-              TARGET="blue"
-              TARGET_PORT=8080
-              OLD_TARGET="green"
-            fi
+              "echo \"▶ ECR 로그인 및 이미지 풀\"",
+              "aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com",
+              "docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
           
-            echo "▶ Deploy target: $TARGET (port: $TARGET_PORT)"
-            echo "▶ Old container: $OLD_TARGET"
+              "echo \"▶ 신규 컨테이너 실행\"",
+              "docker stop $TARGET || true",
+              "docker rm $TARGET || true",
+              "docker run -d --name $TARGET --restart=always -e SPRING_PROFILES_ACTIVE=$TARGET -p $TARGET_PORT:8080 -e SPRING_DATA_REDIS_HOST=172.17.0.1 -e SPRING_DATA_REDIS_PORT=6379 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
           
-            # ECR 로그인
-            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
+              "echo \"▶ 헬스 체크 진행\"",
+              "HEALTH_OK=false",
+              "for i in {1..20}; do if curl -sf http://localhost:$TARGET_PORT/health_check; then HEALTH_OK=true; break; fi; echo \"Checking... $i\"; sleep 5; done",
           
-            echo "▶ Pull image"
-            docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
+              "if [ \"$HEALTH_OK\" != \"true\" ]; then echo \"❌ 배포 실패 (Health Check Failed)\"; docker logs $TARGET; exit 1; fi",
           
-            echo "▶ Stop & remove current $TARGET (if exists)"
-            docker stop $TARGET || true
-            docker rm $TARGET || true
+              "echo \"▶ Nginx 스위칭 및 리로드\"",
+              "echo \"set \\$service_url $TARGET;\" | sudo tee /etc/nginx/conf.d/service-env.inc",
+              "sudo nginx -s reload",
           
-            echo "▶ Run new $TARGET"
-            docker run -d \
-              --name $TARGET \
-              --restart=always \
-              -e SPRING_PROFILES_ACTIVE=$TARGET \
-              -p $TARGET_PORT:8080 \
-              -e SPRING_DATA_REDIS_HOST=172.17.0.1 \
-              -e SPRING_DATA_REDIS_PORT=6379 \
-              839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
+              "echo \"▶ 구 버전 컨테이너 중지 및 이미지 정리\"",
+              "docker stop $OLD_TARGET || true",
+              "docker rm $OLD_TARGET || true",
+              "docker image prune -af",
           
-            echo "▶ Health Check"
-            for i in {1..20}; do
-              if curl -sf http://localhost:$TARGET_PORT/health_check; then
-                echo "Health OK"
-                HEALTH_OK=true
-                break
-              fi
-              echo "Waiting... ($i/20)"
-              sleep 5
-            done
-          
-            if [ "$HEALTH_OK" != "true" ]; then
-              echo "❌ Health check failed. Rollback."
-              docker logs $TARGET
-              exit 1
-            fi
-          
-            echo "▶ Switching Nginx upstream to $TARGET"
-            echo "set \$service_url $TARGET;" | sudo tee /etc/nginx/conf.d/service-env.inc
-          
-            sudo nginx -t
-            sudo nginx -s reload
-          
-            echo "▶ Stopping OLD container: $OLD_TARGET"
-            docker stop $OLD_TARGET || true
-            docker rm $OLD_TARGET || true
-          
-            echo "✅ Deployment complete. Now running: $TARGET"
-          EOF
+              "echo \"✅ 배포 완료!\""
+            ]'
