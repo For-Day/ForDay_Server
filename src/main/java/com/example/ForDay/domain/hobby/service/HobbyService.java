@@ -94,7 +94,7 @@ public class HobbyService {
             }
         }
         if (StringUtils.hasText(reqDto.getHobbyName())) {
-            if (hobbyRepository.existsByHobbyName(reqDto.getHobbyName())) {
+            if (hobbyRepository.existsByHobbyNameAndUserId(reqDto.getHobbyName(), currentUser.getId())) {
                 throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
             }
         }

@@ -46,4 +46,11 @@ public class RedisReactionService {
                 .map(id -> Long.parseLong(id.toString()))
                 .collect(Collectors.toList());
     }
+
+    public Double getScore(Long recordId) {
+        if (recordId == null) return null;
+        Double score = redisObjectTemplate.opsForZSet().score(RANKING_KEY, recordId.toString());
+        // 만약 한 번도 반응이 없어서 Redis에 키가 없다면 점수는 0.0입니다.
+        return (score != null) ? score : 0.0;
+    }
 }

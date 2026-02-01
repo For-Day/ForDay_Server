@@ -39,4 +39,6 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
     boolean existsByHobbyName(String hobbyName);
 
     boolean existsByHobbyInfoIdAndUserId(Long hobbyInfoId, String id);
+
+    boolean existsByHobbyNameAndUserId(String hobbyName, String id);
 }
