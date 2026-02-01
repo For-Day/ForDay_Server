@@ -43,6 +43,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -196,22 +197,57 @@ public class ActivityRecordService {
     public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-        Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
 
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+
+        String oldImageUrl = activityRecord.getImageUrl();
         String newImageUrl = reqDto.getImageUrl();
-        if(Strings.hasText(newImageUrl)) {
-            if(!activityRecord.getImageUrl().equals(newImageUrl)) {
-                // 이미지 수정하는 경우
-                String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
-                if(!s3Service.existsByKey(s3Key)) {
-                    throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-                }
+
+        if (StringUtils.hasText(newImageUrl) && !newImageUrl.equals(oldImageUrl)) {
+            String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
+            if (!s3Service.existsByKey(s3Key)) {
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
             }
-            activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), reqDto.getImageUrl());
-            activityRecordRepository.save(activityRecord);
+            if (StringUtils.hasText(oldImageUrl)) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
+                            // 썸네일 경로도 함께 삭제
+                            String oldThumbUrl = s3Util.toFeedThumbResizedUrl(oldImageUrl);
+                            String oldThumbKey = s3Service.extractKeyFromFileUrl(oldThumbUrl);
+
+                            s3Service.deleteByKey(oldKey);
+                            s3Service.deleteByKey(oldThumbKey);
+                        } catch (Exception e) {
+                            log.error("기존 활동 기록 이미지 S3 삭제 실패: {}", oldImageUrl, e);
+                        }
+                    }
+                });
+            }
         }
-        return new UpdateActivityRecordResDto("활동 기록이 정상적으로 수정되었습니다.", activity.getId(), activity.getContent(), activityRecord.getSticker(), activityRecord.getMemo(), activityRecord.getImageUrl(), activityRecord.getVisibility());
+        activityRecord.updateRecord(
+                activity,
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                newImageUrl
+        );
+
+        return new UpdateActivityRecordResDto(
+                "활동 기록이 정상적으로 수정되었습니다.",
+                activity.getId(),
+                activity.getContent(),
+                activityRecord.getSticker(),
+                activityRecord.getMemo(),
+                activityRecord.getImageUrl(),
+                activityRecord.getVisibility()
+        );
     }
 
     @Transactional
