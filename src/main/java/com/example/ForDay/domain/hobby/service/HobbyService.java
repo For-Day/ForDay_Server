@@ -2,24 +2,22 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.OtherActivity;
-import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
-import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
+import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
-import com.example.ForDay.global.ai.service.AiActivityService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
 import com.example.ForDay.infra.s3.service.S3Service;
@@ -53,9 +51,7 @@ public class HobbyService {
     private final HobbyRepository hobbyRepository;
     private final UserUtil userUtil;
     private final ActivityRepository activityRepository;
-    private final AiActivityService aiActivityService;
     private final AiCallCountService aiCallCountService;
-    private final HobbyInfoRepository hobbyInfoRepository;
     private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
@@ -94,7 +90,7 @@ public class HobbyService {
             }
         }
         if (StringUtils.hasText(reqDto.getHobbyName())) {
-            if (hobbyRepository.existsByHobbyName(reqDto.getHobbyName())) {
+            if (hobbyRepository.existsByHobbyNameAndUserId(reqDto.getHobbyName(), currentUser.getId())) {
                 throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
             }
         }
@@ -746,6 +742,11 @@ public class HobbyService {
             }
 
             String activityRecordImageUrl = activityRecord.getImageUrl();
+
+            if(activityRecordImageUrl == null) {
+                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+            }
+
             String srcKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
 
             // 1. 새로운 커버 이미지 경로(Key) 생성

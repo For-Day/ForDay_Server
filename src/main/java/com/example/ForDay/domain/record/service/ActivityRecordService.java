@@ -70,6 +70,7 @@ public class ActivityRecordService {
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
     private final TodayRecordRedisService todayRecordRedisService;
+    private final RedisReactionService redisReactionService;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -163,6 +164,8 @@ public class ActivityRecordService {
                 .readWriter(false)
                 .build());
 
+        redisReactionService.incrementRankingScore(activityRecord.getId());
+
         return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", type, recordId);
     }
 
@@ -190,6 +193,7 @@ public class ActivityRecordService {
                 .orElseThrow(() -> new CustomException(ErrorCode.REACTION_NOT_FOUND));
 
         recordReactionRepository.delete(reaction);
+        redisReactionService.decrementRankingScore(activityRecord.getId());
         return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", type, recordId);
     }
 
