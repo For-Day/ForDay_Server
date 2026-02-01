@@ -89,7 +89,7 @@ public class HobbyService {
 
         // 중복 취미 생성 체크
         if (reqDto.getHobbyInfoId() != null && reqDto.getHobbyInfoId() >= 1) {
-            if (hobbyRepository.existsByHobbyInfoId(reqDto.getHobbyInfoId())) {
+            if (hobbyRepository.existsByHobbyInfoIdAndUserId(reqDto.getHobbyInfoId(), currentUser.getId())) {
                 throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
             }
         }
