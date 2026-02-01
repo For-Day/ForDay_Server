@@ -38,7 +38,7 @@ public class ActivityRecord extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String sticker;
 
     @Column(length = 100)

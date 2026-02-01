@@ -58,6 +58,9 @@ public class ActivityRecordService {
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final RecentRedisService recentRedisService;
     private final S3Util s3Util;
+    private final ActivityRecordReactionRepository reactionRepository;
+    private final ActivityRecordReportRepository reportRepository;
+    private final ActivityRecordScrapRepository scrapRepository;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -195,12 +198,17 @@ public class ActivityRecordService {
     public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         // 이미 삭제된 경우 예외 처리
         if(activityRecord.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
+        reactionRepository.deleteByActivityRecord(activityRecord); // 반응 삭제
+        reportRepository.deleteByReportedRecord(activityRecord); // 신고 삭제
+        scrapRepository.deleteByActivityRecord(activityRecord); // 스크랩 삭제
+
         String deleteImageUrl = activityRecord.getImageUrl();
         activityRecord.deleteRecord();
 
