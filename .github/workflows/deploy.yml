@@ -44,7 +44,7 @@ jobs:
           docker tag forday:latest 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           docker push 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
-  # 2️⃣ DEPLOY JOB: SSM을 통한 Blue-Green 배포
+  # 2️⃣ DEPLOY JOB: SSM을 통한 Blue-Green 배포 (권한 문제 해결 버전)
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -61,61 +61,60 @@ jobs:
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-            --comment "Final Fixed Switching Logic" \
+            --comment "Final Fixed Switching Logic with Root Shell" \
             --parameters '{
               "commands": [
                 "set -e",
-                "echo \"▶ 현재 상태 감지 중...\"",
+                "echo \"▶ 현재 배포 환경 상태 확인 중...\"",
           
+                "# 변수 파일 부재 시 초기화",
                 "if [ ! -f /etc/nginx/conf.d/service-env.inc ]; then",
-                "  echo \"set \\$service_url blue;\" | sudo tee /etc/nginx/conf.d/service-env.inc",
+                "  sudo sh -c \"echo \"set \\$service_url blue;\" > /etc/nginx/conf.d/service-env.inc\"",
                 "fi",
           
+                "# 현재 어떤 환경이 서비스 중인지 감지",
                 "if grep -q \"green\" /etc/nginx/conf.d/service-env.inc; then",
-                "  CURRENT_VAL=\"green\"",
-                "  TARGET=\"blue\"",
-                "  TARGET_PORT=8080",
-                "  OLD_TARGET=\"green\"",
+                "  TARGET=\"blue\"; TARGET_PORT=8080; OLD_TARGET=\"green\";",
                 "else",
-                "  CURRENT_VAL=\"blue\"",
-                "  TARGET=\"green\"",
-                "  TARGET_PORT=8081",
-                "  OLD_TARGET=\"blue\"",
+                "  TARGET=\"green\"; TARGET_PORT=8081; OLD_TARGET=\"blue\";",
                 "fi",
           
-                "echo \"현재 구동 중: $CURRENT_VAL -> 신규 배포 대상: $TARGET (포트: $TARGET_PORT)\"",
+                "echo \"결정된 타겟 환경: $TARGET (포트: $TARGET_PORT)\"",
           
                 "echo \"▶ ECR 로그인 및 신규 이미지 풀\"",
                 "aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com",
                 "docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
           
-                "echo \"▶ $TARGET 컨테이너 교체 작업\"",
+                "echo \"▶ $TARGET 컨테이너 교체 작업 시작\"",
                 "docker stop $TARGET || true",
                 "docker rm $TARGET || true",
                 "docker run -d --name $TARGET --restart=always -e SPRING_PROFILES_ACTIVE=$TARGET -p $TARGET_PORT:8080 -e SPRING_DATA_REDIS_HOST=172.17.0.1 -e SPRING_DATA_REDIS_PORT=6379 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
           
-                "echo \"▶ 신규 서버 헬스 체크 진행\"",
+                "echo \"▶ 신규 서버 애플리케이션 헬스 체크 중...\"",
                 "HEALTH_OK=false",
                 "for i in {1..20}; do",
                 "  if curl -sf http://localhost:$TARGET_PORT/health_check; then",
+                "    echo \"✅ Health Check 성공!\"",
                 "    HEALTH_OK=true",
                 "    break",
                 "  fi",
-                "  echo \"애플리케이션 구동 대기 중... ($i/20)\"",
+                "  echo \"구동 대기 중... ($i/20)\"",
                 "  sleep 5",
                 "done",
           
                 "if [ \"$HEALTH_OK\" = \"true\" ]; then",
-                "  echo \"▶ Nginx 트래픽 스위칭: $TARGET\"",
-                "  echo \"set \\$service_url $TARGET;\" | sudo tee /etc/nginx/conf.d/service-env.inc",
+                "  echo \"▶ Nginx 트래픽 스위칭 실행: $TARGET\"",
+                "  # 권한 문제를 해결하기 위해 sh -c로 파일 직접 쓰기",
+                "  sudo sh -c \"echo \\\"set \\$service_url $TARGET;\\\" > /etc/nginx/conf.d/service-env.inc\"",
                 "  sudo nginx -t && sudo nginx -s reload",
-                "  echo \"▶ 이전 버전($OLD_TARGET) 제거 중\"",
+                "  ",
+                "  echo \"▶ 구버전 컨테이너($OLD_TARGET) 정리\"",
                 "  docker stop $OLD_TARGET || true",
                 "  docker rm $OLD_TARGET || true",
                 "  docker image prune -af",
-                "  echo \"✅ 배포 성공! 현재 운용 모드: $TARGET\"",
+                "  echo \"✅ 모든 배포 단계 완료! 현재 서비스 중인 환경: $TARGET\"",
                 "else",
-                "  echo \"❌ 헬스 체크 실패로 배포를 중단합니다.\"",
+                "  echo \"❌ 헬스 체크 실패. 배포를 중단하고 롤백을 유지합니다.\"",
                 "  exit 1",
                 "fi"
               ]
