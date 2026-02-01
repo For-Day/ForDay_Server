@@ -746,6 +746,11 @@ public class HobbyService {
             }
 
             String activityRecordImageUrl = activityRecord.getImageUrl();
+
+            if(activityRecordImageUrl == null) {
+                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+            }
+
             String srcKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
 
             // 1. 새로운 커버 이미지 경로(Key) 생성
