@@ -15,7 +15,7 @@ import java.util.Optional;
 public interface ActivityRecordRepositoryCustom {
     List<GetStickerInfoResDto.StickerDto> getStickerInfo(Long hobbyId, Integer page, Integer size, User currentUser);
 
-    List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities);
+    List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities, List<Long> reportedRecordIds);
 
     Optional<RecordDetailQueryDto> findDetailDtoById(Long recordId);
 
@@ -25,5 +25,5 @@ public interface ActivityRecordRepositoryCustom {
 
     Optional<ReportActivityRecordDto> getReportActivityRecord(Long recordId);
 
-    List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(Long hobbyInfoId, Long lastRecordId, Integer size, String keyword, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds);
+    List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(Long hobbyInfoId, Long lastRecordId, Integer size, String keyword, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds, List<Long> reportedRecordIds);
 }

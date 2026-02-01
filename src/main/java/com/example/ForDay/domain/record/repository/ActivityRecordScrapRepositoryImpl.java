@@ -41,7 +41,7 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                 .fetch();
     }
 
-    public List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds) {
+    public List<GetUserScrapListResDto.ScrapDto> getOtherScrapList(Long lastScrapId, Integer size, String targetUserId, String currentUserId, List<String> myFriendIds, List<String> blockFriendIds, List<Long> reportedRecordIds) {
         return queryFactory
                 .select(Projections.constructor(GetUserScrapListResDto.ScrapDto.class,
                         scrap.id,
@@ -67,7 +67,8 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                                                         record.user.id.in(myFriendIds)     // 내 친구이거나
                                                                 .or(record.user.id.eq(currentUserId)) // 나 자신인 경우
                                                 )
-                                )
+                                ),
+                        record.id.notIn(reportedRecordIds) // 7. 내가 신고한 기록은 안보이도록
                 )
                 .orderBy(scrap.id.desc())
                 .limit(size + 1)

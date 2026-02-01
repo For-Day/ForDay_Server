@@ -5,6 +5,7 @@ import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
@@ -47,6 +48,7 @@ public class UserService {
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
+    private final ActivityRecordReportRepository reportRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -225,6 +227,7 @@ public class UserService {
             // 차단 및 탈퇴 체크
             checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
 
+
             visibilities.add(RecordVisibility.PUBLIC);
 
             if (friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(
@@ -233,13 +236,14 @@ public class UserService {
             }
         }
         String targetUserId = targetUser.getId();
+        List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUserId);
 
         Long totalFeedCount = null;
         if(lastRecordId == null) {
             totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetUserId);
         }
 
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUserId, visibilities);
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUserId, visibilities, reportedRecordIds);
 
         boolean hasNext = false;
         if (feedList.size() > feedSize) {
@@ -301,7 +305,8 @@ public class UserService {
         } else {
             List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId());
             List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId());
-            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds);
+            List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUser.getId());
+            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds);
         }
 
         boolean hasNext = false;

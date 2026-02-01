@@ -14,7 +14,6 @@ import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +61,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
 
     @Override
-    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities) {
+    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities, List<Long> reportedRecordIds) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserFeedListResDto.FeedDto.class,
@@ -78,7 +77,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         ltLastRecordId(lastRecordId),
                         hobbyIdIn(hobbyIds),
                         record.visibility.in(visibilities),
-                        record.deleted.isFalse() // 삭제 안된 기록만 조회
+                        record.deleted.isFalse(), // 삭제 안된 기록만 조회
+                        record.id.notIn(reportedRecordIds)
                 )
                 .orderBy(record.id.desc())
                 .limit(feedSize + 1)
@@ -165,7 +165,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     @Override
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
             Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
-            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds) {
+            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds, List<Long> reportedRecordIds) {
 
         return queryFactory
                 .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
@@ -201,7 +201,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                         record.visibility.eq(RecordVisibility.FRIEND)
                                                 .and(record.user.id.in(myFriendIds))
                                 ),
-                        record.deleted.isFalse() // 8. 삭제되지 않은 기록만 조회
+                        record.deleted.isFalse(), // 8. 삭제되지 않은 기록만 조회
+                        record.id.notIn(reportedRecordIds)
                 )
                 .orderBy(record.id.desc())
                 .limit(size)
