@@ -30,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -692,34 +694,45 @@ public class HobbyService {
             Hobby hobby = getHobby(reqDto.getHobbyId());
             verifyHobbyOwner(hobby, currentUser);
 
-            // cover_image/temp/~~~~
             String newCoverImageUrl = reqDto.getCoverImageUrl();
-            // cover_image/resized/thumb/~~~~
-            String resizedCoverImageUrl = s3Util.toCoverMainResizedUrl(newCoverImageUrl);
+            String oldCoverImageUrl = hobby.getCoverImageUrl();
 
-            // S3 존재 여부 검증
+            // 1. 동일 이미지 체크
+            if (Objects.equals(oldCoverImageUrl, newCoverImageUrl)) {
+                return new SetHobbyCoverImageResDto("이미 동일한 이미지로 설정되어 있습니다.", hobby.getId(), null, oldCoverImageUrl);
+            }
+
+            // 2. 새 이미지 유효성 검증
             String newCoverImageKey = s3Service.extractKeyFromFileUrl(newCoverImageUrl);
-            String resizedCoverImageKey = s3Service.extractKeyFromFileUrl(resizedCoverImageUrl);
-            if (!s3Service.existsByKey(newCoverImageKey) && !s3Service.existsByKey(resizedCoverImageKey)) {
+            if (!s3Service.existsByKey(newCoverImageKey)) {
                 throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
             }
 
-            // 기존 url 삭제
-            String oldCoverImageUrl = hobby.getCoverImageUrl();
-            if(oldCoverImageUrl != null && !oldCoverImageUrl.isBlank()) {
-                String oldCoverKey = s3Service.extractKeyFromFileUrl(oldCoverImageUrl);
-                String resizedCoverUrl = s3Util.toCoverMainResizedUrl(oldCoverImageUrl);
-                String resizedCoverKey = s3Service.extractKeyFromFileUrl(resizedCoverUrl);
-                if(s3Service.existsByKey(oldCoverKey)) {
-                    s3Service.deleteByKey(oldCoverKey);
-                }
-                if(s3Service.existsByKey(resizedCoverKey)) {
-                    s3Service.deleteByKey(resizedCoverKey);
-                }
+            // 3. 기존 이미지 삭제
+            if (StringUtils.hasText(oldCoverImageUrl)) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            // 원본 삭제
+                            String oldKey = s3Service.extractKeyFromFileUrl(oldCoverImageUrl);
+                            s3Service.deleteByKey(oldKey);
+
+                            // 리사이즈(thumb) 삭제
+                            String oldResizedUrl = s3Util.toCoverMainResizedUrl(oldCoverImageUrl);
+                            String oldResizedKey = s3Service.extractKeyFromFileUrl(oldResizedUrl);
+                            s3Service.deleteByKey(oldResizedKey);
+                        } catch (Exception e) {
+                            log.error("기존 커버 이미지 S3 삭제 실패: {}", oldCoverImageUrl, e);
+                        }
+                    }
+                });
             }
 
-            hobby.updateCoverImage(newCoverImageUrl); // 원본 url을 db에 저장
-            updatedUrl = hobby.getCoverImageUrl();
+            // 4. DB 업데이트
+            hobby.updateCoverImage(newCoverImageUrl);
+
+            updatedUrl = newCoverImageUrl;
             targetHobbyId = hobby.getId();
         }
         // Case 2: 기존 활동 기록의 사진으로 설정하는 경우
@@ -733,39 +746,46 @@ public class HobbyService {
             }
 
             String activityRecordImageUrl = activityRecord.getImageUrl();
-            String activityRecordKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
+            String srcKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
 
-           /* if (!activityRecordKey.startsWith("activity_record/temp/")) {
-                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
-            }
+            // 1. 새로운 커버 이미지 경로(Key) 생성
+            // activity_record/temp/uuid_name.jpg -> cover_image/temp/uuid_name.jpg
+            String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
+            String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
 
-            String dstKey = activityRecordKey
-                    .replace("activity_record/temp/", "cover_image/resized/thumb/");
+            // 2. S3 내 파일 복사 (원본 보존을 위해 copy 사용)
+            s3Service.copyObject(srcKey, newCoverKey);
 
+            // 3. 람다 호출하여 리사이즈 이미지 생성 (동기 호출)
             Map<String, Object> payload = new HashMap<>();
             payload.put("action", "SET_COVER");
-            payload.put("srcBucket", "forday-s3-bucket");
-            payload.put("dstBucket", "forday-s3-bucket");
-            payload.put("srcKey", activityRecordKey);   // 예: activity_record/temp/uuid_xxx.jpg
-            payload.put("dstKey", dstKey);   // 예: cover_image/resized/thumb/uuid_xxx.jpg
-            payload.put("size", 96);         // 48 표시라면 2배 저장
-            payload.put("format", "jpeg");
+            payload.put("srcKey", newCoverKey);     // 복사된 cover_image/temp 경로 전달
+            payload.put("dstKey", resizedCoverKey); // 생성될 resized 경로 전달
 
             invoker.invokeSync(payload);
 
-            String oldCoverUrl = hobby.getCoverImageUrl();
-            if (oldCoverUrl != null) {
-                String oldKey = s3Service.extractKeyFromFileUrl(oldCoverUrl);
-                if (s3Service.existsByKey(oldKey)) {
-                    s3Service.deleteByKey(oldKey);
-                }
-            }*/
-
+            // 4. 기존 커버 이미지 삭제
             Hobby hobby = activityRecord.getHobby();
-            // createCoverLambda 를 이용하여 /activity_record/temp/ -> /cover_image/resized/thumb
-            hobby.updateCoverImage(activityRecordImageUrl); // 여기도 resize된 url 저장되도록
+            String oldCoverUrl = hobby.getCoverImageUrl();
+            if (StringUtils.hasText(oldCoverUrl)) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        String oldCoverKey = s3Service.extractKeyFromFileUrl(oldCoverUrl);
+                        String resizedUrl = s3Util.toCoverMainResizedUrl(oldCoverUrl);
+                        String resizedKey = s3Service.extractKeyFromFileUrl(resizedUrl);
 
-            updatedUrl = hobby.getCoverImageUrl();
+                        s3Service.deleteByKey(oldCoverKey);
+                        s3Service.deleteByKey(resizedKey);
+                    }
+                });
+            }
+
+            // 5. DB 업데이트 및 결과 반환
+            String newCoverImageUrl = s3Service.createFileUrl(newCoverKey);
+            hobby.updateCoverImage(newCoverImageUrl);
+
+            updatedUrl = newCoverImageUrl;
             targetHobbyId = hobby.getId();
         }
         else {
@@ -776,7 +796,7 @@ public class HobbyService {
                 "대표 이미지가 성공적으로 변경되었습니다.",
                 targetHobbyId,
                 reqDto.getRecordId(),
-                updatedUrl
+                s3Util.toCoverMainResizedUrl(updatedUrl)
         );
     }
 
