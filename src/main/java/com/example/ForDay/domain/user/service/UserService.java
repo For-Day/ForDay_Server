@@ -226,8 +226,6 @@ public class UserService {
 
             // 차단 및 탈퇴 체크
             checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
-
-
             visibilities.add(RecordVisibility.PUBLIC);
 
             if (friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(

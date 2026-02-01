@@ -27,6 +27,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -332,7 +333,7 @@ public class ActivityRecordService {
     }
 
     @Transactional(readOnly = true)
-    public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user) {
+    public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user, StoryFilterType storyFilterType) {
         User currentUser = userUtil.getCurrentUser(user);
 
         if(Strings.hasText(keyword)) {
@@ -354,7 +355,7 @@ public class ActivityRecordService {
         List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId()); // 차단 유저 목록 (조회시 배제)
         List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUser.getId());
 
-        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds);
+        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds, storyFilterType);
 
 
         boolean hasNext = false;

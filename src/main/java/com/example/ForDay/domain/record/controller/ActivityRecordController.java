@@ -7,6 +7,7 @@ import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -106,7 +107,8 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
                                                                    @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
                                                                    @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
                                                                    @RequestParam(name = "keyword", required = false) String keyword,
+                                                                   @RequestParam(name = "storyFilterType", required = false, defaultValue = "ALL") StoryFilterType storyFilterType,
                                                                    @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.getActivityRecordByStory(hobbyId, lastRecordId, size, keyword, user);
+        return activityRecordService.getActivityRecordByStory(hobbyId, lastRecordId, size, keyword, user, storyFilterType);
     }
 }

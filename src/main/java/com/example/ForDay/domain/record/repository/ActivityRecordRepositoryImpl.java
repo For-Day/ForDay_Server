@@ -9,6 +9,7 @@ import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryRes
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
@@ -78,7 +79,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         hobbyIdIn(hobbyIds),
                         record.visibility.in(visibilities),
                         record.deleted.isFalse(), // 삭제 안된 기록만 조회
-                        record.id.notIn(reportedRecordIds)
+                        notInReportedList(reportedRecordIds)
                 )
                 .orderBy(record.id.desc())
                 .limit(feedSize + 1)
@@ -165,7 +166,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     @Override
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
             Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
-            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds, List<Long> reportedRecordIds) {
+            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds, List<Long> reportedRecordIds, StoryFilterType storyFilterType) {
 
         return queryFactory
                 .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
@@ -194,19 +195,38 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         ltLastRecordId(lastRecordId),           // 3. No-offset 페이징
                         record.user.deleted.isFalse(),          // 4. 탈퇴한 유저 제외
                         notInBlockList(blockFriendIds),         // 5. 차단 관계 유저 제외 (방어 로직)
+                        notInReportedList(reportedRecordIds),
                         containsKeyword(keyword),               // 6. 키워드 검색 추가
-                        // 7. 공개 범위 및 본인/친구 권한 체크
-                        record.visibility.eq(RecordVisibility.PUBLIC)
-                                .or(
-                                        record.visibility.eq(RecordVisibility.FRIEND)
-                                                .and(record.user.id.in(myFriendIds))
-                                ),
-                        record.deleted.isFalse(), // 8. 삭제되지 않은 기록만 조회
-                        record.id.notIn(reportedRecordIds)
+                        applyStoryFilter(storyFilterType, myFriendIds) // 7. filterType에 따른 동적 로직 구현
                 )
                 .orderBy(record.id.desc())
                 .limit(size)
                 .fetch();
+    }
+
+    private BooleanExpression applyStoryFilter(StoryFilterType type, List<String> myFriendIds) {
+        if (type == StoryFilterType.MY_FRIEND) {
+            // [MY_FRIEND] 친구 공개인 게시글 중, 작성자가 내 친구인 경우만 조회 (PUBLIC 제외)
+            return record.visibility.eq(RecordVisibility.FRIEND)
+                    .and(record.user.id.in(myFriendIds));
+        }
+
+        if (type == StoryFilterType.HOT) {
+            // [HOT] 나중에 구현 예정 (현재는 전체 조회와 동일하게 처리하거나 빈 조건 반환)
+            return record.visibility.eq(RecordVisibility.PUBLIC)
+                    .or(record.visibility.eq(RecordVisibility.FRIEND).and(record.user.id.in(myFriendIds)));
+        }
+
+        // [ALL] 기본 전체 조회: PUBLIC 전체 + FRIEND 중 내 친구인 것
+        return record.visibility.eq(RecordVisibility.PUBLIC)
+                .or(record.visibility.eq(RecordVisibility.FRIEND).and(record.user.id.in(myFriendIds)));
+    }
+
+    private BooleanExpression notInReportedList(List<Long> reportedRecordIds) {
+        if (reportedRecordIds == null || reportedRecordIds.isEmpty()) {
+            return null;
+        }
+        return record.id.notIn(reportedRecordIds);
     }
 
     private BooleanExpression notInBlockList(List<String> blockFriendIds) {
@@ -228,4 +248,5 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private BooleanExpression ltLastRecordId(Long lastRecordId) {
         return lastRecordId != null ? record.id.lt(lastRecordId) : null;
     }
+
 }

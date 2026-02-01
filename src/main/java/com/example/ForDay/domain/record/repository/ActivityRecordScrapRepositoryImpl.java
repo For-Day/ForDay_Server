@@ -68,11 +68,18 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                                                                 .or(record.user.id.eq(currentUserId)) // 나 자신인 경우
                                                 )
                                 ),
-                        record.id.notIn(reportedRecordIds) // 7. 내가 신고한 기록은 안보이도록
+                        notInReportedList(reportedRecordIds)
                 )
                 .orderBy(scrap.id.desc())
                 .limit(size + 1)
                 .fetch();
+    }
+
+    private BooleanExpression notInReportedList(List<Long> reportedRecordIds) {
+        if (reportedRecordIds == null || reportedRecordIds.isEmpty()) {
+            return null; // 조건 무시
+        }
+        return record.id.notIn(reportedRecordIds);
     }
 
     private BooleanExpression ltLastScrapId(Long lastScrapId) {

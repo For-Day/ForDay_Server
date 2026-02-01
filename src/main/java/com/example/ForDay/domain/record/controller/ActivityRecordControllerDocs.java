@@ -7,6 +7,7 @@ import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -383,6 +384,8 @@ public interface ActivityRecordControllerDocs {
 
             @Parameter(description = "검색 키워드 (입력 시 최근 검색어에 저장됨)", example = "고양이")
             @RequestParam(name = "keyword", required = false) String keyword,
+
+            @RequestParam(name = "storyFilterType", required = false, defaultValue = "ALL") StoryFilterType storyFilterType,
 
             @AuthenticationPrincipal CustomUserDetails user);
 }
