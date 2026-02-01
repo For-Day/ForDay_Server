@@ -8,10 +8,12 @@ permissions:
   contents: read
 
 jobs:
+  # 1️⃣ BUILD JOB: Spring Boot 빌드 및 ECR 푸시
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -42,6 +44,7 @@ jobs:
           docker tag forday:latest 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           docker push 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
+  # 2️⃣ DEPLOY JOB: SSM을 통한 Blue-Green 배포
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -58,44 +61,62 @@ jobs:
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-            --comment "Sync Logic with Bastion Deployment" \
+            --comment "Final Fixed Switching Logic" \
             --parameters '{
               "commands": [
                 "set -e",
-                "echo \"▶ Detect current upstream from nginx env file\"",
-                "if [ -f /etc/nginx/conf.d/service-env.inc ]; then CURRENT_VAL=$(grep -oP \"(?<=set \\$service_url ).*(?=;)\" /etc/nginx/conf.d/service-env.inc || echo \"blue\"); else CURRENT_VAL=\"blue\"; fi",
-                "echo \"현재 서비스 상태: $CURRENT_VAL\"",
+                "echo \"▶ 현재 상태 감지 중...\"",
           
-                "if [ \"$CURRENT_VAL\" = \"blue\" ]; then TARGET=\"green\"; TARGET_PORT=8081; OLD_TARGET=\"blue\"; else TARGET=\"blue\"; TARGET_PORT=8080; OLD_TARGET=\"green\"; fi",
-                "echo \"▶ Deploy target: $TARGET (port: $TARGET_PORT)\"",
-                "echo \"▶ Old container: $OLD_TARGET\"",
+                "if [ ! -f /etc/nginx/conf.d/service-env.inc ]; then",
+                "  echo \"set \\$service_url blue;\" | sudo tee /etc/nginx/conf.d/service-env.inc",
+                "fi",
           
+                "if grep -q \"green\" /etc/nginx/conf.d/service-env.inc; then",
+                "  CURRENT_VAL=\"green\"",
+                "  TARGET=\"blue\"",
+                "  TARGET_PORT=8080",
+                "  OLD_TARGET=\"green\"",
+                "else",
+                "  CURRENT_VAL=\"blue\"",
+                "  TARGET=\"green\"",
+                "  TARGET_PORT=8081",
+                "  OLD_TARGET=\"blue\"",
+                "fi",
+          
+                "echo \"현재 구동 중: $CURRENT_VAL -> 신규 배포 대상: $TARGET (포트: $TARGET_PORT)\"",
+          
+                "echo \"▶ ECR 로그인 및 신규 이미지 풀\"",
                 "aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com",
-                "echo \"▶ Pull image\"",
                 "docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
           
-                "echo \"▶ Stop & remove current $TARGET (if exists)\"",
+                "echo \"▶ $TARGET 컨테이너 교체 작업\"",
                 "docker stop $TARGET || true",
                 "docker rm $TARGET || true",
-          
-                "echo \"▶ Run new $TARGET\"",
                 "docker run -d --name $TARGET --restart=always -e SPRING_PROFILES_ACTIVE=$TARGET -p $TARGET_PORT:8080 -e SPRING_DATA_REDIS_HOST=172.17.0.1 -e SPRING_DATA_REDIS_PORT=6379 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
           
-                "echo \"▶ Health Check\"",
+                "echo \"▶ 신규 서버 헬스 체크 진행\"",
                 "HEALTH_OK=false",
-                "for i in {1..20}; do if curl -sf http://localhost:$TARGET_PORT/health_check; then echo \"Health OK\"; HEALTH_OK=true; break; fi; echo \"Waiting... ($i/20)\"; sleep 5; done",
+                "for i in {1..20}; do",
+                "  if curl -sf http://localhost:$TARGET_PORT/health_check; then",
+                "    HEALTH_OK=true",
+                "    break",
+                "  fi",
+                "  echo \"애플리케이션 구동 대기 중... ($i/20)\"",
+                "  sleep 5",
+                "done",
           
-                "if [ \"$HEALTH_OK\" != \"true\" ]; then echo \"❌ Health check failed. Rollback.\"; docker logs $TARGET; exit 1; fi",
-          
-                "echo \"▶ Switching Nginx upstream to $TARGET\"",
-                "echo \"set \\$service_url $TARGET;\" | sudo tee /etc/nginx/conf.d/service-env.inc",
-                "sudo nginx -t",
-                "sudo nginx -s reload",
-          
-                "echo \"▶ Stopping OLD container: $OLD_TARGET\"",
-                "docker stop $OLD_TARGET || true",
-                "docker rm $OLD_TARGET || true",
-                "docker image prune -af",
-                "echo \"✅ Deployment complete. Now running: $TARGET\""
+                "if [ \"$HEALTH_OK\" = \"true\" ]; then",
+                "  echo \"▶ Nginx 트래픽 스위칭: $TARGET\"",
+                "  echo \"set \\$service_url $TARGET;\" | sudo tee /etc/nginx/conf.d/service-env.inc",
+                "  sudo nginx -t && sudo nginx -s reload",
+                "  echo \"▶ 이전 버전($OLD_TARGET) 제거 중\"",
+                "  docker stop $OLD_TARGET || true",
+                "  docker rm $OLD_TARGET || true",
+                "  docker image prune -af",
+                "  echo \"✅ 배포 성공! 현재 운용 모드: $TARGET\"",
+                "else",
+                "  echo \"❌ 헬스 체크 실패로 배포를 중단합니다.\"",
+                "  exit 1",
+                "fi"
               ]
             }'
