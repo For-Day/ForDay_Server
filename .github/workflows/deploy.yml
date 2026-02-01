@@ -8,10 +8,12 @@ permissions:
   contents: read
 
 jobs:
+  # 1️⃣ BUILD JOB: Spring Boot 빌드 및 ECR 푸시
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -42,6 +44,7 @@ jobs:
           docker tag forday:latest 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           docker push 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
+  # 2️⃣ DEPLOY JOB: SSM 명령 대기 및 로그 확인 포함
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -55,16 +58,18 @@ jobs:
 
       - name: Blue-Green Deploy via SSM
         run: |
-          aws ssm send-command \
+          # 1. 명령 전송 및 Command ID 추출
+          COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --comment "Blue-Green Deployment with Wait and Log Verification" \
             --parameters '{
               "commands": [
                 "set -e",
                 "ENV_FILE=/etc/nginx/conf.d/service-env.inc",
           
                 "echo \"▶ 1. 상태 감지 중...\"",
-                "if [ ! -f $ENV_FILE ]; then sudo sh -c \"echo '\''set \\$service_url blue;'\'' > $ENV_FILE\"; fi",
+                "if [ ! -f $ENV_FILE ]; then sudo sh -c \"printf '\''set \\$service_url blue;'\'' > $ENV_FILE\"; fi",
           
                 "if grep -q \"green\" $ENV_FILE; then",
                 "  TARGET=\"blue\"; TARGET_PORT=8080; OLD_TARGET=\"green\";",
@@ -73,7 +78,7 @@ jobs:
                 "fi",
                 "echo \"현재 서비스: $(cat $ENV_FILE) -> 타겟: $TARGET\"",
 
-                "echo \"▶ 2. 이미지 풀 및 컨테이너 실행 ($TARGET)\"",
+                "echo \"▶ 2. 이미지 교체 중 ($TARGET)...\"",
                 "aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com",
                 "docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest",
                 "docker stop $TARGET || true",
@@ -83,31 +88,47 @@ jobs:
                 "echo \"▶ 3. 헬스 체크 시작 (포트: $TARGET_PORT)\"",
                 "HEALTH_OK=false",
                 "for i in {1..20}; do",
-                "  if curl -sf http://localhost:$TARGET_PORT/health_check; then",
-                "    echo \"✅ Health Check 성공!\"",
+                "  HTTP_CODE=$(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:$TARGET_PORT/health_check || echo \"000\")",
+                "  if [ \"$HTTP_CODE\" = \"200\" ]; then",
+                "    echo \"✅ Health Check 성공 (응답: $HTTP_CODE)\"",
                 "    HEALTH_OK=true",
                 "    break",
                 "  fi",
-                "  echo \"구동 대기 중... ($i/20)\"",
+                "  echo \"대기 중... ($i/20) - 응답: $HTTP_CODE\"",
                 "  sleep 5",
                 "done",
           
                 "if [ \"$HEALTH_OK\" = \"true\" ]; then",
-                "  echo \"▶ 4. Nginx 스위칭 실행 ($TARGET)\"",
-                "  # 싱글 쿼테이션을 활용해 변수 보호",
-                "  sudo sh -c \"echo '\''set \\$service_url $TARGET;'\'' > $ENV_FILE\"",
-                "  echo \"변경 후 파일 내용: $(cat $ENV_FILE)\"",
+                "  echo \"▶ 4. Nginx 트래픽 스위칭 ($TARGET)\"",
+                "  sudo sh -c \"printf '\''set \\$service_url $TARGET;'\'' > $ENV_FILE\"",
+                "  echo \"파일 변경 확인: $(cat $ENV_FILE)\"",
                 "  sudo nginx -t && sudo nginx -s reload",
                 "  ",
-                "  echo \"▶ 5. 구버전 제거 ($OLD_TARGET)\"",
+                "  echo \"▶ 5. 구버전($OLD_TARGET) 정리\"",
                 "  docker stop $OLD_TARGET || true",
                 "  docker rm $OLD_TARGET || true",
                 "  docker image prune -af",
-                "  echo \"✅ 배포 완료!\"",
+                "  echo \"✅ 배포 완료! 현재 구동 환경: $TARGET\"",
                 "else",
-                "  echo \"❌ 헬스 체크 실패!\"",
+                "  echo \"❌ 헬스 체크 실패. 배포를 중단합니다.\"",
                 "  docker logs $TARGET | tail -n 20",
                 "  exit 1",
                 "fi"
               ]
-            }'
+            }' --query "Command.CommandId" --output text)
+
+          echo "✅ 명령 전송 완료 (Command ID: $COMMAND_ID)"
+
+          # 2. EC2 내부 실행이 끝날 때까지 대기
+          echo "⏳ EC2 내부 배포 작업 진행 중... 완료될 때까지 기다립니다."
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+
+          # 3. 실제 EC2에서 발생한 모든 출력(로그)을 화면에 표시
+          echo "📋 EC2 배포 로그 확인:"
+          aws ssm list-command-invocations \
+            --command-id "$COMMAND_ID" \
+            --details \
+            --query "CommandInvocations[0].CommandPlugins[0].Output" \
+            --output text
