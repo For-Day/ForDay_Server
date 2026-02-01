@@ -93,4 +93,10 @@ public class Hobby extends BaseTimeEntity {
     public void updateCoverImage(String coverImageUrl) {
         this.coverImageUrl = coverImageUrl;
     }
+
+    public void deleteRecord() {
+        if(currentStickerNum > 0) {
+            this.currentStickerNum--;
+        }
+    }
 }

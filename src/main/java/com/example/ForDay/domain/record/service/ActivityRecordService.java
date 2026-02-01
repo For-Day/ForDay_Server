@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.entity.Hobby;
@@ -39,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -61,6 +63,7 @@ public class ActivityRecordService {
     private final ActivityRecordReactionRepository reactionRepository;
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
+    private final TodayRecordRedisService todayRecordRedisService;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -205,12 +208,24 @@ public class ActivityRecordService {
         if(activityRecord.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
-        reactionRepository.deleteByActivityRecord(activityRecord); // 반응 삭제
-        reportRepository.deleteByReportedRecord(activityRecord); // 신고 삭제
-        scrapRepository.deleteByActivityRecord(activityRecord); // 스크랩 삭제
+
+        reactionRepository.deleteByActivityRecord(activityRecord);
+        reportRepository.deleteByReportedRecord(activityRecord);
+        scrapRepository.deleteByActivityRecord(activityRecord);
 
         String deleteImageUrl = activityRecord.getImageUrl();
-        activityRecord.deleteRecord();
+
+        boolean isToday = activityRecord.getCreatedAt().toLocalDate().equals(LocalDate.now());
+
+        if (isToday) {
+            activityRecord.getActivity().deleteRecord();
+            activityRecord.getHobby().deleteRecord();
+            todayRecordRedisService.deleteTodayRecordKey(currentUserId, activityRecord.getHobby().getId());
+            activityRecordRepository.delete(activityRecord);
+
+        } else {
+            activityRecord.deleteRecord();
+        }
 
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
     }
