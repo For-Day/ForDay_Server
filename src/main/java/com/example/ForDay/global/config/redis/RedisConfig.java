@@ -51,7 +51,7 @@ public class RedisConfig {
         config.setHostName(host);
         config.setPort(port);
 
-        // 배포 환경(blue, green)에서만 SSL 사용
+       /* // 배포 환경(blue, green)에서만 SSL 사용
         if (profile.equals("blue") || profile.equals("green")) {
             LettuceClientConfiguration clientConfig =
                     LettuceClientConfiguration.builder()
@@ -59,7 +59,7 @@ public class RedisConfig {
                             .build();
 
             return new LettuceConnectionFactory(config, clientConfig);
-        }
+        }*/
 
         return new LettuceConnectionFactory(config);
     }

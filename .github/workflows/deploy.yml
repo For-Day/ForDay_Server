@@ -113,6 +113,8 @@ jobs:
               --restart=always \
               -e SPRING_PROFILES_ACTIVE=$TARGET \
               -p $TARGET_PORT:8080 \
+              -e SPRING_DATA_REDIS_HOST=172.17.0.1 \
+              -e SPRING_DATA_REDIS_PORT=6379 \
               839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           
             echo "▶ Health Check"
