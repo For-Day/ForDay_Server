@@ -106,6 +106,10 @@ public class ActivityRecordService {
         RecordDetailQueryDto recordDetail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
+        if(recordDetail.recordDeleted()) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+
         String currentUserId = userUtil.getCurrentUser(user).getId();
 
         checkBlockedAndDeletedUser(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted());
@@ -136,10 +140,14 @@ public class ActivityRecordService {
     @Transactional
     public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
         ActivityRecord activityRecord = getActivityRecord(recordId);
+
+        if(activityRecord.isDeleted()) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+
         User currentUser = userUtil.getCurrentUser(user);
 
         checkBlockedAndDeletedUser(currentUser.getId(), activityRecord.getUser().getId(), activityRecord.getUser().isDeleted());
-
         validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getUser().getId(), currentUser.getId());
 
         if (recordReactionRepository.existsByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, type)) {
