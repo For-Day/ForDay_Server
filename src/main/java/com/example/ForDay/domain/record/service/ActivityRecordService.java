@@ -37,6 +37,7 @@ import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,6 +70,10 @@ public class ActivityRecordService {
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        if(detail.recordDeleted()) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
         boolean isRecordOwner = Objects.equals(currentUserId, detail.writerId());

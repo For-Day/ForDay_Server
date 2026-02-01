@@ -32,6 +32,7 @@ public interface ActivityRecordReactionRepository extends JpaRepository <Activit
             "FROM ActivityRecordReaction r WHERE r.activityRecord.id = :recordId")
     List<ReactionSummary> findReactionSummariesByRecordId(@Param("recordId") Long recordId);
 
+    @Modifying
     @Query("delete from ActivityRecordReaction r where r.activityRecord = :record")
     void deleteByActivityRecord(@Param("record") ActivityRecord record);
 }

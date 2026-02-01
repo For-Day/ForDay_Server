@@ -17,5 +17,6 @@ public record RecordDetailQueryDto(
         String writerNickname,
         String writerProfileImageUrl,
         boolean writerDeleted,
-        String activityContent
+        String activityContent,
+        boolean recordDeleted
 ) {}
