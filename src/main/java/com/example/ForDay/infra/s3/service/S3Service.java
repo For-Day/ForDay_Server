@@ -3,6 +3,7 @@ package com.example.ForDay.infra.s3.service;
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.Headers;
+import com.amazonaws.services.s3.model.CopyObjectRequest;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.example.ForDay.domain.app.type.ImageUsageType;
 import com.example.ForDay.infra.s3.property.S3Properties;
@@ -103,6 +104,19 @@ public class S3Service {
             return uri.getPath().substring(1); // 앞의 "/" 제거
         } catch (Exception e) {
             throw new IllegalArgumentException("잘못된 S3 파일 URL: " + fileUrl, e);
+        }
+    }
+
+    public void copyObject(String sourceKey, String destinationKey) {
+        try {
+            amazonS3.copyObject(
+                    s3Properties.getBucket(), // sourceBucket
+                    sourceKey,               // sourceKey
+                    s3Properties.getBucket(), // destinationBucket
+                    destinationKey           // destinationKey
+            );
+        } catch (Exception e) {
+            throw new IllegalStateException("S3 파일 복사 실패: " + sourceKey + " -> " + destinationKey, e);
         }
     }
 }

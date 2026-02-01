@@ -203,6 +203,14 @@ public class UserService {
                 .count();
 
         // 커버 사이즈용 이미지 url 반환하도록 나중에 수정하기
+        hobbyList.forEach(hobbyDto -> {
+            String originalUrl = hobbyDto.getThumbnailImageUrl();
+            if (StringUtils.hasText(originalUrl)) {
+                // s3Util을 사용하여 /temp/ -> /resized/thumb/ 경로로 변환
+                String thumbUrl = s3Util.toCoverMainResizedUrl(originalUrl);
+                hobbyDto.setThumbnailImageUrl(thumbUrl);
+            }
+        });
 
         int hobbyCardCount = targetUser.getHobbyCardCount();
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
