@@ -79,7 +79,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
         List<MyHobbySettingResDto.HobbyDto> hobbyDtos = queryFactory
                 .select(Projections.constructor(MyHobbySettingResDto.HobbyDto.class,
                         hobby.id, hobby.hobbyName, hobby.hobbyTimeMinutes,
-                        hobby.executionCount, hobby.goalDays))
+                        hobby.executionCount, hobby.goalDays, hobby.hobbyInfoId))
                 .from(hobby)
                 .where(hobby.user.eq(user), hobby.status.eq(hobbyStatus))
                 .orderBy(hobby.createdAt.desc())
@@ -138,7 +138,8 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                         hobby.id,
                         hobby.hobbyName,
                         hobby.coverImageUrl,
-                        hobby.status
+                        hobby.status,
+                        hobby.hobbyInfoId
                 ))
                 .from(hobby)
                 .where(hobby.user.id.eq(currentUser.getId()))

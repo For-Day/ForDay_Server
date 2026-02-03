@@ -43,8 +43,9 @@ public class SecurityConfig {
                                 "/v3/api-docs.yaml",
                                 "/log-test"
                         ).permitAll()
-                        .requestMatchers("/guest").hasRole("GUEST")
-                        .requestMatchers("/admin").hasRole("ADMIN")
+                        .requestMatchers("/guest-only/**").hasRole("GUEST")
+                        .requestMatchers("/user-only/**").hasRole("USER")
+                        .requestMatchers("/all-members/**").hasAnyRole("GUEST", "USER")
                         .anyRequest().authenticated())
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
