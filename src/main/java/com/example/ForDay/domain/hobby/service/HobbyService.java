@@ -822,8 +822,20 @@ public class HobbyService {
         return new GetHobbyStoryTabsResDto(tabInfos);
     }
 
-    /*@Transactional(readOnly = true)
+    @Transactional(readOnly = true)
     public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
-        hobbyRepository.findByUserIdAndHobbyName();
-    }*/
+        User currentUser = userUtil.getCurrentUser(user);
+        if(hobbyRepository.existsByHobbyNameAndUserId(name, currentUser.getId())) {
+            return new CanCreateHobbyResDto("이미 등록한 취미입니다.", false);
+        }
+        return new CanCreateHobbyResDto("등록 가능한 취미입니다.", true);
+    }
+
+    @Transactional(readOnly = true)
+    public ReCheckHobbyInfoResDto reCheckHobbyInfo(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        List<ReCheckHobbyInfoResDto.HobbyInfoDto> hobbyInfoDtos = hobbyRepository.reCheckHobbyInfo(currentUser.getId());
+
+        return new ReCheckHobbyInfoResDto(hobbyInfoDtos);
+    }
 }
