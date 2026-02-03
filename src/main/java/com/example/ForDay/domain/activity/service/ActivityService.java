@@ -70,7 +70,7 @@ public class ActivityService {
         Hobby hobby = activity.getHobby();
 
         checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
-        todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), hobby.getId());
+
         // 기간 설정 66일 이고 이미 스티커를 다 채운 상황이면 기록 불가
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
 

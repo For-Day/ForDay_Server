@@ -109,7 +109,6 @@ public class AppService {
             throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
         }
 
-        // 2. 일괄 삭제 수행 (에러 방지를 위해 try-catch 권장)
         try {
             for (String key : keysToDelete) {
                 if (key != null) {

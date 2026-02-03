@@ -167,6 +167,7 @@ public class FriendService {
         return new BlockFriendResDto("성공적으로 차단되었습니다.", targetUser.getNickname());
     }
 
+    @Transactional(readOnly = true)
     public GetFriendListResDto getFriendList(CustomUserDetails user, String lastUserId, Integer size) {
         User currentUser = userUtil.getCurrentUser(user);
 
