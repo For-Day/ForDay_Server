@@ -72,7 +72,7 @@ public class AuthService {
         boolean onboardingCompleted = user.isOnboardingCompleted(); // 온보딩 완료 여부
         OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
 
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO, onboardingCompleted, isNicknameSet, dataDto);
+        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO, onboardingCompleted, isNicknameSet, dataDto, user.getNickname());
     }
 
     @Transactional
