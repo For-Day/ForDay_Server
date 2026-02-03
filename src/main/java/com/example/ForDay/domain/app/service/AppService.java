@@ -96,20 +96,19 @@ public class AppService {
         List<String> keysToDelete = new ArrayList<>();
         keysToDelete.add(originalKey);
 
-        if (originalKey.contains("/activity_record")) {
+        if (originalKey.contains("activity_record")) {
             keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toFeedThumbResizedUrl(imageUrl)));
 
-        } else if (originalKey.contains("/profile_image")) {
+        } else if (originalKey.contains("profile_image")) {
             keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileMainResizedUrl(imageUrl))); // 메인
             keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileListResizedUrl(imageUrl))); // 리스트
 
-        } else if (originalKey.contains("/cover_image")) {
+        } else if (originalKey.contains("cover_image")) {
             keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toCoverMainResizedUrl(imageUrl)));
         } else {
             throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
         }
 
-        // 2. 일괄 삭제 수행 (에러 방지를 위해 try-catch 권장)
         try {
             for (String key : keysToDelete) {
                 if (key != null) {

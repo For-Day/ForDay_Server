@@ -29,7 +29,7 @@ public class Activity extends BaseTimeEntity {
     @JoinColumn(name = "user_hobby_id", nullable = false)
     private Hobby hobby;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 25)
     private String content;
 
     private boolean aiRecommended;

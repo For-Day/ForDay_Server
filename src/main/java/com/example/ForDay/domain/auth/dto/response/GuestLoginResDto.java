@@ -32,4 +32,6 @@ public class GuestLoginResDto {
     private boolean nicknameSet;
 
     private OnboardingDataDto onboardingData;
+
+    private String nickname;
 }

@@ -16,7 +16,7 @@ public class RecordActivityReqDto {
     @NotBlank(message = "스티커는 필수입니다.")
     private String sticker;
 
-    @Size(max = 100, message = "메모는 최대 100자까지 입력 가능합니다.")
+    @Size(max = 200, message = "메모는 최대 200자까지 입력 가능합니다.")
     private String memo;
 
     private String imageUrl;

@@ -107,8 +107,9 @@ public class UserService {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
-        User currentUser = userRepository.findBySocialId(user.getUsername());
+        User currentUser = userUtil.getCurrentUser(user);
         currentUser.changeNickname(nickname);
+        userRepository.save(currentUser);
 
         return new NicknameRegisterResDto("사용자 이름이 성공적으로 등록되었습니다.", nickname);
     }
