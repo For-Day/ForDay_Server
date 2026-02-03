@@ -174,12 +174,14 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.getHobbyStoryTabs(user);
     }
 
+    @Override
     @GetMapping("/check")
     public CanCreateHobbyResDto canCreateHobby(@RequestParam(value = "name") String name,
                                                @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.canCreateHobby(name, user);
     }
 
+    @Override
     @GetMapping("/info/re-check")
     public ReCheckHobbyInfoResDto reCheckHobbyInfo(@AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.reCheckHobbyInfo(user);

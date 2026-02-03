@@ -73,7 +73,6 @@ public enum ErrorCode {
     DUPLICATE_HOBBY_REQUEST(HttpStatus.CONFLICT, "같은 취미에 대한 충복 요청입니다. (닉네임 설정을 완료하세요.)"),
     INVALID_IMAGE_SOURCE(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 리소스입니다."),
     S3_DELETE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S3 이미지 삭제 중 오류가 발생했습니다."),
-
     INVALID_IMAGE_URL(HttpStatus.BAD_REQUEST, "유효하지 않은 이미지 URL입니다."),
 
     // 친구 관련
