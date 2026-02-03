@@ -105,7 +105,6 @@ public class FriendService {
         }
 
         // 상대방이 나를 차단했는지 확인
-        // 친구 추가와 동일하게 상대가 나를 차단했다면 정보 노출 방지를 위해 '찾을 수 없음' 처리
         Optional<FriendRelation> blockedByTarget = friendRelationRepository
                 .findByRequesterIdAndTargetUserId(targetUserId, currentUserId);
 
