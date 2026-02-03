@@ -1,11 +1,15 @@
 package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
+import com.example.ForDay.domain.activity.dto.FastAPIHobbyCardReqDto;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
+import com.example.ForDay.domain.activity.dto.response.FastAPIHobbyCardResDto;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
+import com.example.ForDay.domain.hobby.dto.request.FastAPIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
+import com.example.ForDay.domain.hobby.dto.response.FastAPIRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
@@ -25,9 +29,12 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Objects;
 
@@ -44,7 +51,10 @@ public class ActivityService {
     private final HobbyCardRepository hobbyCardRepository;
     private final HobbyRepository hobbyRepository;
     private final FriendRelationRepository friendRelationRepository;
+    private final RestTemplate restTemplate;
 
+    @Value("${fastapi.url}")
+    private String fastApiBaseUrl;
 
     @Transactional
     public RecordActivityResDto recordActivity(
@@ -60,7 +70,7 @@ public class ActivityService {
         Hobby hobby = activity.getHobby();
 
         checkHobbyInProgressStatus(hobby); // 진행 중인 취미에 대해서만 활동 기록 가능
-
+        todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), hobby.getId());
         // 기간 설정 66일 이고 이미 스티커를 다 채운 상황이면 기록 불가
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
 
@@ -169,22 +179,56 @@ public class ActivityService {
     }
 
     private void createHobbyCard(Hobby hobby, User currentUser) {
+        Long hobbyId = hobby.getId();
+
         // fast api 서버와 통신하여 취미 카드 content 생성하기
-        String hobbyCardContent = "취미 카드 내용";
-
-        HobbyCard hobbyCard = HobbyCard.builder()
-                .user(currentUser)
-                .hobby(hobby)
-                .content(hobbyCardContent)
-                .imageUrl(hobby.getCoverImageUrl())
+        FastAPIHobbyCardReqDto requestDto = FastAPIHobbyCardReqDto.builder()
+                .userHobbyId(hobbyId)
                 .build();
-        hobbyCardRepository.save(hobbyCard);
 
-        currentUser.obtainHobbyCard();
+        // 3. FastAPI 호출
+        String url = fastApiBaseUrl + "/ai/hobby-card/content";
+        try {
+            FastAPIHobbyCardResDto response = restTemplate.postForObject(url, requestDto, FastAPIHobbyCardResDto.class);
+
+            if (response == null || response.getContent().isEmpty()) {
+                throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
+            }
+
+            String hobbyCardContent = response.getContent();
+
+            // 취미 카드 전용 url 생성
+            String coverImageUrl = hobby.getCoverImageUrl();
+            String hobbyCardImageUrl = null;
+            if(StringUtils.hasText(coverImageUrl)) {
+                String coverImageKey = s3Service.extractKeyFromFileUrl(coverImageUrl);
+                String hobbyCardImageKey = coverImageKey.replace("cover_image/temp/", "hobby_card/temp/");
+                s3Service.copyObject(coverImageKey, hobbyCardImageKey);
+                hobbyCardImageUrl = s3Service.createFileUrl(hobbyCardImageKey);
+            }
+
+            HobbyCard hobbyCard = HobbyCard.builder()
+                    .user(currentUser)
+                    .hobby(hobby)
+                    .content(hobbyCardContent)
+                    .imageUrl(hobbyCardImageUrl)
+                    .build();
+            hobbyCardRepository.save(hobbyCard);
+
+            currentUser.obtainHobbyCard();
+        } catch (Exception e) {
+            todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), hobby.getId());
+            log.error("[AI-HOBBY-CARD][ERROR] FastAPI 호출 실패: {}", e.getMessage());
+            throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
+        }
     }
 
     private static boolean isCheckStickerFull(Hobby hobby) {
-        return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
+        if (hobby.getCurrentStickerNum() == null || hobby.getGoalDays() == null) {
+            return false;
+        }
+        return Objects.equals(hobby.getCurrentStickerNum().intValue(), STICKER_COMPLETE_COUNT)
+                && Objects.equals(hobby.getGoalDays().intValue(), STICKER_COMPLETE_COUNT);
     }
 
     @Transactional
@@ -270,10 +314,10 @@ public class ActivityService {
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
-        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+        if (friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.ACTIVITY_NOT_FOUND);
         }
         // 타겟유저가 탈퇴한 회원인 경우
-        if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        if (deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
 }

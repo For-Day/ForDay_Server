@@ -41,7 +41,7 @@ public class ActivityRecord extends BaseTimeEntity {
     @Column(length = 20)
     private String sticker;
 
-    @Column(length = 100)
+    @Column(length = 200)
     private String memo;
 
     @Enumerated(EnumType.STRING)
