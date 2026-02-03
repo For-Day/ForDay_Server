@@ -75,7 +75,7 @@ public class HobbyService {
         boolean onboardingCompleted = currentUser.isOnboardingCompleted(); // 온보딩 완료 여부
 
         if (onboardingCompleted && !isNicknameSet) {
-            // 온보딩은 완료 닉네임은 미설정시 (같은 취미에 대한 중복 요청이 있을 것임
+            // 온보딩은 완료 닉네임은 미설정시 (같은 취미에 대한 중복 요청이 있을 것임)
             throw new CustomException(ErrorCode.DUPLICATE_HOBBY_REQUEST);
         }
 
@@ -131,14 +131,12 @@ public class HobbyService {
         verifyHobbyOwner(hobby, currentUser); // hobby의 소유자인지 검증
         checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지 확인
 
-        // 오늘 ai 호출 횟수 조회 (내부 로직에서 3회를 넘어가면 예외 처리됨)
+        // 오늘 ai 호출 횟수 조회
         String socialId = currentUser.getSocialId();
         int currentCount = aiCallCountService.increaseAndGet(socialId, hobbyId);
-
         log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
 
-
-        // 2. FastAPI 요청 객체 생성 (추가 select 없음 - 이미 영속성에 있는 상황)
+        // FastAPI 요청 객체 생성
         FastAPIRecommendReqDto requestDto = FastAPIRecommendReqDto.builder()
                 .userId(userId)
                 .userHobbyId(hobbyId.intValue())
@@ -149,9 +147,9 @@ public class HobbyService {
                 .goalDays(hobby.getGoalDays() != null ? hobby.getGoalDays() : 0)
                 .build();
 
-        // 3. FastAPI 호출
+        // FastAPI 호출
         String url = fastApiBaseUrl + "/ai/activities/recommend";
-        //String url = fastApiBaseUrl + "/activities/recommend";
+
         try {
              FastAPIRecommendResDto response = restTemplate.postForObject(url, requestDto, FastAPIRecommendResDto.class);
 
@@ -173,7 +171,6 @@ public class HobbyService {
 
             }
             userSummaryText += " 포데이 AI가 알맞은 취미 활동을 추천드려요";
-
             return new ActivityAIRecommendResDto("AI가 취미 활동을 추천했습니다.", currentCount, maxCallLimit, userSummaryText, response.getActivities());
 
         } catch (Exception e) {
@@ -276,7 +273,7 @@ public class HobbyService {
 
     @Transactional(readOnly = true)
     public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user, Integer size) {
-        User currentUser = userUtil.getCurrentUser(user); // 쿼리 0회 (이미 필터에서 로드됨)
+        User currentUser = userUtil.getCurrentUser(user);
         log.info("[GetHobbyActivities] 조회 시작 - UserId: {}, HobbyId: {}", currentUser.getId(), hobbyId);
 
         if (!hobbyRepository.existsByIdAndUserId(hobbyId, currentUser.getId())) {
