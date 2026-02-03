@@ -33,6 +33,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -316,7 +318,12 @@ public class HobbyService {
         if (currentCount >= 3) isAiCallRemaining = false;
 
         // 요약 문구 처리 (기록 5개 이상일 때)
-        long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), targetHobby.getId());
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        long recordCount = activityRecordRepository.countByUserIdAndHobbyIdAndCreatedAtAfterAndDeletedFalse(
+                currentUser.getId(),
+                targetHobby.getId(),
+                sevenDaysAgo
+        );
         if (recordCount >= 5) {
             if (userSummaryAIService.hasSummary(socialId, targetHobby.getId())) {
                 userSummaryText = userSummaryAIService.getSummary(socialId, targetHobby.getId());
@@ -820,5 +827,22 @@ public class HobbyService {
 
         // 3. 최종 응답 DTO 반환
         return new GetHobbyStoryTabsResDto(tabInfos);
+    }
+
+    @Transactional(readOnly = true)
+    public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        if(hobbyRepository.existsByHobbyNameAndUserId(name, currentUser.getId())) {
+            return new CanCreateHobbyResDto("이미 등록한 취미입니다.", false);
+        }
+        return new CanCreateHobbyResDto("등록 가능한 취미입니다.", true);
+    }
+
+    @Transactional(readOnly = true)
+    public ReCheckHobbyInfoResDto reCheckHobbyInfo(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        List<ReCheckHobbyInfoResDto.HobbyInfoDto> hobbyInfoDtos = hobbyRepository.reCheckHobbyInfo(currentUser.getId());
+
+        return new ReCheckHobbyInfoResDto(hobbyInfoDtos);
     }
 }

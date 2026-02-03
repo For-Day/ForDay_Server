@@ -198,7 +198,13 @@ public class ActivityService {
             String hobbyCardContent = response.getContent();
 
             // 취미 카드 전용 url 생성
-            String coverImageUrl = hobby.getCoverImageUrl();
+            String coverImageUrl =
+                    (hobby.getCoverImageUrl() == null)
+                            ? activityRecordRepository.findLatestImageRecord(hobby.getId())
+                            .map(ActivityRecord::getImageUrl)
+                            .orElse("https://your-bucket.s3.../default-hobby-image.png") // 여기 수정 예정
+                            : hobby.getCoverImageUrl();
+
             String hobbyCardImageUrl = null;
             if(StringUtils.hasText(coverImageUrl)) {
                 String coverImageKey = s3Service.extractKeyFromFileUrl(coverImageUrl);

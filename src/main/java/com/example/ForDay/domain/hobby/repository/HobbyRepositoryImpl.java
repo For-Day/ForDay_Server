@@ -4,7 +4,9 @@ import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.auth.dto.response.OnboardingDataDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHomeHobbyInfoResDto;
 import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
+import com.example.ForDay.domain.hobby.dto.response.ReCheckHobbyInfoResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
+import com.example.ForDay.domain.hobby.entity.QHobbyInfo;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.user.dto.response.GetHobbyInProgressResDto;
@@ -14,6 +16,7 @@ import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +30,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
 
     QHobby hobby = QHobby.hobby;
     QActivity activity = QActivity.activity;
+    QHobbyInfo info = QHobbyInfo.hobbyInfo;
 
     @Override
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long targetHobbyId, User currentUser) {
@@ -142,6 +146,27 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                         statusOrder.asc(),
                         hobby.createdAt.desc()
                 )
+                .fetch();
+    }
+
+    @Override
+    public List<ReCheckHobbyInfoResDto.HobbyInfoDto> reCheckHobbyInfo(String currentUserId) {
+        return queryFactory
+                .select(Projections.constructor(
+                        ReCheckHobbyInfoResDto.HobbyInfoDto.class,
+                        info.id,
+                        info.hobbyName,
+                        info.hobbyDescription,
+                        info.imageCode
+                ))
+                .from(info)
+                .where(info.id.notIn(
+                        JPAExpressions
+                                .select(hobby.hobbyInfoId)
+                                .from(hobby)
+                                .where(hobby.user.id.eq(currentUserId))
+                                .where(hobby.hobbyInfoId.isNotNull())
+                ))
                 .fetch();
     }
 }
