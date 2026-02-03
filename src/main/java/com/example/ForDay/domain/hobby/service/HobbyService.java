@@ -821,4 +821,9 @@ public class HobbyService {
         // 3. 최종 응답 DTO 반환
         return new GetHobbyStoryTabsResDto(tabInfos);
     }
+
+    /*@Transactional(readOnly = true)
+    public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
+        hobbyRepository.findByUserIdAndHobbyName();
+    }*/
 }
