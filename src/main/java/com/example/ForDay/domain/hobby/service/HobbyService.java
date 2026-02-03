@@ -33,6 +33,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -316,7 +318,12 @@ public class HobbyService {
         if (currentCount >= 3) isAiCallRemaining = false;
 
         // 요약 문구 처리 (기록 5개 이상일 때)
-        long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), targetHobby.getId());
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        long recordCount = activityRecordRepository.countByUserIdAndHobbyIdAndCreatedAtAfterAndDeletedFalse(
+                currentUser.getId(),
+                targetHobby.getId(),
+                sevenDaysAgo
+        );
         if (recordCount >= 5) {
             if (userSummaryAIService.hasSummary(socialId, targetHobby.getId())) {
                 userSummaryText = userSummaryAIService.getSummary(socialId, targetHobby.getId());
