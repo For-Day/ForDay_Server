@@ -110,7 +110,7 @@ public class AuthService {
         boolean onboardingCompleted = user.isOnboardingCompleted();
         OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
 
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.APPLE, onboardingCompleted, isNicknameSet, dataDto);
+        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.APPLE, onboardingCompleted, isNicknameSet, dataDto, user.getNickname());
     }
 
     @Transactional
@@ -156,7 +156,7 @@ public class AuthService {
 
         refreshTokenService.save(socialId, refreshToken);
 
-        return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, socialId, onboardingCompleted, isNicknameSet, dataDto);
+        return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, socialId, onboardingCompleted, isNicknameSet, dataDto, user.getNickname());
     }
 
     @Transactional
