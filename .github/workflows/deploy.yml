@@ -8,19 +8,23 @@ permissions:
   contents: read
 
 jobs:
-  # 1️⃣ BUILD JOB: 빌드 및 ECR 이미지 업로드
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: images/setup-java@v4
+      # ✅ 수정: actions/setup-java 사용 및 with 위치 교정
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle # 빌드 속도 향상을 위한 캐싱 추가
 
-      - name: Create application-prod.yml
-        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
+      - name: Create application.yml
+        run: |
+          mkdir -p ./src/main/resources
+          echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
 
       - name: Build Spring Boot
         run: |
@@ -35,9 +39,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to ECR
-        run: |
-          aws ecr get-login-password --region ap-northeast-2 \
-            | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build & Push Docker Image
         run: |
@@ -45,7 +48,6 @@ jobs:
           docker tag forday:latest 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           docker push 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
 
-  # 2️⃣ DEPLOY JOB: Public EC2에 직접 접속하여 배포
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -55,8 +57,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          # 별칭(Alias)을 'ec2-server'로 설정하여 접속 간소화
           cat <<EOF >> ~/.ssh/config
           Host ec2-server
             HostName ${{ secrets.EC2_PUBLIC_IP }}
@@ -70,14 +70,17 @@ jobs:
           ssh ec2-server << 'EOF'
             set -e
           
-            echo "▶ Nginx 환경 설정 확인"
-            if [ -f /etc/nginx/conf.d/service-env.inc ]; then
-              CURRENT_VAL=$(grep -oP '(?<=set \$service_url ).*(?=;)' /etc/nginx/conf.d/service-env.inc || echo "blue")
-            else
-              CURRENT_VAL="blue"
-            fi
+            # ✅ 추가: EC2에 AWS CLI가 설치되어 있어야 함
+            # ECR 로그인을 위해 AWS 자격 증명이 EC2에도 설정되어 있거나 IAM Role이 부여되어야 합니다.
+            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
           
-            echo "현재 서비스 위치: $CURRENT_VAL"
+            echo "▶ Nginx 환경 설정 확인"
+            # 파일이 없으면 생성
+            if [ ! -f /etc/nginx/conf.d/service-env.inc ]; then
+              echo "set \$service_url blue;" | sudo tee /etc/nginx/conf.d/service-env.inc
+            fi
+
+            CURRENT_VAL=$(grep -oP '(?<=set \$service_url ).*(?=;)' /etc/nginx/conf.d/service-env.inc || echo "blue")
           
             if [ "$CURRENT_VAL" = "blue" ]; then
               TARGET="green"
@@ -90,32 +93,22 @@ jobs:
             fi
           
             echo "▶ 배포 대상: $TARGET (포트: $TARGET_PORT)"
-          
-            # EC2 내부에서 ECR 로그인
-            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com
-          
-            echo "▶ 최신 이미지 Pull"
             docker pull 839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           
-            echo "▶ $TARGET 컨테이너 초기화"
             docker stop $TARGET || true
             docker rm $TARGET || true
           
-            echo "▶ $TARGET 컨테이너 실행"
             docker run -d \
               --name $TARGET \
               --restart=always \
-              -e SPRING_PROFILES_ACTIVE=$TARGET \
               -p $TARGET_PORT:8080 \
-              -e SPRING_DATA_REDIS_HOST=172.17.0.1 \
-              -e SPRING_DATA_REDIS_PORT=6379 \
+              -e SPRING_PROFILES_ACTIVE=prod \
               839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           
-            echo "▶ 헬스 체크 시작 (http://localhost:$TARGET_PORT/health_check)"
-            HEALTH_OK=false
+            echo "▶ 헬스 체크 시작"
             for i in {1..20}; do
+              # Spring Boot 기본 헬스체크 경로(/actuator/health) 또는 지정하신 경로 확인 필요
               if curl -sf http://localhost:$TARGET_PORT/health_check; then
-                echo "✅ 헬스 체크 성공!"
                 HEALTH_OK=true
                 break
               fi
@@ -124,20 +117,17 @@ jobs:
             done
           
             if [ "$HEALTH_OK" != "true" ]; then
-              echo "❌ 헬스 체크 실패. 배포를 중단합니다."
+              echo "❌ 헬스 체크 실패"
               docker logs $TARGET
               exit 1
             fi
           
-            echo "▶ Nginx 스위칭: $TARGET"
+            echo "▶ Nginx 스위칭"
             echo "set \$service_url $TARGET;" | sudo tee /etc/nginx/conf.d/service-env.inc
+            sudo nginx -t && sudo nginx -s reload
           
-            sudo nginx -t
-            sudo nginx -s reload
-          
-            echo "▶ 이전 컨테이너($OLD_TARGET) 정리"
+            echo "▶ 이전 컨테이너 정리 및 미사용 이미지 삭제"
             docker stop $OLD_TARGET || true
             docker rm $OLD_TARGET || true
-          
-            echo "🚀 배포 완료! 현재 실행 중: $TARGET"
+            docker image prune -af
           EOF
