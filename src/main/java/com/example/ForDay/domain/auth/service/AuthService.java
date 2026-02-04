@@ -210,6 +210,10 @@ public class AuthService {
             throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
         }
 
+        if(reqDto.getSocialType() == SocialType.GUEST) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST_TYPE);
+        }
+
         String accessToken = "";
         String refreshToken = "";
         switch (reqDto.getSocialType()) {
@@ -218,6 +222,8 @@ public class AuthService {
                 KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getSocialCode());
 
                 String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
+
+                // 이미 존재하는 회원이면 전환 방지 (수정 예정)
 
                 currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
@@ -234,6 +240,9 @@ public class AuthService {
 
                 // 사용자 정보에서 socialId와 email 추출
                 String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
+
+                // 이미 존재하는 회원이면 전환 방지 (수정 예정)
+
                 String email = claims.containsKey("email")
                         ? claims.get("email", String.class)
                         : null;
