@@ -113,8 +113,8 @@ public class ActivityService {
         todayRecordRedisService.setDataExpire(redisKey, "recorded");
 
         // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
-        if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT))
-            log.info("[RecordActivity] 취미 완주 달성! 취미 카드 생성을 시작합니다. HobbyId: {}", hobbyId);{
+        if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
+            log.info("[RecordActivity] 취미 완주 달성! 취미 카드 생성을 시작합니다. HobbyId: {}", hobbyId);
             createHobbyCard(hobby, currentUser);
         }
 
