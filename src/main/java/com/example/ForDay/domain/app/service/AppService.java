@@ -35,6 +35,7 @@ public class AppService {
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
+        log.info("[getMetaData] 앱 메타데이터 조회 시작");
         List<AppMetaDataResDto.HobbyInfoDto> hobbyCardDtos =
                 hobbyInfoRepository.findAll()
                         .stream()
@@ -46,6 +47,8 @@ public class AppService {
                         ))
                         .toList();
 
+        log.info("[getMetaData] 조회 완료 - 취미 정보 개수: {}개", hobbyCardDtos.size());
+
         return new AppMetaDataResDto(
                 "1.0.0", // 앱 버전 관리는 나중에 구현
                 hobbyCardDtos
@@ -54,6 +57,8 @@ public class AppService {
 
     @Transactional
     public List<GeneratePresignedUrlResDto> generatePresignedUrls(@Valid GeneratePresignedReqDto reqDto) {
+        log.info("[generatePresignedUrls] Presigned URL 발행 시작 - 요청 개수: {}개", reqDto.getImages().size());
+
         return reqDto.getImages().stream()
                 .map(img -> {
                     // 이미지에 대한 key 값 생성
@@ -76,6 +81,8 @@ public class AppService {
                     // 실제 접근 가능한 이미지 url
                     String fileUrl = s3Service.createFileUrl(key);
 
+                    log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}, Key: {}", img.getUsage(), key);
+
                     return new GeneratePresignedUrlResDto(
                             uploadUrl,
                             fileUrl,
@@ -88,7 +95,9 @@ public class AppService {
     @Transactional
     public MessageResDto deleteS3Image(DeleteS3ImageReqDto reqDto) {
         String imageUrl = reqDto.getImageUrl();
+        log.info("[deleteS3Image] S3 이미지 삭제 프로세스 시작 - URL: {}", imageUrl);
         if (!StringUtils.hasText(imageUrl)) {
+            log.warn("[deleteS3Image] 삭제 실패 - 빈 이미지 URL 입력됨");
             throw new CustomException(ErrorCode.INVALID_IMAGE_URL);
         }
 
@@ -96,23 +105,30 @@ public class AppService {
         List<String> keysToDelete = new ArrayList<>();
         keysToDelete.add(originalKey);
 
-        if (originalKey.contains("activity_record")) {
-            keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toFeedThumbResizedUrl(imageUrl)));
-
-        } else if (originalKey.contains("profile_image")) {
-            keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileMainResizedUrl(imageUrl))); // 메인
-            keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileListResizedUrl(imageUrl))); // 리스트
-
-        } else if (originalKey.contains("cover_image")) {
-            keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toCoverMainResizedUrl(imageUrl)));
-        } else {
-            throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+        try {
+            if (originalKey.contains("activity_record")) {
+                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toFeedThumbResizedUrl(imageUrl)));
+            } else if (originalKey.contains("profile_image")) {
+                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileMainResizedUrl(imageUrl)));
+                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileListResizedUrl(imageUrl)));
+            } else if (originalKey.contains("cover_image")) {
+                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toCoverMainResizedUrl(imageUrl)));
+            } else {
+                log.warn("[deleteS3Image] 삭제 실패 - 알 수 없는 이미지 경로: {}", originalKey);
+                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+            }
+        } catch (Exception e) {
+            log.error("[deleteS3Image] 리사이징 키 추출 중 예외 발생: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INVALID_IMAGE_URL);
         }
+
+        log.info("[deleteS3Image] 삭제 대상 키 리스트: {}", keysToDelete);
 
         try {
             for (String key : keysToDelete) {
                 if (key != null) {
                     s3Service.deleteByKey(key);
+                    log.info("[deleteS3Image] S3 객체 삭제됨: {}", key);
                 }
             }
         } catch (Exception e) {
@@ -120,6 +136,7 @@ public class AppService {
             throw new CustomException(ErrorCode.S3_DELETE_ERROR);
         }
 
+        log.info("[deleteS3Image] 모든 관련 이미지 삭제 완료 - Original Key: {}", originalKey);
         return new MessageResDto("이미지가 성공적으로 삭제되었습니다.");
     }
 }
