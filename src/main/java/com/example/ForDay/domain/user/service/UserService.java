@@ -118,6 +118,7 @@ public class UserService {
     public UserInfoResDto getUserInfo(CustomUserDetails user, String userId) {
         User targetUser;
         String targetId;
+
         if(userId != null) {
             // 다른 사용자 정보 조회시 (차단 관계, 탈퇴한 회원인지 고려)
             User currentUser = userUtil.getCurrentUser(user);
@@ -140,6 +141,7 @@ public class UserService {
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String newImageUrl = reqDto.getProfileImageUrl();
+        log.info("[setUserProfileImage] 프로필 이미지 변경 요청 - UserId: {}", currentUser.getId());
 
         if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
             return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
@@ -147,6 +149,7 @@ public class UserService {
 
         String newKey = s3Service.extractKeyFromFileUrl(newImageUrl);
         if (!s3Service.existsByKey(newKey)) {
+            log.error("[setUserProfileImage] S3에 존재하지 않는 이미지 키: {}", newKey);
             throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
         }
 
@@ -159,6 +162,7 @@ public class UserService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    log.info("[S3-Cleanup] 프로필 변경 완료. 이전 이미지들 삭제 시작: {}", oldImageUrl);
                     try {
                         // 원본 키
                         String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
@@ -172,6 +176,8 @@ public class UserService {
                         s3Service.deleteByKey(oldKey);
                         s3Service.deleteByKey(oldMainResizedKey);
                         s3Service.deleteByKey(oldListResizedKey);
+
+                        log.debug("[S3-Cleanup] 이전 프로필 리사이징 이미지들(Main, List) 정리 완료");
 
                     } catch (Exception e) {
                         log.error("기존 프로필 이미지 S3 삭제 실패: {}", oldImageUrl, e);
