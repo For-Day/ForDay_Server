@@ -26,7 +26,7 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "hobby_info_id")
     private Long hobbyInfoId;
 
-    @Column(name = "hobby_name", nullable = false, length = 15)
+    @Column(name = "hobby_name", nullable = false, length = 20)
     private String hobbyName;
 
     @Column(name = "hobbyPurpose", nullable = false, length = 50)
