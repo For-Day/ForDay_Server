@@ -6,6 +6,8 @@ import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
 import com.example.ForDay.domain.app.dto.response.GeneratePresignedUrlResDto;
+import com.example.ForDay.domain.app.entity.AppVersion;
+import com.example.ForDay.domain.app.repository.AppVersionRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -32,6 +34,7 @@ public class AppService {
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
     private final S3Util s3Util;
+    private final AppVersionRepository appVersionRepository;
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
@@ -47,10 +50,14 @@ public class AppService {
                         ))
                         .toList();
 
+        String latestVersion = appVersionRepository.findLatestVersion()
+                .map(AppVersion::getVersion)
+                .orElse("1.0.0");
+
         log.info("[getMetaData] 조회 완료 - 취미 정보 개수: {}개", hobbyCardDtos.size());
 
         return new AppMetaDataResDto(
-                "1.0.0", // 앱 버전 관리는 나중에 구현
+                latestVersion, // 앱 버전 관리는 나중에 구현
                 hobbyCardDtos
         );
     }
