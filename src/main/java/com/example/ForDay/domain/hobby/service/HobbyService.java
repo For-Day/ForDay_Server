@@ -297,12 +297,14 @@ public class HobbyService {
                 : getLatestInProgressHobby(currentUser);
 
         if(targetHobby == null) {
+            log.info("[GetHomeHobbyInfo] 진행 중인 취미 없음 - 기본 대시보드 반환. UserId: {}", currentUser.getId());
             return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
         }
 
         GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfo(targetHobby.getId(), currentUser);
 
         if (response == null) {
+            log.warn("[GetHomeHobbyInfo] 취미 정보 조회 실패(DB 데이터 불일치 가능성) - HobbyId: {}", targetHobby.getId());
             return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
         }
         // AI 관련 로직 처리
@@ -312,7 +314,10 @@ public class HobbyService {
 
         // 호출 가능 횟수 체크
         int currentCount = aiCallCountService.getCurrentCount(socialId, targetHobby.getId());
-        if (currentCount >= 3) isAiCallRemaining = false;
+        if (currentCount >= 3) {
+            log.info("[GetHomeHobbyInfo] AI 호출 횟수 초과 (현재: {}회) - SocialId: {}", currentCount, socialId);
+            isAiCallRemaining = false;
+        }
 
         // 요약 문구 처리 (기록 5개 이상일 때)
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
@@ -321,13 +326,23 @@ public class HobbyService {
                 targetHobby.getId(),
                 sevenDaysAgo
         );
+
+        log.info("[GetHomeHobbyInfo] 최근 7일 기록 개수: {}개 - HobbyId: {}", recordCount, targetHobby.getId());
+
         if (recordCount >= 5) {
             if (userSummaryAIService.hasSummary(socialId, targetHobby.getId())) {
                 userSummaryText = userSummaryAIService.getSummary(socialId, targetHobby.getId());
+                log.info("[GetHomeHobbyInfo] 캐시된 AI 요약 불러오기 성공");
             } else {
+                log.info("[GetHomeHobbyInfo] 새로운 AI 요약 생성 요청 - User: {}, Hobby: {}", currentUser.getId(), targetHobby.getHobbyName());
                 userSummaryText = fetchAndSaveUserSummary(currentUser.getId(), socialId, targetHobby.getId(), targetHobby.getHobbyName());
             }
+        } else {
+            log.info("[GetHomeHobbyInfo] 기록 부족으로 AI 요약 생략 (필요: 5개, 현재: {}개)", recordCount);
         }
+
+        log.info("[GetHomeHobbyInfo] 대시보드 조회 완료 - UserId: {}, Hobby: {}, AI연동여부: {}",
+                currentUser.getId(), targetHobby.getHobbyName(), !userSummaryText.isEmpty());
 
         return response.toBuilder()
                 .greetingMessage("반가워요, " + currentUser.getNickname() + "님! 👋")
