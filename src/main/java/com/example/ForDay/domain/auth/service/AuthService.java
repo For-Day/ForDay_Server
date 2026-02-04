@@ -222,11 +222,11 @@ public class AuthService {
     @Transactional
     public SwitchAccountResDto switchAccount(@Valid SwitchAccountReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user); // 현재 유저
-        if(!currentUser.getRole().equals(Role.GUEST)) {
+        if(!currentUser.getRole().equals(Role.GUEST)) { // 게스트가 아니면 예외
             throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
         }
 
-        if(reqDto.getSocialType() == SocialType.GUEST) {
+        if(reqDto.getSocialType() == SocialType.GUEST) { // 요청 타입이 게스트이면 예외
             throw new CustomException(ErrorCode.INVALID_REQUEST_TYPE);
         }
 
@@ -239,8 +239,12 @@ public class AuthService {
 
                 String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
 
-                // 이미 존재하는 회원이면 전환 방지 (수정 예정)
+                // 이미 존재하는 회원이면 전환 방지
+                if(userRepository.existsBySocialId(socialId)) {
+                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+                }
 
+                // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> KAKAO
                 currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
@@ -257,12 +261,16 @@ public class AuthService {
                 // 사용자 정보에서 socialId와 email 추출
                 String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
 
-                // 이미 존재하는 회원이면 전환 방지 (수정 예정)
+                // 이미 존재하는 회원이면 전환 방지
+                if(userRepository.existsBySocialId(socialId)) {
+                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+                }
 
                 String email = claims.containsKey("email")
                         ? claims.get("email", String.class)
                         : null;
 
+                // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> APPLE
                 currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
                 refreshToken = jwtUtil.createRefreshToken(socialId);

@@ -42,10 +42,6 @@ public class Hobby extends BaseTimeEntity {
     @Builder.Default
     private Integer currentStickerNum = 0;
 
-    @Column(name = "goal_sticker_num")
-    @Builder.Default
-    private Integer goalStickerNum = null; // 나중에 삭제될 수도
-
     @Column(name = "goal_days")
     @Builder.Default
     private Integer goalDays = null; // 기간 미지정이면 null, 기간 지정이면 66
