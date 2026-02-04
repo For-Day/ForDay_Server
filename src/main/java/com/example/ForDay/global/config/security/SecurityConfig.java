@@ -30,22 +30,29 @@ public class SecurityConfig {
                 .httpBasic((auth) -> auth.disable())
                 .authorizeHttpRequests((auth) -> auth
                         .requestMatchers(
-                                "/health_check",
-                                "/error_check",
-                                "/auth/kakao",
-                                "/auth/apple",
-                                "/auth/guest",
-                                "/auth/refresh",
-                                "/app/metadata",
-                                "/app/presign",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/v3/api-docs.yaml",
-                                "/log-test"
-                        ).permitAll()
-                        .requestMatchers("/guest-only/**").hasRole("GUEST")
-                        .requestMatchers("/user-only/**").hasRole("USER")
-                        .requestMatchers("/all-members/**").hasAnyRole("GUEST", "USER")
+                                "/app/metadata", "/health_check", "/error_check", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml", "/log-test")
+                        .permitAll()
+                        .requestMatchers(
+                                "/auth/kakao", "/auth/apple", "/auth/guest", "/auth/refresh")
+                        .permitAll()
+                        .requestMatchers(
+                                "/auth/switch-account"
+                        ).hasRole("GUEST")
+                        .requestMatchers("/users/info",
+                                "/users/profile-image",
+                                "/hobbies/cover-image",
+                                "/users/hobbies/in-progress",
+                                "/users/feeds",
+                                "/users/hobby-cards",
+                                "/users/scraps",
+                                "/friends/**",
+                                "/hobbies/stories/tabs",
+                                "/records/stories",
+                                "/recent/**",
+                                "/hobbies/{hobbyId}/activities/{activityId}/collect",
+                                "/records/{recordId}/scrap",
+                                "/records/{recordId}/report"
+                        ).hasRole("USER")
                         .anyRequest().authenticated())
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
