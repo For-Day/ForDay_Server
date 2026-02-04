@@ -162,24 +162,34 @@ public class AuthService {
     @Transactional
     public RefreshResDto refresh(@Valid RefreshReqDto reqDto) {
         String refreshToken = reqDto.getRefreshToken();
+        log.info("[refresh] 토큰 재발급 프로세스 시작");
 
         // 리프레시 토큰 유효성 검사
         if (!jwtUtil.validate(refreshToken)) {
+            log.warn("[refresh] 유효하지 않은 리프레시 토큰으로 접근 시도");
             throw new CustomException(ErrorCode.LOGIN_EXPIRED);
         }
 
         String socialId = jwtUtil.getUsername(refreshToken);
+        log.info("[refresh] 요청자 SocialId: {}", socialId);
 
         // 저장된 refreshToken 조회
         String storedToken = refreshTokenService.get(socialId);
 
-        if (storedToken == null || !storedToken.equals(refreshToken)) {
+        if (storedToken == null) {
+            log.warn("[refresh] 저장된 토큰이 없음 - 만료되었거나 로그아웃된 사용자: {}", socialId);
+            throw new CustomException(ErrorCode.LOGIN_EXPIRED);
+        }
+
+        if (!storedToken.equals(refreshToken)) {
+            log.error("[refresh] 토큰 불일치! 탈취 가능성 있음 - SocialId: {}", socialId);
             throw new CustomException(ErrorCode.LOGIN_EXPIRED);
         }
 
         // 토큰 재발급
         User user = userRepository.findBySocialId(socialId);
         if (user == null) {
+            log.error("[refresh] 토큰은 유효하나 사용자를 찾을 수 없음 - SocialId: {}", socialId);
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
@@ -188,18 +198,24 @@ public class AuthService {
 
         refreshTokenService.save(socialId, newRefreshToken);
 
+        log.info("[refresh] 토큰 재발급 완료 - SocialId: {}", socialId);
         return new RefreshResDto(newAccessToken, newRefreshToken);
     }
 
     @Transactional
     public MessageResDto logout(CustomUserDetails user) {
         String socialId = user.getUsername();
+        log.info("[logout] 로그아웃 요청 - SocialId: {}", socialId);
+
         refreshTokenRepository.deleteById(socialId);
+
+        log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", socialId);
         return new MessageResDto("로그아웃 되었습니다.");
     }
 
     @Transactional
     public TokenValidateResDto tokenValidate() {
+        log.info("[tokenValidate] 액세스 토큰 유효성 확인 성공");
         return new TokenValidateResDto(true);
     }
 
@@ -255,6 +271,7 @@ public class AuthService {
 
         return new SwitchAccountResDto(reqDto.getSocialType(), accessToken, refreshToken);
     }
+
     // 유틸 메서드
 
     private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {
