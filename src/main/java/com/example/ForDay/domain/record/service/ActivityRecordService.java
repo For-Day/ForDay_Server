@@ -63,7 +63,6 @@ public class ActivityRecordService {
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final ActivityRecordReportRepository activityRecordReportRepository;
     private final HobbyRepository hobbyRepository;
-    private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final RecentRedisService recentRedisService;
     private final S3Util s3Util;
     private final ActivityRecordReactionRepository reactionRepository;
@@ -83,11 +82,13 @@ public class ActivityRecordService {
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
         boolean isRecordOwner = Objects.equals(currentUserId, detail.writerId());
+        log.info("[getRecordDetail] 권한 확인 - WriterId: {}, IsOwner: {}", detail.writerId(), isRecordOwner);
 
         // 차단 여부와 탈퇴 회원 여부 확인
         checkBlockedAndDeletedUser(currentUserId, detail.writerId(), detail.writerDeleted());
 
         if (!isRecordOwner) {
+            log.debug("[getRecordDetail] 비소유자 접근 - 공개 범위 검증 시작 (Visibility: {})", detail.visibility());
             validateRecordAuthority(detail.visibility(), detail.writerId(), currentUserId);
         }
 
@@ -97,6 +98,9 @@ public class ActivityRecordService {
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
         boolean scraped= activityRecordScrapRepository.existsByActivityRecordIdAndUserId(detail.recordId(), currentUserId);
+
+        log.info("[getRecordDetail] 조회 성공 - RecordId: {}, Writer: {}, Reactions: {}, Scraped: {}",
+                recordId, detail.writerId(), summaries.size(), scraped);
 
         return buildGetRecordDetailResDtoFromDto(detail, isRecordOwner, newReaction, userReaction, scraped);
     }
@@ -145,6 +149,7 @@ public class ActivityRecordService {
         ActivityRecord activityRecord = getActivityRecord(recordId);
 
         if(activityRecord.isDeleted()) {
+            log.warn("[reactToRecord] 실패: 삭제된 기록 - RecordId: {}", recordId);
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
 
@@ -154,6 +159,7 @@ public class ActivityRecordService {
         validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getUser().getId(), currentUser.getId());
 
         if (recordReactionRepository.existsByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, type)) {
+            log.info("[reactToRecord] 중복 리액션 무시 - RecordId: {}, Type: {}", recordId, type);
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
 
@@ -166,6 +172,7 @@ public class ActivityRecordService {
 
         redisReactionService.incrementRankingScore(activityRecord.getId());
 
+        log.info("[reactToRecord] 리액션 등록 완료 - RecordId: {}", recordId);
         return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", type, recordId);
     }
 
@@ -201,6 +208,7 @@ public class ActivityRecordService {
     public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
+        log.info("[updateActivityRecord] 기록 수정 시작 - RecordId: {}, UserId: {}", recordId, currentUserId);
 
         ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
@@ -217,6 +225,8 @@ public class ActivityRecordService {
                 throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
             }
             if (StringUtils.hasText(oldImageUrl)) {
+                log.info("[updateActivityRecord] 이미지 변경 감지 - 기존 이미지 삭제 예약: {}", oldImageUrl);
+
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
@@ -228,6 +238,8 @@ public class ActivityRecordService {
 
                             s3Service.deleteByKey(oldKey);
                             s3Service.deleteByKey(oldThumbKey);
+
+                            log.info("[S3-Cleanup] 트랜잭션 커밋됨. 기존 이미지 삭제 실행: {}", oldImageUrl);
                         } catch (Exception e) {
                             log.error("기존 활동 기록 이미지 S3 삭제 실패: {}", oldImageUrl, e);
                         }
@@ -243,6 +255,7 @@ public class ActivityRecordService {
                 newImageUrl
         );
 
+        log.info("[updateActivityRecord] 기록 수정 완료 - RecordId: {}", recordId);
         return new UpdateActivityRecordResDto(
                 "활동 기록이 정상적으로 수정되었습니다.",
                 activity.getId(),
@@ -258,11 +271,14 @@ public class ActivityRecordService {
     public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
+        log.info("[deleteActivityRecord] 기록 삭제 요청 - RecordId: {}, UserId: {}", recordId, currentUserId);
+
         ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         // 이미 삭제된 경우 예외 처리
         if(activityRecord.isDeleted()) {
+            log.warn("[deleteActivityRecord] 이미 삭제된 기록임 - RecordId: {}", recordId);
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
 
@@ -273,6 +289,7 @@ public class ActivityRecordService {
         String deleteImageUrl = activityRecord.getImageUrl();
 
         boolean isToday = activityRecord.getCreatedAt().toLocalDate().equals(LocalDate.now());
+        log.info("[deleteActivityRecord] 오늘 생성 여부: {} (당일 삭제 시 Hard Delete 수행)", isToday);
 
         if (isToday) {
             activityRecord.getActivity().deleteRecord();
@@ -296,6 +313,8 @@ public class ActivityRecordService {
                         s3Service.deleteByKey(deletedImageKey);
                         s3Service.deleteByKey(feedThumbResizedKey);
 
+                        log.info("[S3-Cleanup] 기록 삭제 커밋 완료. S3 이미지 제거: {}", activityRecord.getImageUrl());
+
                     } catch (Exception e) {
                         log.error("S3 파일 삭제 실패 (DB는 정상 삭제됨): {}", deleteImageUrl, e);
                     }
@@ -303,6 +322,7 @@ public class ActivityRecordService {
             });
         }
 
+        log.info("[deleteActivityRecord] 기록 삭제 완료 - RecordId: {}", recordId);
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
     }
 
@@ -349,6 +369,9 @@ public class ActivityRecordService {
     @Transactional
     public ReportActivityRecordResDto reportActivityRecord(Long recordId, ReportActivityRecordReqDto reqDto, CustomUserDetails user) throws CustomException {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[reportActivityRecord] 기록 신고 접수 - RecordId: {}, Reporter: {}, Reason: {}",
+                recordId, currentUser.getId(), reqDto.getReason());
+
         ReportActivityRecordDto activityRecord = activityRecordRepository.getReportActivityRecord(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
@@ -369,12 +392,15 @@ public class ActivityRecordService {
                 .build();
         activityRecordReportRepository.save(report);
 
+        log.info("[reportActivityRecord] 신고 저장 성공 - RecordId: {}", recordId);
         return new ReportActivityRecordResDto(recordId, activityRecord.getWriterId(), activityRecord.getWriterNickname(), "기록이 정상적으로 신고되었습니다.");
     }
 
     @Transactional(readOnly = true)
     public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user, StoryFilterType storyFilterType) {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("[getActivityRecordByStory] 스토리 리스트 조회 - User: {}, Filter: {}, Keyword: {}",
+                currentUser.getId(), storyFilterType, keyword);
 
         if(Strings.hasText(keyword)) {
             // 최근 검색어 저장 로직
@@ -418,6 +444,8 @@ public class ActivityRecordService {
         });
 
         Long lastId = recordDtos.isEmpty() ? null : recordDtos.get(recordDtos.size() - 1).getRecordId();
+
+        log.info("[getActivityRecordByStory] 조회 완료 - 반환된 기록 수: {}", recordDtos.size());
         return new GetActivityRecordByStoryResDto(hobbyInfoId, targetHobby.getId(), targetHobby.getHobbyName(), lastId, recordDtos, hasNext);
     }
 
