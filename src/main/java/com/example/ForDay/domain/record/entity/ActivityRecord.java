@@ -63,7 +63,7 @@ public class ActivityRecord extends BaseTimeEntity {
 
     @Builder.Default
     @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ActivityRecordScarp> scraps = new ArrayList<>();
+    private List<ActivityRecordScrap> scraps = new ArrayList<>();
 
     public void updateVisibility(RecordVisibility newVisibility) {
         this.visibility = newVisibility;

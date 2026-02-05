@@ -99,6 +99,10 @@ public class S3Service {
     }
 
     public String extractKeyFromFileUrl(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) {
+            return null;
+        }
+
         try {
             URI uri = URI.create(fileUrl);
             return uri.getPath().substring(1); // 앞의 "/" 제거

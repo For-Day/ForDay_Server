@@ -162,24 +162,34 @@ public class AuthService {
     @Transactional
     public RefreshResDto refresh(@Valid RefreshReqDto reqDto) {
         String refreshToken = reqDto.getRefreshToken();
+        log.info("[refresh] 토큰 재발급 프로세스 시작");
 
         // 리프레시 토큰 유효성 검사
         if (!jwtUtil.validate(refreshToken)) {
+            log.warn("[refresh] 유효하지 않은 리프레시 토큰으로 접근 시도");
             throw new CustomException(ErrorCode.LOGIN_EXPIRED);
         }
 
         String socialId = jwtUtil.getUsername(refreshToken);
+        log.info("[refresh] 요청자 SocialId: {}", socialId);
 
         // 저장된 refreshToken 조회
         String storedToken = refreshTokenService.get(socialId);
 
-        if (storedToken == null || !storedToken.equals(refreshToken)) {
+        if (storedToken == null) {
+            log.warn("[refresh] 저장된 토큰이 없음 - 만료되었거나 로그아웃된 사용자: {}", socialId);
+            throw new CustomException(ErrorCode.LOGIN_EXPIRED);
+        }
+
+        if (!storedToken.equals(refreshToken)) {
+            log.error("[refresh] 토큰 불일치! 탈취 가능성 있음 - SocialId: {}", socialId);
             throw new CustomException(ErrorCode.LOGIN_EXPIRED);
         }
 
         // 토큰 재발급
         User user = userRepository.findBySocialId(socialId);
         if (user == null) {
+            log.error("[refresh] 토큰은 유효하나 사용자를 찾을 수 없음 - SocialId: {}", socialId);
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
@@ -188,26 +198,36 @@ public class AuthService {
 
         refreshTokenService.save(socialId, newRefreshToken);
 
+        log.info("[refresh] 토큰 재발급 완료 - SocialId: {}", socialId);
         return new RefreshResDto(newAccessToken, newRefreshToken);
     }
 
     @Transactional
     public MessageResDto logout(CustomUserDetails user) {
         String socialId = user.getUsername();
+        log.info("[logout] 로그아웃 요청 - SocialId: {}", socialId);
+
         refreshTokenRepository.deleteById(socialId);
+
+        log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", socialId);
         return new MessageResDto("로그아웃 되었습니다.");
     }
 
     @Transactional
     public TokenValidateResDto tokenValidate() {
+        log.info("[tokenValidate] 액세스 토큰 유효성 확인 성공");
         return new TokenValidateResDto(true);
     }
 
     @Transactional
     public SwitchAccountResDto switchAccount(@Valid SwitchAccountReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user); // 현재 유저
-        if(!currentUser.getRole().equals(Role.GUEST)) {
+        if(!currentUser.getRole().equals(Role.GUEST)) { // 게스트가 아니면 예외
             throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
+        }
+
+        if(reqDto.getSocialType() == SocialType.GUEST) { // 요청 타입이 게스트이면 예외
+            throw new CustomException(ErrorCode.INVALID_REQUEST_TYPE);
         }
 
         String accessToken = "";
@@ -219,6 +239,12 @@ public class AuthService {
 
                 String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
 
+                // 이미 존재하는 회원이면 전환 방지
+                if(userRepository.existsBySocialId(socialId)) {
+                    throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
+                }
+
+                // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> KAKAO
                 currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
@@ -234,10 +260,17 @@ public class AuthService {
 
                 // 사용자 정보에서 socialId와 email 추출
                 String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
+
+                // 이미 존재하는 회원이면 전환 방지
+                if(userRepository.existsBySocialId(socialId)) {
+                    throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
+                }
+
                 String email = claims.containsKey("email")
                         ? claims.get("email", String.class)
                         : null;
 
+                // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> APPLE
                 currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
@@ -246,6 +279,7 @@ public class AuthService {
 
         return new SwitchAccountResDto(reqDto.getSocialType(), accessToken, refreshToken);
     }
+
     // 유틸 메서드
 
     private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {

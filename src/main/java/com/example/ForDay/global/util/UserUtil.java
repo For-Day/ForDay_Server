@@ -17,11 +17,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class UserUtil {
     private final UserRepository userRepository;
-    private final EntityManager em; // Repository 대신 EntityManager 주입
-
-    public User getCurrentUser(CustomUserDetails user) {
-       // return userRepository.findBySocialId(user.getUsername());
-        return user.getUser();
+    public User getCurrentUser(CustomUserDetails userDetails) {
+        return userDetails.getUser();
     }
 
 }

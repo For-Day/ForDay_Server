@@ -5,6 +5,7 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@DynamicUpdate
 public class Activity extends BaseTimeEntity {
 
     @Id
@@ -29,7 +31,7 @@ public class Activity extends BaseTimeEntity {
     @JoinColumn(name = "user_hobby_id", nullable = false)
     private Hobby hobby;
 
-    @Column(nullable = false, length = 25)
+    @Column(nullable = false, length = 50)
     private String content;
 
     private boolean aiRecommended;
