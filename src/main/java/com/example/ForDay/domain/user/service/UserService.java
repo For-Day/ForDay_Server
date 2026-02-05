@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.user.service;
 
+import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
@@ -277,17 +278,15 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user, String userId) {
-        User targetUser;
+        String currentUserId = user.getUserId();
+        String targetUserId = (userId == null) ? currentUserId : userId; // 조회하고자하는 유저
 
         if(userId != null) {
-            targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            checkBlockedAndDeletedUser(userUtil.getCurrentUser(user).getId(), targetUser.getId(), targetUser.isDeleted());
-        } else {
-            targetUser = userUtil.getCurrentUser(user);
+            User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+            List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
+            checkBlockedAndDeletedUser(relations, currentUserId, targetUserId, targetUser.isDeleted());
         }
-
-        List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, targetUser);
+        List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, targetUserId);
 
         boolean hasNext = false;
         if (cardDtoList.size() > size) {
@@ -303,13 +302,14 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
         String targetUserId = (userId == null) ? currentUser.getId() : userId;
 
-        User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
         if (userId != null) {
-            checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
+            User targetUser = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+            List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
+            checkBlockedAndDeletedUser(relations, currentUserId, targetUserId, targetUser.isDeleted());
         }
 
         List<GetUserScrapListResDto.ScrapDto> scrapDtos;
@@ -319,7 +319,9 @@ public class UserService {
             List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId());
             List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId());
             List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUser.getId());
-            scrapDtos = activityRecordScrapRepository.getOtherScrapList(lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds);
+            scrapDtos = activityRecordScrapRepository.getOtherScrapList(
+                    lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds
+            );
         }
 
         boolean hasNext = false;
@@ -349,5 +351,15 @@ public class UserService {
 
         // 타겟유저가 탈퇴한 회원인 경우
         if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, String me, String target, boolean deleted) {
+        // 리스트에서 차단(BLOCK)이 하나라도 있는지 확인
+        boolean isBlocked = relations.stream()
+                .anyMatch(f -> f.getRelationStatus() == FriendRelationStatus.BLOCK);
+
+        if (isBlocked || deleted) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
     }
 }

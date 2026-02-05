@@ -2,8 +2,6 @@ package com.example.ForDay.domain.hobby.repository;
 
 import com.example.ForDay.domain.hobby.entity.QHobbyCard;
 import com.example.ForDay.domain.user.dto.response.GetUserHobbyCardListResDto;
-import com.example.ForDay.domain.user.entity.User;
-import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -17,7 +15,7 @@ public class HobbyCardRepositoryImpl implements HobbyCardRepositoryCustom {
     QHobbyCard hobbyCard = QHobbyCard.hobbyCard;
 
     @Override
-    public List<GetUserHobbyCardListResDto.HobbyCardDto> findUserHobbyCardList(Long lastHobbyCardId, Integer size, User currentUser) {
+    public List<GetUserHobbyCardListResDto.HobbyCardDto> findUserHobbyCardList(Long lastHobbyCardId, Integer size, String currentUserId) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserHobbyCardListResDto.HobbyCardDto.class,
@@ -28,7 +26,7 @@ public class HobbyCardRepositoryImpl implements HobbyCardRepositoryCustom {
                 ))
                 .from(hobbyCard)
                 .where(
-                        hobbyCard.user.id.eq(currentUser.getId()),
+                        hobbyCard.user.id.eq(currentUserId),
                         ltLastHobbyCardId(lastHobbyCardId)
                 )
                 .orderBy(hobbyCard.id.desc())

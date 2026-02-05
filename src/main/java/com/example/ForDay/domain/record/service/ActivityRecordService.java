@@ -10,10 +10,7 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
-import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
-import com.example.ForDay.domain.record.dto.ReactionSummary;
-import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
-import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.*;
 import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
@@ -277,24 +274,21 @@ public class ActivityRecordService {
     public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-        log.info("[deleteActivityRecord] 기록 삭제 요청 - RecordId: {}, UserId: {}", recordId, currentUserId);
-
         ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         // 이미 삭제된 경우 예외 처리
         if(activityRecord.isDeleted()) {
-            log.warn("[deleteActivityRecord] 이미 삭제된 기록임 - RecordId: {}", recordId);
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
-        reactionRepository.deleteByActivityRecord(recordId);
-        reportRepository.deleteByReportedRecord(recordId);
-        scrapRepository.deleteByActivityRecord(recordId);
+
+        reactionRepository.deleteByActivityRecord(activityRecord);
+        reportRepository.deleteByReportedRecord(activityRecord);
+        scrapRepository.deleteByActivityRecord(activityRecord);
 
         String deleteImageUrl = activityRecord.getImageUrl();
 
         boolean isToday = activityRecord.getCreatedAt().toLocalDate().equals(LocalDate.now());
-        log.info("[deleteActivityRecord] 오늘 생성 여부: {} (당일 삭제 시 Hard Delete 수행)", isToday);
 
         if (isToday) {
             activityRecord.getActivity().deleteRecord();
@@ -318,8 +312,6 @@ public class ActivityRecordService {
                         s3Service.deleteByKey(deletedImageKey);
                         s3Service.deleteByKey(feedThumbResizedKey);
 
-                        log.info("[S3-Cleanup] 기록 삭제 커밋 완료. S3 이미지 제거: {}", activityRecord.getImageUrl());
-
                     } catch (Exception e) {
                         log.error("S3 파일 삭제 실패 (DB는 정상 삭제됨): {}", deleteImageUrl, e);
                     }
@@ -327,19 +319,21 @@ public class ActivityRecordService {
             });
         }
 
-        log.info("[deleteActivityRecord] 기록 삭제 완료 - RecordId: {}", recordId);
         return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
     }
 
     @Transactional
     public AddActivityRecordScrapResDto addActivityRecordScrap(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
 
         ActivityRecordWithUserDto activityRecordDto = activityRecordRepository.getActivityRecordWithUser(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        checkBlockedAndDeletedUser(currentUser.getId(), activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
-        validateRecordAuthority(activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUser.getId());
+        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, activityRecordDto.getWriterId());
+
+        checkBlockedAndDeletedUser(relations, currentUserId, activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
+        validateRecordAuthority(relations, activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUserId);
 
         if(activityRecordScrapRepository.existsByScrap(recordId, currentUser.getId())) {
             throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
@@ -577,5 +571,11 @@ public class ActivityRecordService {
         } else if (visibility == RecordVisibility.PRIVATE) {
             throw new CustomException(ErrorCode.PRIVATE_RECORD);
         }
+    }
+
+    private void deleteRelatedData(Long recordId) {
+        reactionRepository.deleteByRecordId(recordId);
+        reportRepository.deleteByRecordId(recordId);
+        scrapRepository.deleteByRecordId(recordId);
     }
 }
