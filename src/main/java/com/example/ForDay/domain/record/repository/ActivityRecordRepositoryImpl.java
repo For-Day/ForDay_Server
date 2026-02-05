@@ -8,6 +8,7 @@ import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryResDto;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
+import com.example.ForDay.domain.record.entity.QActivityRecordReport;
 import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
@@ -36,6 +37,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private final QUser user = QUser.user;
     private final QActivity activity = QActivity.activity;
     private final QActivityRecordReaction reaction = QActivityRecordReaction.activityRecordReaction;
+    private final QActivityRecordReport activityRecordReport = QActivityRecordReport.activityRecordReport;
 
     @Override
     public List<GetStickerInfoResDto.StickerDto> getStickerInfo(
@@ -68,7 +70,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
 
     @Override
-    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities, List<Long> reportedRecordIds) {
+    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities, List<Long> reportedRecordIds, String currentUserId) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserFeedListResDto.FeedDto.class,
@@ -85,7 +87,12 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         hobbyIdIn(hobbyIds),
                         record.visibility.in(visibilities),
                         record.deleted.isFalse(), // 삭제 안된 기록만 조회
-                        notInReportedList(reportedRecordIds)
+                        JPAExpressions
+                                .selectFrom(activityRecordReport)
+                                .where(
+                                        activityRecordReport.reportedRecord.id.eq(record.id),
+                                        activityRecordReport.reporter.id.eq(currentUserId)
+                                ).notExists()
                 )
                 .orderBy(record.id.desc())
                 .limit(feedSize + 1)

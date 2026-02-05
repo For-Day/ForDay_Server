@@ -20,7 +20,7 @@ import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.entity.ActivityRecordReport;
-import com.example.ForDay.domain.record.entity.ActivityRecordScarp;
+import com.example.ForDay.domain.record.entity.ActivityRecordScrap;
 import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -97,7 +97,7 @@ public class ActivityRecordService {
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
-        boolean scraped= activityRecordScrapRepository.existsByActivityRecordIdAndUserId(detail.recordId(), currentUserId);
+        boolean scraped= activityRecordScrapRepository.existsByScrap(detail.recordId(), currentUserId);
 
         log.info("[getRecordDetail] 조회 성공 - RecordId: {}, Writer: {}, Reactions: {}, Scraped: {}",
                 recordId, detail.writerId(), summaries.size(), scraped);
@@ -281,10 +281,9 @@ public class ActivityRecordService {
             log.warn("[deleteActivityRecord] 이미 삭제된 기록임 - RecordId: {}", recordId);
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
-
-        reactionRepository.deleteByActivityRecord(activityRecord);
-        reportRepository.deleteByReportedRecord(activityRecord);
-        scrapRepository.deleteByActivityRecord(activityRecord);
+        reactionRepository.deleteByActivityRecord(recordId);
+        reportRepository.deleteByReportedRecord(recordId);
+        scrapRepository.deleteByActivityRecord(recordId);
 
         String deleteImageUrl = activityRecord.getImageUrl();
 
@@ -301,7 +300,7 @@ public class ActivityRecordService {
             activityRecord.deleteRecord();
         }
 
-        if (deleteImageUrl != null) {
+        if (StringUtils.hasText(deleteImageUrl)) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
@@ -336,13 +335,13 @@ public class ActivityRecordService {
         checkBlockedAndDeletedUser(currentUser.getId(), activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
         validateRecordAuthority(activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUser.getId());
 
-        if(activityRecordScrapRepository.existsByActivityRecordIdAndUserId(recordId, currentUser.getId())) {
+        if(activityRecordScrapRepository.existsByScrap(recordId, currentUser.getId())) {
             throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
         }
 
         ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
 
-        activityRecordScrapRepository.save(ActivityRecordScarp.builder()
+        activityRecordScrapRepository.save(ActivityRecordScrap.builder()
                 .activityRecord(recordProxy)
                 .user(currentUser)
                 .build());
@@ -355,13 +354,13 @@ public class ActivityRecordService {
         User currentUser = userUtil.getCurrentUser(user);
         ActivityRecord activityRecord = getActivityRecord(recordId);
 
-        Optional<ActivityRecordScarp> scarp = activityRecordScrapRepository.findByActivityRecordIdAndUserId(activityRecord.getId(), currentUser.getId());
+        Optional<ActivityRecordScrap> scarp = activityRecordScrapRepository.findByActivityRecordIdAndUserId(activityRecord.getId(), currentUser.getId());
         if(scarp.isEmpty()) {
             return new DeleteActivityRecordScrapResDto("스크랩이 존재하지 않거나 이미 삭제되었습니다.", activityRecord.getId(), false);
         }
-        ActivityRecordScarp activityRecordScarp = scarp.get();
+        ActivityRecordScrap activityRecordScrap = scarp.get();
 
-        activityRecordScrapRepository.delete(activityRecordScarp);
+        activityRecordScrapRepository.delete(activityRecordScrap);
 
         return new DeleteActivityRecordScrapResDto("스크랩 취소가 완료되었습니다.", recordId, false);
     }
@@ -472,7 +471,7 @@ public class ActivityRecordService {
     }
 
     private boolean checkFriendship(String writerId, String currentUserId) {
-        return friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(
+        return friendRelationRepository.existsByFriendship(
                 currentUserId, writerId, FriendRelationStatus.FOLLOW);
     }
 
@@ -539,7 +538,7 @@ public class ActivityRecordService {
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
-        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+        if(friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
 

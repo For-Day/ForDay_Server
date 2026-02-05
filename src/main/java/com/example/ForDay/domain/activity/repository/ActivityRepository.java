@@ -13,4 +13,6 @@ public interface ActivityRepository extends JpaRepository<Activity, Long>, Activ
     @Query("SELECT a FROM Activity a WHERE a.id = :activityId AND a.user.id = :userId")
     Optional<Activity> findByIdAndUserId(@Param("activityId") Long activityId,@Param("userId") String userId);
 
+    @Query("select a from Activity a join fetch a.hobby where a.id = :id and a.user.id = :userId")
+    Optional<Activity> findByIdAndUserIdWithHobby(Long id, String userId);
 }

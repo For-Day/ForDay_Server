@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.OtherActivity;
+import com.example.ForDay.domain.activity.repository.ActivityBulkRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
@@ -63,6 +64,7 @@ public class HobbyService {
     private final CoverLambdaInvoker invoker;
     private final UserRepository userRepository;
     private final S3Util s3Util;
+    private final ActivityBulkRepository activityBulkRepository;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -261,7 +263,7 @@ public class HobbyService {
                 )
                 .toList();
 
-        activityRepository.saveAll(activities);
+        activityBulkRepository.bulkInsertActivities(activities);
         log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
 
         return new AddActivityResDto(
@@ -335,7 +337,12 @@ public class HobbyService {
                 log.info("[GetHomeHobbyInfo] 캐시된 AI 요약 불러오기 성공");
             } else {
                 log.info("[GetHomeHobbyInfo] 새로운 AI 요약 생성 요청 - User: {}, Hobby: {}", currentUser.getId(), targetHobby.getHobbyName());
-                userSummaryText = fetchAndSaveUserSummary(currentUser.getId(), socialId, targetHobby.getId(), targetHobby.getHobbyName());
+                try {
+                    userSummaryText = fetchAndSaveUserSummary(currentUser.getId(), socialId, targetHobby.getId(), targetHobby.getHobbyName());
+                } catch (Exception e) {
+                    log.error("AI 요약 생성 중 오류 발생: {}", e.getMessage());
+                    userSummaryText = "";
+                }
             }
         } else {
             log.info("[GetHomeHobbyInfo] 기록 부족으로 AI 요약 생략 (필요: 5개, 현재: {}개)", recordCount);

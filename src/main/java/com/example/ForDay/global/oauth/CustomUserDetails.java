@@ -10,19 +10,24 @@ import java.util.Collection;
 
 public class CustomUserDetails implements UserDetails {
 
+    private final String userId;
+    private final String socialId;
+    private final String role;
     private final User user;
 
     public CustomUserDetails(User user) {
+        this.userId = user.getId();
+        this.socialId = user.getSocialId();
+        this.role = user.getRole().name();
         this.user = user;
     }
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
 
         Collection<GrantedAuthority> authorities = new ArrayList<>();
 
         authorities.add(
-                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+                new SimpleGrantedAuthority("ROLE_" + role)
         );
 
         return authorities;
@@ -39,7 +44,11 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getSocialId();
+        return socialId;
+    }
+
+    public String getUserId() {
+        return userId;
     }
 
     @Override

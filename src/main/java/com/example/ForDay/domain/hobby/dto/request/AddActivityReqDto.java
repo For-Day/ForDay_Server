@@ -18,13 +18,13 @@ import java.util.List;
 public class AddActivityReqDto {
     @NotEmpty(message = "activities는 최소 1개 이상 필요합니다.")
     @Valid
-    private List<ActivityDto> activities;
+    private List<IndividualActivityDto> activities;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(description = "활동 생성 상세 정보") // 이 클래스에 대한 설명을 추가
-    public static class ActivityDto {
+    public static class IndividualActivityDto {
 
         @Schema(description = "AI 추천 여부", example = "true")
         @NotNull(message = "추천 여부는 필수입니다.")

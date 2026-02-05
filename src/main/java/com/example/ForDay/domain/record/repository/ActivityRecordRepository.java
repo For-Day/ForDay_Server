@@ -33,6 +33,12 @@ public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, 
 
     Optional<ActivityRecord> findByIdAndUserId(Long recordId, String currentUserId);
 
+    @Query("SELECT ar FROM ActivityRecord ar " +
+            "JOIN FETCH ar.activity " +
+            "JOIN FETCH ar.hobby " +
+            "WHERE ar.id = :recordId AND ar.user.id = :userId")
+    Optional<ActivityRecord> findByIdWithDetails(@Param("recordId") Long recordId, @Param("userId") String userId);
+
     long countByUserIdAndHobbyIdAndCreatedAtAfterAndDeletedFalse(String userId, Long hobbyId, LocalDateTime sevenDaysAgo);
 
     @Query("SELECT ar FROM ActivityRecord ar " +

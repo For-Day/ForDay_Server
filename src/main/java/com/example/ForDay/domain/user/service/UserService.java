@@ -111,7 +111,7 @@ public class UserService {
         currentUser.changeNickname(nickname);
         userRepository.save(currentUser);
 
-        return new NicknameRegisterResDto("사용자 이름이 성공적으로 등록되었습니다.", nickname);
+        return new NicknameRegisterResDto("사용자 이름이 성공적으로 등록되었습니다.", currentUser.getNickname());
     }
 
     @Transactional(readOnly = true)
@@ -243,7 +243,7 @@ public class UserService {
             checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
             visibilities.add(RecordVisibility.PUBLIC);
 
-            if (friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(
+            if (friendRelationRepository.existsByFriendship(
                     currentUserId, targetUser.getId(), FriendRelationStatus.FOLLOW)) {
                 visibilities.add(RecordVisibility.FRIEND);
             }
@@ -256,7 +256,7 @@ public class UserService {
             totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetUserId);
         }
 
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUserId, visibilities, reportedRecordIds);
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUserId, visibilities, reportedRecordIds, currentUserId);
 
         boolean hasNext = false;
         if (feedList.size() > feedSize) {
@@ -343,7 +343,7 @@ public class UserService {
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
-        if(friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+        if(friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 

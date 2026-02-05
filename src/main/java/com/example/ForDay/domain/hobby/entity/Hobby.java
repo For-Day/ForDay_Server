@@ -5,6 +5,7 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "user_hobbies")
@@ -12,6 +13,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@DynamicUpdate
 public class Hobby extends BaseTimeEntity {
 
     @Id

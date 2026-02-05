@@ -24,7 +24,7 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     LOGIN_EXPIRED(HttpStatus.UNAUTHORIZED, "로그인이 만료되었습니다. 다시 로그인해주세요."),
     INVALID_REQUEST_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않는 요청 타입입니다."),
-    USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 소셜 계정입니다."),
+    SOCIAL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 소셜 계정입니다."),
 
     // 사용자 관련
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),

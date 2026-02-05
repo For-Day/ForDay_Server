@@ -14,6 +14,16 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
 
     boolean existsByRequesterIdAndTargetUserIdAndRelationStatus(String id, String id1, FriendRelationStatus friendRelationStatus);
 
+    @Query("SELECT COUNT(f) > 0 FROM FriendRelation f " +
+            "WHERE f.requester.id = :requesterId " +
+            "AND f.targetUser.id = :targetId " +
+            "AND f.relationStatus = :status")
+    boolean existsByFriendship(
+            @Param("requesterId") String requesterId,
+            @Param("targetId") String targetId,
+            @Param("status") FriendRelationStatus status
+    );
+
     @Query("SELECT CASE WHEN f.requester.id = :userId THEN f.targetUser.id ELSE f.requester.id END " +
             "FROM FriendRelation f " +
             "WHERE (f.requester.id = :userId OR f.targetUser.id = :userId) " +

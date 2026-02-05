@@ -35,7 +35,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/kakao", "/auth/apple", "/auth/guest", "/auth/refresh")
                         .permitAll()
-                        .requestMatchers(
+                        /*.requestMatchers(
                                 "/auth/switch-account"
                         ).hasRole("GUEST")
                         .requestMatchers("/users/info",
@@ -52,7 +52,7 @@ public class SecurityConfig {
                                 "/hobbies/{hobbyId}/activities/{activityId}/collect",
                                 "/records/{recordId}/scrap",
                                 "/records/{recordId}/report"
-                        ).hasRole("USER")
+                        ).hasRole("USER")*/
                         .anyRequest().authenticated())
                 .sessionManagement((session) -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

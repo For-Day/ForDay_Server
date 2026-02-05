@@ -241,7 +241,7 @@ public class AuthService {
 
                 // 이미 존재하는 회원이면 전환 방지
                 if(userRepository.existsBySocialId(socialId)) {
-                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+                    throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
                 }
 
                 // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> KAKAO
@@ -263,7 +263,7 @@ public class AuthService {
 
                 // 이미 존재하는 회원이면 전환 방지
                 if(userRepository.existsBySocialId(socialId)) {
-                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+                    throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
                 }
 
                 String email = claims.containsKey("email")
