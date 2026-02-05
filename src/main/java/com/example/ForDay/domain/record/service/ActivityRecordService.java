@@ -3,6 +3,7 @@ package com.example.ForDay.domain.record.service;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
+import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.entity.Hobby;
@@ -29,6 +30,7 @@ import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -70,6 +72,7 @@ public class ActivityRecordService {
     private final ActivityRecordScrapRepository scrapRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final RedisReactionService redisReactionService;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
@@ -119,22 +122,20 @@ public class ActivityRecordService {
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
 
-        checkBlockedAndDeletedUser(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted());
+        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, recordDetail.writerId()); //
+        checkBlockedAndDeletedUser(relations, currentUserId, recordDetail.writerId(), recordDetail.writerDeleted()); // 차단이나 탈퇴가 있는지 확인
+        validateRecordAuthority(relations, recordDetail.visibility(), recordDetail.writerId(), currentUserId);
 
         boolean isRecordOwner = Objects.equals(currentUserId, recordDetail.writerId());
-
-        // 2. 이미 가져온 DTO 정보로 권한 검증
-        validateRecordAuthority(recordDetail.visibility(), recordDetail.writerId(), currentUserId);
-
-        // 3. 리포지토리에서 DTO(ReactionUserInfo)로 직접 조회하여 N+1 및 오버페칭 방지
+        // 리포지토리에서 DTO(ReactionUserInfo)로 직접 조회하여 N+1 및 오버페칭 방지
         List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers =
                 recordReactionRepository.findReactionUsersDtoByType(recordId, type, lastUserId, size, isRecordOwner);
 
-        // 4. 다음 페이지 여부 확인
+        // 다음 페이지 여부 확인
         boolean hasNext = reactionUsers.size() > size;
         if (hasNext) reactionUsers.remove(size.intValue());
 
-        // 5. 게시글 주인인 경우에만 벌크 업데이트 실행
+        // 게시글 주인인 경우에만 벌크 업데이트 실행
         if (isRecordOwner) {
             recordReactionRepository.markAsReadByRecordIdAndType(recordId, type);
         }
@@ -374,19 +375,21 @@ public class ActivityRecordService {
         ReportActivityRecordDto activityRecord = activityRecordRepository.getReportActivityRecord(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        checkBlockedAndDeletedUser(currentUser.getId(), activityRecord.getWriterId(), activityRecord.isWriterDeleted());
-
-        // 기록의 공개 범위 고려
-        validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getWriterId(), currentUser.getId());
+        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUser.getId(), activityRecord.getWriterId()); // 현재 유저와 작성자 사이의 모든 관계 조회
+        checkBlockedAndDeletedUser(relations, currentUser.getId(), activityRecord.getWriterId(), activityRecord.isWriterDeleted()); // 차단이나 탈퇴가 있는지 확인
+        validateRecordAuthority(relations, activityRecord.getVisibility(), activityRecord.getWriterId(), currentUser.getId());
 
         if(activityRecordReportRepository.existsByReportedRecordIdAndReporterId(activityRecord.getRecordId(), currentUser.getId())) {
             throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);
         }
 
+        ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
+        User reportedUserProxy = userRepository.getReferenceById(activityRecord.getWriterId());
+
         ActivityRecordReport report = ActivityRecordReport.builder()
                 .reporter(currentUser)
-                .reportedUser(activityRecord.getWriter())
-                .reportedRecord(activityRecord.getActivityRecord())
+                .reportedUser(reportedUserProxy)
+                .reportedRecord(recordProxy)
                 .reason(reqDto.getReason())
                 .build();
         activityRecordReportRepository.save(report);
@@ -544,5 +547,30 @@ public class ActivityRecordService {
 
         // 타겟유저가 탈퇴한 회원인 경우
         if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+    }
+
+    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, String me, String target, boolean deleted) {
+        // 리스트에서 차단(BLOCK)이 하나라도 있는지 확인
+        boolean isBlocked = relations.stream()
+                .anyMatch(f -> f.getRelationStatus() == FriendRelationStatus.BLOCK);
+
+        if (isBlocked || deleted) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+    }
+
+    private void validateRecordAuthority(List<FriendRelation> relations, RecordVisibility visibility, String writerId, String me) {
+        if (writerId.equals(me)) return;
+
+        if (visibility == RecordVisibility.FRIEND) {
+            boolean isFollowing = relations.stream()
+                    .anyMatch(f -> f.getRequester().getId().equals(me) &&
+                            f.getTargetUser().getId().equals(writerId) &&
+                            f.getRelationStatus() == FriendRelationStatus.FOLLOW);
+
+            if (!isFollowing) throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
+        } else if (visibility == RecordVisibility.PRIVATE) {
+            throw new CustomException(ErrorCode.PRIVATE_RECORD);
+        }
     }
 }

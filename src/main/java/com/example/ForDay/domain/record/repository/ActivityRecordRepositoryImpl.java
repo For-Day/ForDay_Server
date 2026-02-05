@@ -162,15 +162,13 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 queryFactory
                         .select(Projections.constructor(ReportActivityRecordDto.class,
                                 record.id,
-                                record,
-                                record.user,
                                 record.user.id,
                                 record.user.deleted,
                                 record.user.nickname,
                                 record.visibility
                         ))
                         .from(record)
-                        .join(record.user)
+                        .join(record.user, user)
                         .where(record.id.eq(recordId))
                         .fetchOne()
         );
