@@ -43,4 +43,25 @@ public interface ActivityRecordReactionRepository extends JpaRepository <Activit
             "WHERE r.createdAt >= :start AND r.createdAt <= :end " +
             "GROUP BY r.activityRecord.id")
     List<ReactionCountDto> countReactionsByDate(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(r) > 0 FROM ActivityRecordReaction r " +
+            "WHERE r.activityRecord.id = :recordId " +
+            "AND r.reactedUser.id = :userId " +
+            "AND r.reactionType = :type")
+    boolean existsByRecordIdAndUserIdAndType(
+            @Param("recordId") Long recordId,
+            @Param("userId") String userId,
+            @Param("type") RecordReactionType type
+    );
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ActivityRecordReaction r " +
+            "WHERE r.activityRecord.id = :recordId " +
+            "AND r.reactedUser.id = :userId " +
+            "AND r.reactionType = :type")
+    int deleteByRecordIdAndUserIdAndType(
+            @Param("recordId") Long recordId,
+            @Param("userId") String userId,
+            @Param("type") RecordReactionType type
+    );
 }

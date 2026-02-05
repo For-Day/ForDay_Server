@@ -14,4 +14,5 @@ public class ReportActivityRecordDto {
     private boolean writerDeleted;
     private String writerNickname;
     private RecordVisibility visibility;
+    private boolean recordDeleted;
 }

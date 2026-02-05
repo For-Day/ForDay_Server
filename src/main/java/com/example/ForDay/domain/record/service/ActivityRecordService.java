@@ -147,31 +147,33 @@ public class ActivityRecordService {
 
     @Transactional
     public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
+        ReportActivityRecordDto recordDto = activityRecordRepository.getReportActivityRecord(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        if(activityRecord.isDeleted()) {
+        if(recordDto.isRecordDeleted()) {
             log.warn("[reactToRecord] 실패: 삭제된 기록 - RecordId: {}", recordId);
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
-
         User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
 
-        checkBlockedAndDeletedUser(currentUser.getId(), activityRecord.getUser().getId(), activityRecord.getUser().isDeleted());
-        validateRecordAuthority(activityRecord.getVisibility(), activityRecord.getUser().getId(), currentUser.getId());
+        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, recordDto.getWriterId());
+        checkBlockedAndDeletedUser(relations, currentUserId, recordDto.getWriterId(), recordDto.isWriterDeleted());
+        validateRecordAuthority(relations, recordDto.getVisibility(), recordDto.getWriterId(), currentUserId);
 
-        if (recordReactionRepository.existsByActivityRecordAndReactedUserAndReactionType(activityRecord, currentUser, type)) {
+        if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordDto.getRecordId(), currentUserId, type)) {
             log.info("[reactToRecord] 중복 리액션 무시 - RecordId: {}, Type: {}", recordId, type);
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
 
         recordReactionRepository.save(ActivityRecordReaction.builder()
-                .activityRecord(activityRecord)
-                .reactedUser(currentUser)
+                .activityRecord(activityRecordRepository.getReferenceById(recordId))
+                .reactedUser(userRepository.getReferenceById(currentUserId))
                 .reactionType(type)
                 .readWriter(false)
                 .build());
 
-        redisReactionService.incrementRankingScore(activityRecord.getId());
+        redisReactionService.incrementRankingScore(recordDto.getRecordId());
 
         log.info("[reactToRecord] 리액션 등록 완료 - RecordId: {}", recordId);
         return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", type, recordId);
@@ -195,13 +197,16 @@ public class ActivityRecordService {
 
     @Transactional
     public CancelReactToRecordResDto cancelReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        ActivityRecord activityRecord = getActivityRecord(recordId);
-        ActivityRecordReaction reaction = recordReactionRepository
-                .findByActivityRecordAndReactedUserAndReactionType(activityRecord, userUtil.getCurrentUser(user), type)
-                .orElseThrow(() -> new CustomException(ErrorCode.REACTION_NOT_FOUND));
+        String userId = user.getUserId();
+        int deletedCount = recordReactionRepository.deleteByRecordIdAndUserIdAndType(recordId, userId, type);
+        if (deletedCount == 0) {
+            throw new CustomException(ErrorCode.REACTION_NOT_FOUND);
+        }
 
-        recordReactionRepository.delete(reaction);
-        redisReactionService.decrementRankingScore(activityRecord.getId());
+        // 3. Redis 점수 차감
+        redisReactionService.decrementRankingScore(recordId);
+
+        log.info("[cancelReactToRecord] 리액션 취소 완료 - RecordId: {}, UserId: {}", recordId, userId);
         return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", type, recordId);
     }
 
