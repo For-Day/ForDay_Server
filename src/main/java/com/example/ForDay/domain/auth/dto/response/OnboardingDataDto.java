@@ -9,16 +9,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OnboardingDataDto {
     private Long id;
-    private Long hobbyCardId;
+    private Long hobbyInfoId;
     private String hobbyName;
     private String hobbyPurpose;
     private Integer hobbyTimeMinutes;
     private Integer executionCount;
     private boolean isDurationSet;
 
-    public OnboardingDataDto(Long id, Long hobbyCardId, String hobbyName, String hobbyPurpose, Integer hobbyTimeMinutes, Integer executionCount, Integer goalDays) {
+    public OnboardingDataDto(Long id, Long hobbyInfoId, String hobbyName, String hobbyPurpose, Integer hobbyTimeMinutes, Integer executionCount, Integer goalDays) {
         this.id = id;
-        this.hobbyCardId = hobbyCardId;
+        this.hobbyInfoId = hobbyInfoId;
         this.hobbyName = hobbyName;
         this.hobbyPurpose = hobbyPurpose;
         this.hobbyTimeMinutes = hobbyTimeMinutes;
