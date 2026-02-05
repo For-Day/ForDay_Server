@@ -66,7 +66,8 @@ public class ActivityService {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
 
-        Activity activity = getActivityByUserId(activityId, currentUser.getId());
+        Activity activity = activityRepository.findByIdAndUserIdWithHobby(activityId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
         Hobby hobby = activity.getHobby();
         Long hobbyId = hobby.getId();
 
@@ -140,7 +141,8 @@ public class ActivityService {
     ) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        Activity activity = getActivityByUserId(activityId, currentUser.getId());
+        Activity activity = activityRepository.findByIdAndUserIdWithHobby(activityId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
         Hobby hobby = activity.getHobby();
 
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
@@ -364,7 +366,7 @@ public class ActivityService {
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
-        if (friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByRequesterIdAndTargetUserIdAndRelationStatus(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+        if (friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.ACTIVITY_NOT_FOUND);
         }
         // 타겟유저가 탈퇴한 회원인 경우

@@ -10,12 +10,19 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ActivityRecordReportRepository extends JpaRepository<ActivityRecordReport, Long> {
-    boolean existsByReportedRecordIdAndReporterId(Long recordId, String id);
+    @Query("SELECT COUNT(r) > 0 FROM ActivityRecordReport r " +
+            "WHERE r.reportedRecord.id = :recordId " +
+            "AND r.reporter.id = :reporterId")
+    boolean existsByReportedRecordIdAndReporterId(@Param("recordId") Long recordId, @Param("reporterId") String reporterId);
+
+    @Query("SELECT r.reportedRecord.id FROM ActivityRecordReport r WHERE r.reporter.id = :userId")
+    List<Long> findReportedRecordIdsByReporterId(@Param("userId") String userId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ActivityRecordReport r WHERE r.reportedRecord.id = :recordId")
+    void deleteByRecordId(@Param("recordId") Long recordId);
 
     @Modifying
     @Query("delete from ActivityRecordReport r where r.reportedRecord = :record")
     void deleteByReportedRecord(@Param("record") ActivityRecord record);
-
-    @Query("SELECT r.reportedRecord.id FROM ActivityRecordReport r WHERE r.reporter.id = :userId")
-    List<Long> findReportedRecordIdsByReporterId(@Param("userId") String userId);
 }

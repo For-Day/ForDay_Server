@@ -1,4 +1,4 @@
-package com.example.ForDay.global.config;
+package com.example.ForDay.global.config.ai;
 
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;

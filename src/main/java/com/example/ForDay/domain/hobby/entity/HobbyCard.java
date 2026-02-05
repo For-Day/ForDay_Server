@@ -25,7 +25,7 @@ public class HobbyCard extends BaseTimeEntity {
     @JoinColumn(name = "user_hobby_id", nullable = false)
     private Hobby hobby;
 
-    @Column(length = 20)
+    @Column(length = 100)
     private String content;
 
     private String imageUrl;

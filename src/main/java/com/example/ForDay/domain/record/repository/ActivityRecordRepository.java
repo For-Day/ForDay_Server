@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.record.repository;
 
+import com.example.ForDay.domain.record.dto.RecordDeleteCheckDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.user.entity.User;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -33,6 +34,12 @@ public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, 
 
     Optional<ActivityRecord> findByIdAndUserId(Long recordId, String currentUserId);
 
+    @Query("SELECT ar FROM ActivityRecord ar " +
+            "JOIN FETCH ar.activity " +
+            "JOIN FETCH ar.hobby " +
+            "WHERE ar.id = :recordId AND ar.user.id = :userId")
+    Optional<ActivityRecord> findByIdWithDetails(@Param("recordId") Long recordId, @Param("userId") String userId);
+
     long countByUserIdAndHobbyIdAndCreatedAtAfterAndDeletedFalse(String userId, Long hobbyId, LocalDateTime sevenDaysAgo);
 
     @Query("SELECT ar FROM ActivityRecord ar " +
@@ -42,4 +49,18 @@ public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, 
             "AND ar.deleted = false " +
             "ORDER BY ar.createdAt DESC")
     Optional<ActivityRecord> findLatestImageRecord(@Param("hobbyId") Long hobbyId);
+
+
+    @Query("SELECT new com.example.ForDay.domain.record.dto.RecordDeleteCheckDto(" +
+            "r.createdAt, r.deleted, r.imageUrl, r.hobby.id) " +
+            "FROM ActivityRecord r " +
+            "WHERE r.id = :recordId AND r.user.id = :userId")
+    Optional<RecordDeleteCheckDto> findDeleteCheckDto(
+            @Param("recordId") Long recordId,
+            @Param("userId") String userId
+    );
+
+    @Modifying
+    @Query("UPDATE ActivityRecord r SET r.deleted = true, r.updatedAt = NOW() WHERE r.id = :recordId")
+    void softDeleteRecord(Long recordId);
 }

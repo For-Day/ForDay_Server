@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.record.entity.QActivityRecord;
-import com.example.ForDay.domain.record.entity.QActivityRecordScarp;
+import com.example.ForDay.domain.record.entity.QActivityRecordScrap;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserScrapListResDto;
 import com.querydsl.core.types.Projections;
@@ -15,7 +15,7 @@ import java.util.List;
 public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private final QActivityRecord record = QActivityRecord.activityRecord;
-    private final QActivityRecordScarp scrap = QActivityRecordScarp.activityRecordScarp;
+    private final QActivityRecordScrap scrap = QActivityRecordScrap.activityRecordScrap;
 
     @Override
     public List<GetUserScrapListResDto.ScrapDto> getMyScrapList(Long lastScrapId, Integer size, String targetUserId) {

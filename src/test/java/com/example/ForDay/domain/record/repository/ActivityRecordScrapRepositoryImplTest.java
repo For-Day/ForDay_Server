@@ -9,7 +9,7 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.entity.ActivityRecordScarp;
+import com.example.ForDay.domain.record.entity.ActivityRecordScrap;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserScrapListResDto;
 import com.example.ForDay.domain.user.entity.User;
@@ -152,7 +152,7 @@ class ActivityRecordScrapRepositoryImplTest {
     }
 
     private void saveScrap(User user, ActivityRecord record) {
-        activityRecordScrapRepository.save(ActivityRecordScarp.builder()
+        activityRecordScrapRepository.save(ActivityRecordScrap.builder()
                 .user(user).activityRecord(record).build());
     }
 

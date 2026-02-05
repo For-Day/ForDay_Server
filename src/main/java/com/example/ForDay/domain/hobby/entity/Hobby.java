@@ -5,6 +5,7 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "user_hobbies")
@@ -12,6 +13,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@DynamicUpdate
 public class Hobby extends BaseTimeEntity {
 
     @Id
@@ -26,7 +28,7 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "hobby_info_id")
     private Long hobbyInfoId;
 
-    @Column(name = "hobby_name", nullable = false, length = 15)
+    @Column(name = "hobby_name", nullable = false, length = 20)
     private String hobbyName;
 
     @Column(name = "hobbyPurpose", nullable = false, length = 50)
@@ -41,10 +43,6 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "current_sticker_num")
     @Builder.Default
     private Integer currentStickerNum = 0;
-
-    @Column(name = "goal_sticker_num")
-    @Builder.Default
-    private Integer goalStickerNum = null; // 나중에 삭제될 수도
 
     @Column(name = "goal_days")
     @Builder.Default
