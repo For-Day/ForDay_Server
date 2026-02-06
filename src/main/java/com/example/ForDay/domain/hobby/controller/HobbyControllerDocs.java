@@ -1260,4 +1260,87 @@ public interface HobbyControllerDocs {
             @ApiResponse(responseCode = "200", description = "조회 성공 (데이터가 없으면 빈 리스트 반환)")
     })
     ReCheckHobbyInfoResDto reCheckHobbyInfo(@AuthenticationPrincipal CustomUserDetails user);
+
+
+    @Operation(
+            summary = "취미 수정",
+            description = """
+                온보딩 완료 & 닉네임 미완료 상태에서만 취미 정보를 수정합니다.
+
+                ✔ 허용 상태
+                - 온보딩 완료
+                - 닉네임 미설정
+
+                ❌ 그 외 상태에서는 예외가 발생합니다.
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "취미 수정 성공",
+                    content = @Content(schema = @Schema(implementation = UpdateHobbyResDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 취미 상태",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "INVALID_HOBBY_STATUS",
+                                    summary = "온보딩/닉네임 상태 오류",
+                                    value = """
+                        {
+                          "status": 400,
+                          "success": false,
+                          "data": {
+                            "errorClassName": "INVALID_HOBBY_STATUS",
+                            "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+                          }
+                        }
+                        """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 취미",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "HOBBY_NOT_FOUND",
+                                    summary = "취미 ID 없음",
+                                    value = """
+                        {
+                          "status": 404,
+                          "success": false,
+                          "data": {
+                            "errorClassName": "HOBBY_NOT_FOUND",
+                            "message": "존재하지 않는 취미입니다."
+                          }
+                        }
+                        """
+                            )
+                    )
+            )
+
+    })
+    UpdateHobbyResDto updateHobby(
+            @Parameter(description = "수정할 취미 ID", example = "23")
+            @PathVariable(name = "hobbyId") Long hobbyId,
+
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "취미 수정 요청 데이터",
+                    required = true,
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UpdateHobbyReqDto.class)
+                    )
+            )
+            @RequestBody @Valid UpdateHobbyReqDto reqDto,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
 }
