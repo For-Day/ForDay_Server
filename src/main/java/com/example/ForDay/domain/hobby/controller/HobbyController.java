@@ -187,6 +187,7 @@ public class HobbyController implements HobbyControllerDocs {
         return hobbyService.reCheckHobbyInfo(user);
     }
 
+    @Override
     @PutMapping("/{hobbyId}/update")
     public UpdateHobbyResDto updateHobby(@PathVariable(name = "hobbyId") Long hobbyId,
                                          @RequestBody @Valid UpdateHobbyReqDto reqDto,
