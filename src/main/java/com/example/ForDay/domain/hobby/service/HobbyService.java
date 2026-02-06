@@ -864,4 +864,23 @@ public class HobbyService {
 
         return new ReCheckHobbyInfoResDto(hobbyInfoDtos);
     }
+
+    @Transactional
+    public UpdateHobbyResDto updateHobby(Long hobbyId, UpdateHobbyReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        boolean isNicknameSet = StringUtils.hasText(currentUser.getNickname());
+        boolean onboardingCompleted = currentUser.isOnboardingCompleted();
+
+        if (!(onboardingCompleted && !isNicknameSet)) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+
+        hobby.updateHobby(reqDto.getHobbyInfoId(), reqDto.getHobbyName(), reqDto.getHobbyPurpose(), reqDto.getHobbyTimeMinutes(), reqDto.getExecutionCount(), reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null);
+
+        return new UpdateHobbyResDto(hobby.getId(), hobby.getHobbyInfoId(), hobby.getHobbyName(), hobby.getHobbyPurpose(), hobby.getHobbyTimeMinutes(), hobby.getExecutionCount(), hobby.getGoalDays());
+    }
 }

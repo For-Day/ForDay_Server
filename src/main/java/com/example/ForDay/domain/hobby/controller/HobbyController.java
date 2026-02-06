@@ -186,4 +186,11 @@ public class HobbyController implements HobbyControllerDocs {
     public ReCheckHobbyInfoResDto reCheckHobbyInfo(@AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.reCheckHobbyInfo(user);
     }
+
+    @PutMapping("/{hobbyId}/update")
+    public UpdateHobbyResDto updateHobby(@PathVariable(name = "hobbyId") Long hobbyId,
+                                         @RequestBody @Valid UpdateHobbyReqDto reqDto,
+                                         @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.updateHobby(hobbyId, reqDto, user);
+    }
 }
