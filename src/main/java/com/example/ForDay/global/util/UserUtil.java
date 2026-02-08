@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class UserUtil {
     private final UserRepository userRepository;
-
     public User getCurrentUser(CustomUserDetails userDetails) {
         return userDetails.getUser();
     }

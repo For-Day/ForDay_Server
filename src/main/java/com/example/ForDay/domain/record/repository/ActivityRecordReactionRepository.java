@@ -61,4 +61,8 @@ public interface ActivityRecordReactionRepository extends JpaRepository <Activit
     @Query("delete from ActivityRecordReaction r where r.activityRecord = :record")
     void deleteByActivityRecord(@Param("record") ActivityRecord record);
 
+    @Modifying
+    @Query("delete from ActivityRecordReaction r where r.activityRecord.id = :recordId")
+    void deleteByActivityRecordId(@Param("recordId") Long recordId);
+
 }

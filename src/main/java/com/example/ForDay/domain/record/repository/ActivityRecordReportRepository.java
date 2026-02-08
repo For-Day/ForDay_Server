@@ -25,4 +25,8 @@ public interface ActivityRecordReportRepository extends JpaRepository<ActivityRe
     @Modifying
     @Query("delete from ActivityRecordReport r where r.reportedRecord = :record")
     void deleteByReportedRecord(@Param("record") ActivityRecord record);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ActivityRecordReport r where r.reportedRecord.id = :recordId")
+    void deleteByReportedRecordId(@Param("recordId") Long recordId);
 }
