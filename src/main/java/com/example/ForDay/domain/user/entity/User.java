@@ -34,7 +34,7 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private String email = null;
 
-    @Column(name = "nickname", length = 10, unique = true)
+    @Column(name = "nickname", length = 50, unique = true)
     @Builder.Default
     private String nickname = null;
 

@@ -119,6 +119,10 @@ public class AuthService {
         String guestUserId = reqDto.getGuestUserId();
         boolean newUser;
 
+        if(reqDto.getGuestUserId().startsWith("withdrawn")) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
         // 처음 가입하는 게스트 로그인일 때
         if (guestUserId == null || guestUserId.isBlank()) {
             String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
@@ -280,6 +284,14 @@ public class AuthService {
         return new SwitchAccountResDto(reqDto.getSocialType(), accessToken, refreshToken);
     }
 
+    @Transactional
+    public UserWithDrawResDto userWithDraw(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        currentUser.withdraw();
+        userRepository.save(currentUser);
+        return new UserWithDrawResDto("회원탈퇴 되었습니다.", currentUser.getDeletedAt());
+    }
+
     // 유틸 메서드
 
     private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {
@@ -293,9 +305,5 @@ public class AuthService {
         return StringUtils.hasText(user.getNickname());
     }
 
-    public UserWithDrawResDto userWithDraw(CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        currentUser.withdraw();
-        return new UserWithDrawResDto("회원탈퇴 되었습니다.", currentUser.getDeletedAt());
-    }
+
 }
