@@ -35,6 +35,14 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     @Override
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long targetHobbyId, User currentUser) {
 
+        var isCurrentHobbyExpr = new CaseBuilder()
+                .when(hobby.id.eq(targetHobbyId)).then(true)
+                .otherwise(false);
+
+        var currentHobbyOrderKey = new CaseBuilder()
+                .when(hobby.id.eq(targetHobbyId)).then(0)
+                .otherwise(1);
+
         // 1. Hobby 리스트 조회 (현재 사용자의 진행 중인 취미들)
         List<GetHomeHobbyInfoResDto.InProgressHobbyDto> hobbyList = queryFactory
                 .select(Projections.constructor(GetHomeHobbyInfoResDto.InProgressHobbyDto.class,
@@ -46,7 +54,8 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .from(hobby)
                 .where(hobby.user.eq(currentUser),
                         hobby.status.eq(HobbyStatus.IN_PROGRESS))
-                .orderBy(hobby.createdAt.desc())
+                .orderBy(currentHobbyOrderKey.asc(),
+                        hobby.createdAt.desc())
                 .fetch();
 
         if (hobbyList.isEmpty()) return null;
@@ -111,13 +120,13 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
     public OnboardingDataDto getOnboardingDate(User user) {
         return queryFactory
                 .select(Projections.constructor(OnboardingDataDto.class,
-                        hobby.id,
-                        hobby.hobbyInfoId,
-                        hobby.hobbyName,
-                        hobby.hobbyPurpose,
-                        hobby.hobbyTimeMinutes,
-                        hobby.executionCount,
-                        hobby.goalDays
+                                hobby.id,
+                                hobby.hobbyInfoId,
+                                hobby.hobbyName,
+                                hobby.hobbyPurpose,
+                                hobby.hobbyTimeMinutes,
+                                hobby.executionCount,
+                                hobby.goalDays
                         )
                 )
                 .from(hobby)
