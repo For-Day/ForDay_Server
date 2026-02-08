@@ -179,7 +179,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
             Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
             String currentUserId, List<String> myFriendIds, List<String> blockFriendIds,
-            List<Long> reportedRecordIds, StoryFilterType storyFilterType) {
+            List<Long> reportedRecordIds, StoryFilterType storyFilterType, String hobbyName) {
 
         List<Long> hotIds = null;
         if (storyFilterType == StoryFilterType.HOT) {
@@ -211,7 +211,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .join(record.activity, activity)
                 .join(record.user, user)
                 .where(
-                        record.hobby.hobbyInfoId.eq(hobbyInfoId),
+                        record.hobby.hobbyInfoId.eq(hobbyInfoId).or(record.hobby.hobbyName.eq(hobbyName)),
                         record.user.id.ne(currentUserId),
                         storyFilterType == StoryFilterType.HOT ? record.id.in(hotIds) : ltLastRecordId(lastRecordId),
                         record.user.deleted.isFalse(),
