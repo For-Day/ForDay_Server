@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
+import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
@@ -38,6 +39,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private final QActivity activity = QActivity.activity;
     private final QActivityRecordReaction reaction = QActivityRecordReaction.activityRecordReaction;
     private final QActivityRecordReport activityRecordReport = QActivityRecordReport.activityRecordReport;
+    private final QHobby hobby = QHobby.hobby;
 
     @Override
     public List<GetStickerInfoResDto.StickerDto> getStickerInfo(
@@ -175,107 +177,111 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
         );
     }
 
+
     @Override
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
             Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
             String currentUserId, List<String> myFriendIds, List<String> blockFriendIds,
             List<Long> reportedRecordIds, StoryFilterType storyFilterType, String hobbyName) {
 
+        // 1. HOT 필터일 경우 Redis에서 ID 리스트 미리 조회
         List<Long> hotIds = null;
         if (storyFilterType == StoryFilterType.HOT) {
             Double lastScore = (lastRecordId != null) ? redisReactionService.getScore(lastRecordId) : null;
-            // 커서 기반으로 넉넉하게(필터링 대비 size * 2) ID 리스트 확보
             hotIds = redisReactionService.getHotRecordIdsByCursor(lastScore, lastRecordId, size);
-
             if (hotIds.isEmpty()) return Collections.emptyList();
         }
+
+        // 2. 메인 쿼리 실행
         return queryFactory
                 .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
-                        record.id,
-                        record.imageUrl,
-                        record.sticker,
-                        record.activity.content,
-                        record.memo,
-                        Projections.constructor(GetActivityRecordByStoryResDto.UserInfoDto.class,
-                                record.user.id,
-                                record.user.nickname,
-                                record.user.profileImageUrl
+                        record.id,               // recordId
+                        record.imageUrl,         // thumbnailUrl
+                        record.sticker,          // sticker
+                        activity.content,        // title (활동 내용)
+                        record.memo,             // memo
+                        Projections.constructor(GetActivityRecordByStoryResDto.UserInfoDto.class, // userInfoDto
+                                user.id,
+                                user.nickname,
+                                user.profileImageUrl
                         ),
-                        JPAExpressions
-                                .select(reaction.count().gt(0L))
-                                .from(reaction)
-                                .where(reaction.activityRecord.id.eq(record.id)
-                                        .and(reaction.reactedUser.id.eq(currentUserId)))
+                        reaction.id.isNotNull()  // pressedAweSome (좋아요 여부)
                 ))
                 .from(record)
                 .join(record.activity, activity)
                 .join(record.user, user)
+                .join(record.hobby, hobby)
+                // 서브쿼리 대신 Left Join으로 내가 반응했는지 체크 (N+1 방지)
+                .leftJoin(reaction).on(
+                        reaction.activityRecord.id.eq(record.id),
+                        reaction.reactedUser.id.eq(currentUserId)
+                )
                 .where(
-                        record.hobby.hobbyInfoId.eq(hobbyInfoId).or(record.hobby.hobbyName.eq(hobbyName)),
-                        record.user.id.ne(currentUserId),
+                        hobbyCondition(hobbyInfoId, hobbyName),
+                        user.id.ne(currentUserId),
+                        user.deleted.isFalse(),
+                        record.deleted.isFalse(),
                         storyFilterType == StoryFilterType.HOT ? record.id.in(hotIds) : ltLastRecordId(lastRecordId),
-                        record.user.deleted.isFalse(),
-                        record.deleted.isFalse(), // Soft Delete 필터 추가
                         notInBlockList(blockFriendIds),
                         notInReportedList(reportedRecordIds),
                         containsKeyword(keyword),
                         getVisibilityCondition(storyFilterType, myFriendIds)
                 )
                 .orderBy(createOrderSpecifier(storyFilterType, hotIds))
-                .limit(size)
+                .limit(size + 1) // hasNext 판단을 위해 1개 더 조회
                 .fetch();
+    }
+
+// --- Helper Methods ---
+
+    private BooleanExpression hobbyCondition(Long hobbyInfoId, String hobbyName) {
+        return record.hobby.hobbyInfoId.eq(hobbyInfoId)
+                .or(record.hobby.hobbyName.eq(hobbyName));
+    }
+
+    private BooleanExpression ltLastRecordId(Long lastRecordId) {
+
+        return lastRecordId != null ? record.id.lt(lastRecordId) : null;
+
     }
 
     private OrderSpecifier<?>[] createOrderSpecifier(StoryFilterType type, List<Long> hotIds) {
         if (type == StoryFilterType.HOT && hotIds != null && !hotIds.isEmpty()) {
             return new OrderSpecifier<?>[]{
-                    // FIELD 함수를 사용하여 Redis가 정렬한 순서 그대로 DB 결과를 정렬
                     new OrderSpecifier<>(Order.ASC, Expressions.stringTemplate("FIELD({0}, {1})",
                             record.id, Expressions.constant(hotIds))),
                     record.createdAt.desc()
             };
         }
-        // 기본값: 최신순
         return new OrderSpecifier<?>[]{record.id.desc()};
     }
 
     private BooleanExpression getVisibilityCondition(StoryFilterType type, List<String> myFriendIds) {
-        // 1. 친구 필터일 때: PUBLIC 제외, 오직 내 친구의 FRIEND 글만
         if (type == StoryFilterType.MY_FRIEND) {
             return record.visibility.eq(RecordVisibility.FRIEND)
-                    .and(record.user.id.in(myFriendIds));
+                    .and(user.id.in(myFriendIds));
         }
-
-        // 2. ALL 또는 HOT
         return record.visibility.eq(RecordVisibility.PUBLIC)
-                .or(record.visibility.eq(RecordVisibility.FRIEND)
-                        .and(record.user.id.in(myFriendIds)));
+                .or(record.visibility.eq(RecordVisibility.FRIEND).and(user.id.in(myFriendIds)));
     }
 
     private BooleanExpression notInReportedList(List<Long> reportedRecordIds) {
-        if (reportedRecordIds == null || reportedRecordIds.isEmpty()) return null;
-        return record.id.notIn(reportedRecordIds);
+        return (reportedRecordIds == null || reportedRecordIds.isEmpty()) ? null : record.id.notIn(reportedRecordIds);
     }
 
-
     private BooleanExpression notInBlockList(List<String> blockFriendIds) {
-        return (blockFriendIds == null || blockFriendIds.isEmpty())
-                ? null : record.user.id.notIn(blockFriendIds);
+        return (blockFriendIds == null || blockFriendIds.isEmpty()) ? null : user.id.notIn(blockFriendIds);
     }
 
     private BooleanExpression containsKeyword(String keyword) {
-        return (keyword == null || keyword.isBlank())
-                ? null : record.activity.content.contains(keyword)  // 활동 내용
-                .or(record.memo.contains(keyword));  // 활동 기록 메모
+        return (keyword == null || keyword.isBlank()) ? null : activity.content.contains(keyword).or(record.memo.contains(keyword));
     }
+
 
     private BooleanExpression hobbyIdIn(List<Long> hobbyIds) {
         if (hobbyIds == null || hobbyIds.isEmpty()) return null;
         return record.hobby.id.in(hobbyIds);
     }
 
-    private BooleanExpression ltLastRecordId(Long lastRecordId) {
-        return lastRecordId != null ? record.id.lt(lastRecordId) : null;
-    }
 
 }

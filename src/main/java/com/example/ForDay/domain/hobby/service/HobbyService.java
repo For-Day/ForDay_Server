@@ -563,10 +563,6 @@ public class HobbyService {
         return new SetHobbyExtensionResDto(hobbyId, reqDto.getType(), "취미 기간 설정이 정상적으로 처리되었습니다.");
     }
 
-    private static boolean isCheckStickerFull(Hobby hobby) {
-        return Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT) && Objects.equals(hobby.getGoalDays(), STICKER_COMPLETE_COUNT);
-    }
-
     @Transactional(readOnly = true)
     public GetStickerInfoResDto getStickerInfo(
             Long hobbyId,
@@ -825,27 +821,6 @@ public class HobbyService {
                 reqDto.getRecordId(),
                 s3Util.toCoverMainResizedUrl(updatedUrl)
         );
-    }
-
-    @Transactional(readOnly = true)
-    public GetHobbyStoryTabsResDto getHobbyStoryTabs(CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-
-        // 1. 해당 유저의 진행 중(IN_PROGRESS)인 취미를 최신 생성순(Id 내림차순)으로 조회
-        List<Hobby> activeHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
-                currentUser.getId(),
-                HobbyStatus.IN_PROGRESS
-        );
-
-        if(activeHobbies.isEmpty()) return new GetHobbyStoryTabsResDto(List.of());
-
-        // 2. Hobby 엔티티 리스트를 HobbyTabInfoDto 리스트로 변환
-        List<GetHobbyStoryTabsResDto.HobbyTabInfoDto> tabInfos = activeHobbies.stream()
-                .map(GetHobbyStoryTabsResDto.HobbyTabInfoDto::from)
-                .toList();
-
-        // 3. 최종 응답 DTO 반환
-        return new GetHobbyStoryTabsResDto(tabInfos);
     }
 
     @Transactional(readOnly = true)
