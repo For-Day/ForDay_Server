@@ -20,5 +20,4 @@ public class UserUtil {
     public User getCurrentUser(CustomUserDetails userDetails) {
         return userDetails.getUser();
     }
-
 }

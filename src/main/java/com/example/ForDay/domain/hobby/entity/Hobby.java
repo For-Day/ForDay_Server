@@ -97,4 +97,13 @@ public class Hobby extends BaseTimeEntity {
             this.currentStickerNum--;
         }
     }
+
+    public void updateHobby(Long hobbyInfoId, String hobbyName, String hobbyPurpose, Integer hobbyTimeMinutes, Integer executionCount, Integer goalDays) {
+        this.hobbyInfoId = hobbyInfoId;
+        this.hobbyName = hobbyName;
+        this.hobbyPurpose = hobbyPurpose;
+        this.hobbyTimeMinutes = hobbyTimeMinutes;
+        this.executionCount = executionCount;
+        this.goalDays = goalDays;
+    }
 }

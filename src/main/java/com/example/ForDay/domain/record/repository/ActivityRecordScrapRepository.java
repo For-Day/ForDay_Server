@@ -30,4 +30,9 @@ public interface ActivityRecordScrapRepository extends JpaRepository<ActivityRec
     @Modifying
     @Query("delete from ActivityRecordScrap s where s.activityRecord = :activityRecord")
     void deleteByActivityRecord(@Param("activityRecord") ActivityRecord activityRecord);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ActivityRecordScrap s where s.activityRecord.id = :recordId")
+    void deleteByActivityRecordId(@Param("recordId") Long recordId);
+
 }

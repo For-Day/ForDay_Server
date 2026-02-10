@@ -295,7 +295,6 @@ public class ActivityRecordService {
             activityRecord.getHobby().deleteRecord();
             todayRecordRedisService.deleteTodayRecordKey(currentUserId, activityRecord.getHobby().getId());
             activityRecordRepository.delete(activityRecord);
-
         } else {
             activityRecord.deleteRecord();
         }

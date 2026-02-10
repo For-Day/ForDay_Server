@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .httpBasic((auth) -> auth.disable())
                 .authorizeHttpRequests((auth) -> auth
                         .requestMatchers(
-                                "/app/metadata", "/health_check", "/error_check", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml", "/log-test")
+                                "/app/metadata", "/health_check", "/error_check", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml", "/log-test", "/terms/**")
                         .permitAll()
                         .requestMatchers(
                                 "/auth/kakao", "/auth/apple", "/auth/guest", "/auth/refresh")
