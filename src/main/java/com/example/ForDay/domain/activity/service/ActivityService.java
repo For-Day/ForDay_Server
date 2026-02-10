@@ -4,7 +4,10 @@ import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.activity.dto.FastAPIHobbyCardReqDto;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.FastAPIHobbyCardResDto;
+import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
+import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.dto.request.FastAPIRecommendReqDto;
@@ -36,6 +39,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
@@ -52,6 +60,7 @@ public class ActivityService {
     private final HobbyRepository hobbyRepository;
     private final FriendRelationRepository friendRelationRepository;
     private final RestTemplate restTemplate;
+    private final ActivityRecommendItemRepository recommendItemRepository;
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
@@ -351,6 +360,44 @@ public class ActivityService {
                 savedActivity.getId(), hobby.getHobbyName());
 
         return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동이 정상적으로 담겼습니다.");
+    }
+
+    @Transactional(readOnly = true)
+    public GetAiRecommendItemsResDto getAiRecommendItems(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        String currentUserId = currentUser.getId();
+
+        // 1. 현재 유저의 현재 진행 중인 취미 조회
+        List<Hobby> progressHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
+                currentUserId,
+                HobbyStatus.IN_PROGRESS
+        );
+
+        if (progressHobbies.isEmpty()) {
+            return new GetAiRecommendItemsResDto(new GetAiRecommendItemsResDto.MessageDto(), Collections.emptyList());
+        }
+
+        // 2. 오늘 날짜 범위 설정
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfToday = LocalDate.now().atTime(LocalTime.MAX);
+
+        // 3. 오늘 생성된 추천 아이템 조회
+        List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbiesAndDate(
+                progressHobbies, startOfToday, endOfToday
+        );
+
+        // 4. DTO 변환
+        List<GetAiRecommendItemsResDto.ItemDto> itemDtos = items.stream()
+                .map(item -> new GetAiRecommendItemsResDto.ItemDto(
+                        item.getId(),
+                        item.getHobby().getId(),
+                        item.getHobby().getHobbyName(),
+                        item.getContent(),
+                        item.getDescription()
+                ))
+                .toList();
+
+        return new GetAiRecommendItemsResDto(new GetAiRecommendItemsResDto.MessageDto(), itemDtos);
     }
 
     // 유틸 클래스
