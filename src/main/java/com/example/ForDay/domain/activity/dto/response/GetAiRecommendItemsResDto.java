@@ -17,7 +17,7 @@ public class GetAiRecommendItemsResDto {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class MessageDto {
-
+        private String message;
     }
 
     @Data

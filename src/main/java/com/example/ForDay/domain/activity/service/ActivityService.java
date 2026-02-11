@@ -367,6 +367,8 @@ public class ActivityService {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
 
+        // 메세지 조회 -> 논의 한 후 수정 예정
+
         // 1. 현재 유저의 현재 진행 중인 취미 조회
         List<Hobby> progressHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
                 currentUserId,
