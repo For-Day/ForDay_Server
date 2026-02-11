@@ -24,10 +24,23 @@ public class S3Service {
 
     public String generateKey(ImageUsageType usage, String originalFilename) {
         // profile/temp/550e8400-e29b-41d4-a716-446655440000_mongsil.jpg
-        String extension = extractExtension(originalFilename); // 활장자
-        String baseName = originalFilename.substring(0, originalFilename.lastIndexOf(".")); // 이미지명
-        return usage.name().toLowerCase()
-                + "/temp/"
+        String extension = extractExtension(originalFilename);
+        String baseName = originalFilename.substring(0, originalFilename.lastIndexOf("."));
+
+        String usageName = usage.name();
+        boolean isTest = usageName.startsWith("TEST_");
+
+        // TEST_ 제거
+        String baseUsage = isTest
+                ? usageName.substring("TEST_".length())
+                : usageName;
+
+        String folderPath =
+                (isTest ? "test/" : "")
+                        + baseUsage.toLowerCase()
+                        + "/temp/";
+
+        return folderPath
                 + UUID.randomUUID()
                 + "_" + baseName
                 + extension;
