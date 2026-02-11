@@ -2,7 +2,7 @@ name: Deploy To EC2 (Blue-Green Public)
 
 on:
   push:
-    branches: [ "main", "release" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read
