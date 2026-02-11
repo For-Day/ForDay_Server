@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.activity.controller;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
+import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
 import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -28,5 +29,10 @@ public class ActivityController implements ActivityControllerDocs{
     public MessageResDto deleteActivity(@PathVariable(name = "activityId") Long activityId,
                                         @AuthenticationPrincipal CustomUserDetails user) {
         return activityService.deleteActivity(activityId, user);
+    }
+
+    @GetMapping("/ai-recommend/items")
+    public GetAiRecommendItemsResDto getAiRecommendItems(@AuthenticationPrincipal CustomUserDetails user) {
+        return activityService.getAiRecommendItems(user);
     }
 }

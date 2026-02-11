@@ -1,8 +1,10 @@
 package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.entity.OtherActivity;
 import com.example.ForDay.domain.activity.repository.ActivityBulkRepository;
+import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
@@ -65,6 +67,7 @@ public class HobbyService {
     private final UserRepository userRepository;
     private final S3Util s3Util;
     private final ActivityBulkRepository activityBulkRepository;
+    private final ActivityRecommendItemRepository activityRecommendItemRepository;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
@@ -173,6 +176,17 @@ public class HobbyService {
 
             }
             userSummaryText += " 포데이 AI가 알맞은 취미 활동을 추천드려요";
+
+            // 추천 받은 활동 리스트 저장
+            List<ActivityRecommendItem> items = response.getActivities().stream()
+                    .map(item -> ActivityRecommendItem.builder()
+                            .hobby(hobby)
+                            .content(item.getContent())
+                            .description(item.getDescription())
+                            .build())
+                    .toList();
+
+            activityRecommendItemRepository.saveAll(items);
             return new ActivityAIRecommendResDto("AI가 취미 활동을 추천했습니다.", currentCount, maxCallLimit, userSummaryText, response.getActivities());
 
         } catch (Exception e) {
