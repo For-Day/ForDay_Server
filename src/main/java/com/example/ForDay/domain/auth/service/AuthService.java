@@ -119,7 +119,7 @@ public class AuthService {
         String guestUserId = reqDto.getGuestUserId();
         boolean newUser;
 
-        if(reqDto.getGuestUserId().startsWith("withdrawn")) {
+        if(guestUserId != null && StringUtils.hasText(guestUserId) && guestUserId.startsWith("withdrawn")) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
