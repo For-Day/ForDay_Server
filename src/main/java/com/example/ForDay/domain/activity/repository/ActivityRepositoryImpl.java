@@ -36,6 +36,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                 .from(activity)
                 .where(activity.hobby.id.eq(hobbyId))
                 .orderBy(
+                        activity.createdAt.desc(),
                         activity.lastRecordedAt.desc().nullsLast(),
                         activity.collectedStickerNum.desc(),
                         activity.content.asc()
@@ -69,6 +70,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
                                 activity.user.id.eq(userId)
                         )
                         .orderBy(
+                                activity.createdAt.desc(),
                                 activity.lastRecordedAt.desc().nullsLast(),
                                 activity.collectedStickerNum.desc(),
                                 activity.content.asc()
