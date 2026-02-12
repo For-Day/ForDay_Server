@@ -10,23 +10,17 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class GetAiRecommendItemsResDto {
-    private MessageDto message;
+    private String message;
+    private Long hobbyId;
+    private String hobbyName;
     private List<ItemDto> activityItems;
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class MessageDto {
-        private String message;
-    }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ItemDto {
         private Long itemId;
-        private Long hobbyId;
-        private String hobbyName;
         private String content;
         private String description;
     }
