@@ -10,12 +10,11 @@ import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
-import com.example.ForDay.domain.hobby.dto.request.FastAPIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
-import com.example.ForDay.domain.hobby.dto.response.FastAPIRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.service.UserSummaryAIService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -33,7 +32,6 @@ import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -61,6 +59,7 @@ public class ActivityService {
     private final FriendRelationRepository friendRelationRepository;
     private final RestTemplate restTemplate;
     private final ActivityRecommendItemRepository recommendItemRepository;
+    private final UserSummaryAIService userSummaryAIService;
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
@@ -363,43 +362,53 @@ public class ActivityService {
     }
 
     @Transactional(readOnly = true)
-    public GetAiRecommendItemsResDto getAiRecommendItems(CustomUserDetails user) {
+    public GetAiRecommendItemsResDto getAiRecommendItems(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
+        String socialId = currentUser.getSocialId();
 
-        // 메세지 조회 -> 논의 한 후 수정 예정
-
-        // 1. 현재 유저의 현재 진행 중인 취미 조회
-        List<Hobby> progressHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
-                currentUserId,
-                HobbyStatus.IN_PROGRESS
-        );
-
-        if (progressHobbies.isEmpty()) {
-            return new GetAiRecommendItemsResDto(new GetAiRecommendItemsResDto.MessageDto(), Collections.emptyList());
-        }
+        // 1. 취미 조회
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
 
         // 2. 오늘 날짜 범위 설정
         LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
         LocalDateTime endOfToday = LocalDate.now().atTime(LocalTime.MAX);
 
         // 3. 오늘 생성된 추천 아이템 조회
-        List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbiesAndDate(
-                progressHobbies, startOfToday, endOfToday
+        List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(
+                hobby.getId(), startOfToday, endOfToday
         );
+
+        if(items.isEmpty()) {
+            return new GetAiRecommendItemsResDto();
+        }
 
         // 4. DTO 변환
         List<GetAiRecommendItemsResDto.ItemDto> itemDtos = items.stream()
                 .map(item -> new GetAiRecommendItemsResDto.ItemDto(
                         item.getId(),
-                        item.getHobby().getId(),
-                        item.getHobby().getHobbyName(),
                         item.getContent(),
                         item.getDescription()
                 ))
                 .toList();
 
-        return new GetAiRecommendItemsResDto(new GetAiRecommendItemsResDto.MessageDto(), itemDtos);
+        // 메세지 조회
+        String userSummaryText = "";
+        long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), hobbyId);
+
+        if(recordCount >=5) {
+            // 기존에 사용자 요약 문구가 존재하는지 redis에 조회
+            if(userSummaryAIService.hasSummary(socialId, hobbyId)) {
+                userSummaryText = userSummaryAIService.getSummary(socialId, hobby.getId());
+            } else {
+                // fast api에 요청
+                userSummaryText = userSummaryAIService.fetchAndSaveUserSummary(currentUserId, socialId, hobbyId, hobby.getHobbyName());
+            }
+
+        }
+        userSummaryText += " 이전에 추천 받은 활동들이에요.";
+
+        return new GetAiRecommendItemsResDto(userSummaryText, hobby.getId(), hobby.getHobbyName(), itemDtos);
     }
 
     // 유틸 클래스

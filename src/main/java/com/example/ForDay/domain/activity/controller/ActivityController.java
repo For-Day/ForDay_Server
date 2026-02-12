@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/activities")
-public class ActivityController implements ActivityControllerDocs{
+public class ActivityController implements ActivityControllerDocs {
     private final ActivityService activityService;
 
     @Override
@@ -31,8 +31,10 @@ public class ActivityController implements ActivityControllerDocs{
         return activityService.deleteActivity(activityId, user);
     }
 
+    @Override
     @GetMapping("/ai-recommend/items")
-    public GetAiRecommendItemsResDto getAiRecommendItems(@AuthenticationPrincipal CustomUserDetails user) {
-        return activityService.getAiRecommendItems(user);
+    public GetAiRecommendItemsResDto getAiRecommendItems(@RequestParam(name = "hobbyId") Long hobbyId,
+                                                         @AuthenticationPrincipal CustomUserDetails user) {
+        return activityService.getAiRecommendItems(hobbyId, user);
     }
 }

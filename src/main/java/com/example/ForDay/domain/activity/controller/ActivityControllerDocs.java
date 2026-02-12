@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.activity.controller;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
+import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -105,7 +106,6 @@ public interface ActivityControllerDocs {
                     )
             )
     })
-    @PatchMapping("/{activityId}")
     MessageResDto updateActivity(
             @PathVariable(name = "activityId")
             @Parameter(description = "수정할 활동 ID", example = "1")
@@ -219,11 +219,34 @@ public interface ActivityControllerDocs {
                     )
             )
     })
-    @DeleteMapping("/{activityId}")
-    public MessageResDto deleteActivity(
+    MessageResDto deleteActivity(
             @PathVariable
             @Parameter(description = "삭제할 활동 ID", example = "1")
             Long activityId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "AI 추천 활동 아이템 조회",
+            description = "특정 취미(hobbyId)에 대해 이전에 추천받았던 활동 아이템 리스트를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GetAiRecommendItemsResDto.class)
+                    )
+            )
+    })
+    GetAiRecommendItemsResDto getAiRecommendItems(
+            @Parameter(
+                    description = "조회하고자 하는 활동 추천 리스트의 취미 ID",
+                    required = true,
+                    example = "6356892"
+            )
+            @RequestParam(name = "hobbyId") Long hobbyId,
             @AuthenticationPrincipal CustomUserDetails user
     );
 
