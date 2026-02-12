@@ -31,6 +31,7 @@ public class ActivityController implements ActivityControllerDocs {
         return activityService.deleteActivity(activityId, user);
     }
 
+    @Override
     @GetMapping("/ai-recommend/items")
     public GetAiRecommendItemsResDto getAiRecommendItems(@RequestParam(name = "hobbyId") Long hobbyId,
                                                          @AuthenticationPrincipal CustomUserDetails user) {
