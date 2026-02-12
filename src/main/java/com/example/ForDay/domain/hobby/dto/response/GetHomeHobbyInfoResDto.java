@@ -21,6 +21,7 @@ public class GetHomeHobbyInfoResDto {
     private String recommendMessage;    // "포데이 AI가 알맞은 취미활동을 추천해드려요"
     private boolean aiCallRemaining;    // 오늘 AI 호출 가능 여부
     private Integer aiCallRemainingCount; // 현재까지 호출한 횟수
+    private String nickname;
 
     @Data
     @NoArgsConstructor
