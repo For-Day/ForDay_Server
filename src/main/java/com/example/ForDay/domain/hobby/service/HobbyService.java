@@ -171,7 +171,7 @@ public class HobbyService {
                     userSummaryText = userSummaryAIService.getSummary(socialId, hobby.getId());
                 } else {
                     // fast api에 요청
-                    userSummaryText = fetchAndSaveUserSummary(userId, socialId, hobbyId, hobby.getHobbyName());
+                    userSummaryText = userSummaryAIService.fetchAndSaveUserSummary(userId, socialId, hobbyId, hobby.getHobbyName());
                 }
 
             }
@@ -352,7 +352,7 @@ public class HobbyService {
             } else {
                 log.info("[GetHomeHobbyInfo] 새로운 AI 요약 생성 요청 - User: {}, Hobby: {}", currentUser.getId(), targetHobby.getHobbyName());
                 try {
-                    userSummaryText = fetchAndSaveUserSummary(currentUser.getId(), socialId, targetHobby.getId(), targetHobby.getHobbyName());
+                    userSummaryText = userSummaryAIService.fetchAndSaveUserSummary(currentUser.getId(), socialId, targetHobby.getId(), targetHobby.getHobbyName());
                 } catch (Exception e) {
                     log.error("AI 요약 생성 중 오류 발생: {}", e.getMessage());
                     userSummaryText = "";
@@ -675,44 +675,6 @@ public class HobbyService {
                         HobbyStatus.IN_PROGRESS
                 )
                 .orElse(null);
-    }
-
-    /**
-     * FastAPI에 요약을 요청하고 Redis에 저장하는 전용 메서드
-     */
-    private String fetchAndSaveUserSummary(String userId, String socialId, Long hobbyId, String hobbyName) {
-        try {
-            // 1. 요청 DTO 구성
-            ActivitySummaryRequest requestDto = ActivitySummaryRequest.builder()
-                    .userId(userId)
-                    .userHobbyId(hobbyId)
-                    .hobbyName(hobbyName)
-                    .build();
-
-            String fastapiUrl = fastApiBaseUrl + "/ai/summary";
-
-            // 2. FastAPI 호출 및 DTO 응답 받기
-            ActivitySummaryResponse response = restTemplate.postForObject(
-                    fastapiUrl,
-                    requestDto,
-                    ActivitySummaryResponse.class
-            );
-
-            // 3. 결과 처리
-            if (response != null && response.getSummary() != null) {
-                String summary = response.getSummary();
-
-                // Redis에 7일간 저장
-                userSummaryAIService.saveSummary(socialId, hobbyId, summary);
-                return summary;
-            }
-        } catch (Exception e) {
-            log.error("FastAPI 요약 요청 실패 | socialId: {}, hobbyId: {}, error: {}",
-                    socialId, hobbyId, e.getMessage());
-        }
-
-        // 예외 발생 시 기본 가이드 문구 반환
-        return "";
     }
 
     @Transactional

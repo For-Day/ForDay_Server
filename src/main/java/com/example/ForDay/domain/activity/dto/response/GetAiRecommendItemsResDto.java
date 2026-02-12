@@ -10,15 +10,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class GetAiRecommendItemsResDto {
-    private MessageDto message;
+    private String message;
     private List<ItemDto> activityItems;
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class MessageDto {
-        private String message;
-    }
 
     @Data
     @AllArgsConstructor
