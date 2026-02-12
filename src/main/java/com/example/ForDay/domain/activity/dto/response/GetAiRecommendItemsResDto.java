@@ -11,6 +11,8 @@ import java.util.List;
 @NoArgsConstructor
 public class GetAiRecommendItemsResDto {
     private String message;
+    private Long hobbyId;
+    private String hobbyName;
     private List<ItemDto> activityItems;
 
 
@@ -19,8 +21,6 @@ public class GetAiRecommendItemsResDto {
     @NoArgsConstructor
     public static class ItemDto {
         private Long itemId;
-        private Long hobbyId;
-        private String hobbyName;
         private String content;
         private String description;
     }

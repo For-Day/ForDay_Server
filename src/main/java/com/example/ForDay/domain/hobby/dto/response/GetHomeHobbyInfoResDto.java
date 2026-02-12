@@ -20,7 +20,7 @@ public class GetHomeHobbyInfoResDto {
     private String userSummaryText;     // AI가 분석한 요약 문구 (기록 5개 이상 시)
     private String recommendMessage;    // "포데이 AI가 알맞은 취미활동을 추천해드려요"
     private boolean aiCallRemaining;    // 오늘 AI 호출 가능 여부
-    private Integer aiCallCount; // 현재까지 호출한 횟수
+    private Integer aiCallRemainingCount; // 현재까지 호출한 횟수
 
     @Data
     @NoArgsConstructor

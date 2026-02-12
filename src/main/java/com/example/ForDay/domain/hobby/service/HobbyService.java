@@ -370,7 +370,7 @@ public class HobbyService {
                 .userSummaryText(userSummaryText)
                 .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
                 .aiCallRemaining(isAiCallRemaining)
-                .aiCallCount(aiCallCountService.getCurrentCount(socialId, targetHobby.getId()))
+                .aiCallRemainingCount(maxCallLimit - aiCallCountService.getCurrentCount(socialId, targetHobby.getId()))
                 .build();
     }
 

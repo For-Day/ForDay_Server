@@ -387,8 +387,6 @@ public class ActivityService {
         List<GetAiRecommendItemsResDto.ItemDto> itemDtos = items.stream()
                 .map(item -> new GetAiRecommendItemsResDto.ItemDto(
                         item.getId(),
-                        item.getHobby().getId(),
-                        item.getHobby().getHobbyName(),
                         item.getContent(),
                         item.getDescription()
                 ))
@@ -408,9 +406,9 @@ public class ActivityService {
             }
 
         }
-        userSummaryText += " 포데이 AI가 알맞은 취미 활동을 추천드려요";
+        userSummaryText += " 이전에 추천 받은 활동들이에요.";
 
-        return new GetAiRecommendItemsResDto(userSummaryText, itemDtos);
+        return new GetAiRecommendItemsResDto(userSummaryText, hobby.getId(), hobby.getHobbyName(), itemDtos);
     }
 
     // 유틸 클래스
