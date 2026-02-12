@@ -314,14 +314,14 @@ public class HobbyService {
 
         if(targetHobby == null) {
             log.info("[GetHomeHobbyInfo] 진행 중인 취미 없음 - 기본 대시보드 반환. UserId: {}", currentUser.getId());
-            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
+            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false, 0);
         }
 
         GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfo(targetHobby.getId(), currentUser);
 
         if (response == null) {
             log.warn("[GetHomeHobbyInfo] 취미 정보 조회 실패(DB 데이터 불일치 가능성) - HobbyId: {}", targetHobby.getId());
-            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false);
+            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false, 0);
         }
         // AI 관련 로직 처리
         String socialId = currentUser.getSocialId();
@@ -370,6 +370,7 @@ public class HobbyService {
                 .userSummaryText(userSummaryText)
                 .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
                 .aiCallRemaining(isAiCallRemaining)
+                .aiCallCount(aiCallCountService.getCurrentCount(socialId, targetHobby.getId()))
                 .build();
     }
 
