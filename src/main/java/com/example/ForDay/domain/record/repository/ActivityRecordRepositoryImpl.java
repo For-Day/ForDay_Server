@@ -96,7 +96,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                         activityRecordReport.reporter.id.eq(currentUserId)
                                 ).notExists()
                 )
-                .orderBy(record.id.desc())
+                .orderBy(record.createdAt.desc())
                 .limit(feedSize + 1)
                 .fetch();
     }
