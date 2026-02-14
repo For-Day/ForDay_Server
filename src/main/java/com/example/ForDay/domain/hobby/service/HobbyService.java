@@ -743,27 +743,40 @@ public class HobbyService {
 
             String activityRecordImageUrl = activityRecord.getImageUrl();
 
-            if(activityRecordImageUrl == null) {
-                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
+            String newCoverImageUrl = null;
+            if(StringUtils.hasText(activityRecordImageUrl)) {
+                // 업로드 하고자하는 이미지의 key 값
+                String srcKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
+
+                // 1. 새로운 커버 이미지 경로(Key) 생성
+                // activity_record/temp/uuid_name.jpg -> cover_image/temp/uuid_name.jpg
+                String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
+                String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
+
+                // 2. S3 내 파일 복사 (원본 보존을 위해 copy 사용)
+                s3Service.copyObject(srcKey, newCoverKey);
+
+                // 3. 람다 호출하여 리사이즈 이미지 생성 (동기 호출)
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("action", "SET_COVER");
+                payload.put("srcKey", newCoverKey);     // 복사된 cover_image/temp 경로 전달
+                payload.put("dstKey", resizedCoverKey); // 생성될 resized 경로 전달
+
+                invoker.invokeSync(payload);
+                newCoverImageUrl = s3Service.createFileUrl(newCoverKey);
+            } else { // 여기는 이미지 리사이즈 이미지를 저장함 그러므로 딱히 리사이즈 전환에 영향x
+                // smile.jpg / sad.jpg / laugh.jpg / angry.jpg
+                String sticker = activityRecord.getSticker();
+                if(sticker.contains("smile")) {
+                    newCoverImageUrl = "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/smile.png";
+                } else if (sticker.contains("sad")) {
+                    newCoverImageUrl = "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/sad.png";
+                } else if (sticker.contains("laugh")) {
+                    newCoverImageUrl = "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/laugh.png";
+                } else {
+                    newCoverImageUrl = "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/angry.png";
+                }
             }
-
-            String srcKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
-
-            // 1. 새로운 커버 이미지 경로(Key) 생성
-            // activity_record/temp/uuid_name.jpg -> cover_image/temp/uuid_name.jpg
-            String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
-            String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
-
-            // 2. S3 내 파일 복사 (원본 보존을 위해 copy 사용)
-            s3Service.copyObject(srcKey, newCoverKey);
-
-            // 3. 람다 호출하여 리사이즈 이미지 생성 (동기 호출)
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("action", "SET_COVER");
-            payload.put("srcKey", newCoverKey);     // 복사된 cover_image/temp 경로 전달
-            payload.put("dstKey", resizedCoverKey); // 생성될 resized 경로 전달
-
-            invoker.invokeSync(payload);
 
             // 4. 기존 커버 이미지 삭제
             Hobby hobby = activityRecord.getHobby();
@@ -783,7 +796,6 @@ public class HobbyService {
             }
 
             // 5. DB 업데이트 및 결과 반환
-            String newCoverImageUrl = s3Service.createFileUrl(newCoverKey);
             hobby.updateCoverImage(newCoverImageUrl);
 
             updatedUrl = newCoverImageUrl;
