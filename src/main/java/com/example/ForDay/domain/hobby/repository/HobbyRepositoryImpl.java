@@ -70,6 +70,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .from(activity)
                 .where(activity.hobby.id.eq(targetHobbyId)) // 명확하게 targetHobbyId로 필터링
                 .orderBy(
+                        activity.createdAt.desc(),
                         activity.lastRecordedAt.desc().nullsLast(),
                         activity.collectedStickerNum.desc(),
                         activity.content.asc()
