@@ -358,7 +358,7 @@ public class ActivityService {
         log.info("[Activity Collect] 완료 - 생성된 활동ID: {}, 저장된 취미: {}",
                 savedActivity.getId(), hobby.getHobbyName());
 
-        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동이 정상적으로 담겼습니다.");
+        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동담기를 완료했어요.");
     }
 
     @Transactional(readOnly = true)
