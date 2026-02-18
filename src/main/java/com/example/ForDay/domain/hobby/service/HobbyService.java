@@ -503,9 +503,14 @@ public class HobbyService {
                 }
 
                 hobby.updateHobbyStatus(HobbyStatus.IN_PROGRESS);
+
+                return new MessageResDto(hobby.getHobbyName() + "취미를 꺼냈어요.");
             }
 
-            case ARCHIVED -> hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
+            case ARCHIVED -> {
+                    hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
+                    return new MessageResDto(hobby.getHobbyName() + "취미가 보관되었어요.");
+            }
 
             default -> {
                 log.warn("[HobbyService] 잘못된 취미 상태 요청 - hobbyId={}, status={}",
@@ -513,15 +518,6 @@ public class HobbyService {
                 throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
             }
         }
-
-        log.info("[HobbyService] 취미 상태 변경 완료 - hobbyId={}, userId={}, from={}, to={}",
-                hobbyId,
-                currentUser.getId(),
-                currentStatus,
-                targetStatus
-        );
-
-        return new MessageResDto("취미 상태가 성공적으로 수정되었습니다.");
     }
 
     private Hobby getHobby(Long hobbyId) {
@@ -694,7 +690,7 @@ public class HobbyService {
         }
 
         return new SetHobbyCoverImageResDto(
-                "대표 이미지가 성공적으로 변경되었습니다.",
+                "대표사진 설정 완료!",
                 result.hobbyId(),
                 result.recordId(),
                 s3Util.toCoverMainResizedUrl(result.updatedCoverUrl())
