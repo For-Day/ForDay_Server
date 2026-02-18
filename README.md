@@ -1,6 +1,5 @@
-# ForDay_Server
+# ForDay_Server: 당신의 취미, 66일을 함께 채워나가요.
 
-## 당신의 취미, 66일을 함께 채워나가요.
 
 ## 📜 프로젝트 문서 ➡️ [ForDay Server Wiki](https://github.com/Central-MakeUs/ForDay_Server/wiki)
 
