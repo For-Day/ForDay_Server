@@ -318,7 +318,7 @@ public class ActivityService {
                 activityId, currentUser.getId()
         );
 
-        return new MessageResDto("활동이 정상적으로 삭제되었습니다.");
+        return new MessageResDto("활동이 삭제되었어요.");
     }
 
     @Transactional
