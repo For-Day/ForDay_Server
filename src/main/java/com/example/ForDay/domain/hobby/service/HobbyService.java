@@ -690,7 +690,7 @@ public class HobbyService {
         }
 
         return new SetHobbyCoverImageResDto(
-                "대표 이미지가 성공적으로 변경되었습니다.",
+                "대표사진 설정 완료!",
                 result.hobbyId(),
                 result.recordId(),
                 s3Util.toCoverMainResizedUrl(result.updatedCoverUrl())
