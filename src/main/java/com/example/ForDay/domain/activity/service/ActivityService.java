@@ -8,6 +8,7 @@ import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
+import com.example.ForDay.domain.activity.type.AIItemType;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
@@ -40,7 +41,6 @@ import org.springframework.web.client.RestTemplate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -362,7 +362,7 @@ public class ActivityService {
     }
 
     @Transactional(readOnly = true)
-    public GetAiRecommendItemsResDto getAiRecommendItems(Long hobbyId, CustomUserDetails user) {
+    public GetAiRecommendItemsResDto getAiRecommendItems(Long hobbyId, CustomUserDetails user, AIItemType type) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
         String socialId = currentUser.getSocialId();
@@ -376,7 +376,7 @@ public class ActivityService {
 
         // 3. 오늘 생성된 추천 아이템 조회
         List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(
-                hobby.getId(), startOfToday, endOfToday
+                hobby.getId(), startOfToday, endOfToday, type
         );
 
         if(items.isEmpty()) {
