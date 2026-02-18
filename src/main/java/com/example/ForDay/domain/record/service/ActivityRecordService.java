@@ -346,7 +346,7 @@ public class ActivityRecordService {
                 .user(currentUser)
                 .build());
 
-        return new AddActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, true);
+        return new AddActivityRecordScrapResDto("스크랩을 완료했어요.", recordId, true);
     }
 
     @Transactional
