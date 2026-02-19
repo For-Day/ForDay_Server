@@ -10,8 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface ActivityRecommendItemRepository extends JpaRepository<ActivityRecommendItem, Long>, ActivityRecommendItemRepositoryCustom {
-    @Modifying
-    @Query("DELETE FROM ActivityRecommendItem a WHERE a.createdAt < :targetDate")
-    void deleteOldItems(@Param("targetDate") LocalDateTime targetDate);
+public interface ActivityRecommendItemRepositoryCustom {
+
+    List<ActivityRecommendItem> findAllByHobbyIdAndDate(Long id, LocalDateTime startOfToday, LocalDateTime endOfToday, AIItemType type);
 }

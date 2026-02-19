@@ -32,7 +32,7 @@ public enum ErrorCode {
     NO_GUEST_ACCESS(HttpStatus.FORBIDDEN, "게스트만 접근 가능합니다." ),
 
     // AI 관련
-    AI_CALL_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "AI 최대 호출 횟수를 초과하였습니다."),
+    AI_CALL_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "AI 사용 횟수를 다 사용했어요."),
     AI_RESPONSE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "AI 응답 형식이 올바르지 않아 데이터를 처리할 수 없습니다."),
     AI_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "AI 서비스 연결 중에 오류가 발생했습니다. 잠시 후 다시 시도해주세요."),
     AI_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AI 요청이 너무 많아 일시적으로 처리할 수 없습니다. 잠시 후 다시 시도해주세요."),

@@ -179,7 +179,7 @@ public class FriendService {
             log.info("[blockFriend] 신규 BLOCK 관계 생성 완료: {}", targetUserId);
         }
 
-        return new BlockFriendResDto("성공적으로 차단되었습니다.", targetUser.getNickname());
+        return new BlockFriendResDto(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
     }
 
     @Transactional(readOnly = true)
