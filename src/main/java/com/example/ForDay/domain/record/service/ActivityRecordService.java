@@ -319,7 +319,7 @@ public class ActivityRecordService {
             });
         }
 
-        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
+        return new DeleteActivityRecordResDto("활동 기록이 삭제되었어요.", activityRecord.getId(), deleteImageUrl);
     }
 
     @Transactional

@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class DeleteActivityRecordResDto {
-    @Schema(description = "결과 메시지", example = "활동 기록이 정상적으로 삭제되었습니다.")
+    @Schema(description = "결과 메시지", example = "활동 기록이 삭제되었어요.")
     private String message;
 
     @Schema(description = "삭제된 활동 기록 ID", example = "2")

@@ -102,7 +102,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     }
 
     @Override
-    @PostMapping("/stories")
+    @GetMapping("/stories")
     public GetActivityRecordByStoryResDto getActivityRecordByStory(@RequestParam(name = "hobbyId", required = false) Long hobbyId,
                                                                    @RequestParam(name = "lastRecordId", required = false) Long lastRecordId,
                                                                    @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
