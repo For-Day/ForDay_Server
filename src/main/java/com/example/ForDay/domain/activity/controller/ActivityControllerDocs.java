@@ -2,6 +2,7 @@ package com.example.ForDay.domain.activity.controller;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
+import com.example.ForDay.domain.activity.type.AIItemType;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -247,6 +248,7 @@ public interface ActivityControllerDocs {
                     example = "6356892"
             )
             @RequestParam(name = "hobbyId") Long hobbyId,
+            @RequestParam(name = "type") AIItemType type,
             @AuthenticationPrincipal CustomUserDetails user
     );
 

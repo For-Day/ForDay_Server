@@ -319,7 +319,7 @@ public class ActivityRecordService {
             });
         }
 
-        return new DeleteActivityRecordResDto("활동 기록이 정상적으로 삭제되었습니다.", activityRecord.getId(), deleteImageUrl);
+        return new DeleteActivityRecordResDto("활동 기록이 삭제되었어요.", activityRecord.getId(), deleteImageUrl);
     }
 
     @Transactional
@@ -346,7 +346,7 @@ public class ActivityRecordService {
                 .user(currentUser)
                 .build());
 
-        return new AddActivityRecordScrapResDto("스크랩이 완료되었습니다.", recordId, true);
+        return new AddActivityRecordScrapResDto("스크랩을 완료했어요.", recordId, true);
     }
 
     @Transactional

@@ -503,9 +503,14 @@ public class HobbyService {
                 }
 
                 hobby.updateHobbyStatus(HobbyStatus.IN_PROGRESS);
+
+                return new MessageResDto(hobby.getHobbyName() + "취미를 꺼냈어요.");
             }
 
-            case ARCHIVED -> hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
+            case ARCHIVED -> {
+                    hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
+                    return new MessageResDto(hobby.getHobbyName() + "취미가 보관되었어요.");
+            }
 
             default -> {
                 log.warn("[HobbyService] 잘못된 취미 상태 요청 - hobbyId={}, status={}",
@@ -513,15 +518,6 @@ public class HobbyService {
                 throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
             }
         }
-
-        log.info("[HobbyService] 취미 상태 변경 완료 - hobbyId={}, userId={}, from={}, to={}",
-                hobbyId,
-                currentUser.getId(),
-                currentStatus,
-                targetStatus
-        );
-
-        return new MessageResDto("취미 상태가 성공적으로 수정되었습니다.");
     }
 
     private Hobby getHobby(Long hobbyId) {
@@ -680,126 +676,159 @@ public class HobbyService {
     }
 
     @Transactional
-    public SetHobbyCoverImageResDto setHobbyCoverImage(@Valid SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) throws Exception {
+    public SetHobbyCoverImageResDto setHobbyCoverImage(SetHobbyCoverImageReqDto reqDto,
+                                                       CustomUserDetails user) throws Exception {
         User currentUser = userUtil.getCurrentUser(user);
-        String updatedUrl;
-        Long targetHobbyId;
 
-        // Case 1: 직접 업로드된 이미지 URL로 설정하는 경우
-        if (reqDto.getHobbyId() != null && StringUtils.hasText(reqDto.getCoverImageUrl())) {
-            Hobby hobby = getHobby(reqDto.getHobbyId());
-            verifyHobbyOwner(hobby, currentUser);
-
-            String newCoverImageUrl = reqDto.getCoverImageUrl();
-            String oldCoverImageUrl = hobby.getCoverImageUrl();
-
-            // 1. 동일 이미지 체크
-            if (Objects.equals(oldCoverImageUrl, newCoverImageUrl)) {
-                return new SetHobbyCoverImageResDto("이미 동일한 이미지로 설정되어 있습니다.", hobby.getId(), null, oldCoverImageUrl);
-            }
-
-            // 2. 새 이미지 유효성 검증
-            String newCoverImageKey = s3Service.extractKeyFromFileUrl(newCoverImageUrl);
-            if (!s3Service.existsByKey(newCoverImageKey)) {
-                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-            }
-
-            // 3. 기존 이미지 삭제
-            if (StringUtils.hasText(oldCoverImageUrl)) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        try {
-                            // 원본 삭제
-                            String oldKey = s3Service.extractKeyFromFileUrl(oldCoverImageUrl);
-                            s3Service.deleteByKey(oldKey);
-
-                            // 리사이즈(thumb) 삭제
-                            String oldResizedUrl = s3Util.toCoverMainResizedUrl(oldCoverImageUrl);
-                            String oldResizedKey = s3Service.extractKeyFromFileUrl(oldResizedUrl);
-                            s3Service.deleteByKey(oldResizedKey);
-                        } catch (Exception e) {
-                            log.error("기존 커버 이미지 S3 삭제 실패: {}", oldCoverImageUrl, e);
-                        }
-                    }
-                });
-            }
-
-            // 4. DB 업데이트
-            hobby.updateCoverImage(newCoverImageUrl);
-
-            updatedUrl = newCoverImageUrl;
-            targetHobbyId = hobby.getId();
-        }
-        // Case 2: 기존 활동 기록의 사진으로 설정하는 경우
-        else if (reqDto.getRecordId() != null) {
-            ActivityRecord activityRecord = activityRecordRepository.findByIdWithHobby(reqDto.getRecordId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-            // 권한 확인
-            if (!Objects.equals(activityRecord.getUser(), currentUser)) {
-                throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
-            }
-
-            String activityRecordImageUrl = activityRecord.getImageUrl();
-
-            if(activityRecordImageUrl == null) {
-                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
-            }
-
-            String srcKey = s3Service.extractKeyFromFileUrl(activityRecordImageUrl);
-
-            // 1. 새로운 커버 이미지 경로(Key) 생성
-            // activity_record/temp/uuid_name.jpg -> cover_image/temp/uuid_name.jpg
-            String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
-            String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
-
-            // 2. S3 내 파일 복사 (원본 보존을 위해 copy 사용)
-            s3Service.copyObject(srcKey, newCoverKey);
-
-            // 3. 람다 호출하여 리사이즈 이미지 생성 (동기 호출)
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("action", "SET_COVER");
-            payload.put("srcKey", newCoverKey);     // 복사된 cover_image/temp 경로 전달
-            payload.put("dstKey", resizedCoverKey); // 생성될 resized 경로 전달
-
-            invoker.invokeSync(payload);
-
-            // 4. 기존 커버 이미지 삭제
-            Hobby hobby = activityRecord.getHobby();
-            String oldCoverUrl = hobby.getCoverImageUrl();
-            if (StringUtils.hasText(oldCoverUrl)) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        String oldCoverKey = s3Service.extractKeyFromFileUrl(oldCoverUrl);
-                        String resizedUrl = s3Util.toCoverMainResizedUrl(oldCoverUrl);
-                        String resizedKey = s3Service.extractKeyFromFileUrl(resizedUrl);
-
-                        s3Service.deleteByKey(oldCoverKey);
-                        s3Service.deleteByKey(resizedKey);
-                    }
-                });
-            }
-
-            // 5. DB 업데이트 및 결과 반환
-            String newCoverImageUrl = s3Service.createFileUrl(newCoverKey);
-            hobby.updateCoverImage(newCoverImageUrl);
-
-            updatedUrl = newCoverImageUrl;
-            targetHobbyId = hobby.getId();
-        }
-        else {
+        CoverChangeResult result;
+        if (isDirectUploadCase(reqDto)) {
+            result = handleDirectUpload(reqDto, currentUser);
+        } else if (isRecordCase(reqDto)) {
+            result = handleFromRecord(reqDto, currentUser);
+        } else {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
         return new SetHobbyCoverImageResDto(
-                "대표 이미지가 성공적으로 변경되었습니다.",
-                targetHobbyId,
-                reqDto.getRecordId(),
-                s3Util.toCoverMainResizedUrl(updatedUrl)
+                "대표사진 설정 완료!",
+                result.hobbyId(),
+                result.recordId(),
+                s3Util.toCoverMainResizedUrl(result.updatedCoverUrl())
         );
     }
+
+    private boolean isDirectUploadCase(SetHobbyCoverImageReqDto reqDto) {
+        return reqDto.getHobbyId() != null && StringUtils.hasText(reqDto.getCoverImageUrl());
+    }
+
+    private boolean isRecordCase(SetHobbyCoverImageReqDto reqDto) {
+        return reqDto.getRecordId() != null;
+    }
+
+    /**
+     * Case 1: 직접 업로드된 이미지 URL로 설정
+     */
+    private CoverChangeResult handleDirectUpload(SetHobbyCoverImageReqDto reqDto, User currentUser) {
+        Hobby hobby = getHobby(reqDto.getHobbyId());
+        verifyHobbyOwner(hobby, currentUser);
+
+        String newUrl = reqDto.getCoverImageUrl();
+        String oldUrl = hobby.getCoverImageUrl();
+
+        // 동일 이미지면 바로 응답
+        if (Objects.equals(oldUrl, newUrl)) {
+            return new CoverChangeResult(hobby.getId(), null, oldUrl, true);
+        }
+
+        // 새 이미지 유효성 검증
+        String key = s3Service.extractKeyFromFileUrl(newUrl);
+        if (!s3Service.existsByKey(key)) {
+            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+        }
+
+        // 기존 이미지 삭제(afterCommit)
+        registerDeleteCoverAfterCommit(oldUrl);
+
+        // DB 업데이트
+        hobby.updateCoverImage(newUrl);
+
+        return new CoverChangeResult(hobby.getId(), null, newUrl, false);
+    }
+
+    /**
+     * Case 2: 기존 활동 기록의 사진(또는 스티커 기본 이미지)으로 설정
+     */
+    private CoverChangeResult handleFromRecord(SetHobbyCoverImageReqDto reqDto, User currentUser) throws Exception {
+        ActivityRecord record = activityRecordRepository.findByIdWithHobby(reqDto.getRecordId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        // 권한 확인
+        if (!Objects.equals(record.getUser(), currentUser)) {
+            throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
+        }
+
+        Hobby hobby = record.getHobby();
+        String oldCoverUrl = hobby.getCoverImageUrl();
+
+        String newCoverUrl = buildCoverUrlFromRecord(record); // 핵심: "새 커버 URL 계산"만 담당
+
+        // 기존 이미지 삭제(afterCommit)
+        registerDeleteCoverAfterCommit(oldCoverUrl);
+
+        // DB 업데이트
+        hobby.updateCoverImage(newCoverUrl);
+
+        return new CoverChangeResult(hobby.getId(), reqDto.getRecordId(), newCoverUrl, false);
+    }
+
+    /**
+     * record의 imageUrl이 있으면 S3 복사 + 람다 리사이즈 생성 후 cover 원본 url 반환
+     * 없으면 sticker 기반 기본 cover url 반환
+     */
+    private String buildCoverUrlFromRecord(ActivityRecord record) throws Exception {
+        String recordImageUrl = record.getImageUrl();
+
+        if (StringUtils.hasText(recordImageUrl)) {
+            String srcKey = s3Service.extractKeyFromFileUrl(recordImageUrl);
+
+            String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
+            String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
+
+            s3Service.copyObject(srcKey, newCoverKey);
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("action", "SET_COVER");
+            payload.put("srcKey", newCoverKey);
+            payload.put("dstKey", resizedCoverKey);
+
+            invoker.invokeSync(payload);
+
+            return s3Service.createFileUrl(newCoverKey);
+        }
+
+        return defaultCoverUrlBySticker(record.getSticker());
+    }
+
+    /**
+     * 기본 스티커 커버 선택 로직을 “규칙”으로 분리
+     */
+    private String defaultCoverUrlBySticker(String sticker) {
+        String s = (sticker == null) ? "" : sticker;
+
+        if (s.contains("smile")) return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/smile.png";
+        if (s.contains("sad"))   return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/sad.png";
+        if (s.contains("laugh")) return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/laugh.png";
+        return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/angry.png";
+    }
+
+    /**
+     * (원본 + 리사이즈 thumb) 커버 이미지 삭제를 afterCommit으로 등록
+     */
+    private void registerDeleteCoverAfterCommit(String coverUrl) {
+        if (!StringUtils.hasText(coverUrl)) return;
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    String oldKey = s3Service.extractKeyFromFileUrl(coverUrl);
+                    s3Service.deleteByKey(oldKey);
+
+                    String resizedUrl = s3Util.toCoverMainResizedUrl(coverUrl);
+                    String resizedKey = s3Service.extractKeyFromFileUrl(resizedUrl);
+                    s3Service.deleteByKey(resizedKey);
+                } catch (Exception e) {
+                    log.error("기존 커버 이미지 S3 삭제 실패: {}", coverUrl, e);
+                }
+            }
+        });
+    }
+
+    /**
+     * 결과 묶음 (가독성 위해 record 사용)
+     */
+    private record CoverChangeResult(Long hobbyId, Long recordId, String updatedCoverUrl, boolean unchanged) {}
+
 
     @Transactional(readOnly = true)
     public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
