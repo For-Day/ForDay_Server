@@ -85,7 +85,7 @@ public class DataInitializer {
             List<String> stickerImages = List.of("smile.jpg", "sad.jpg", "laugh.jpg", "angry.jpg");
             Random random = new Random();
 
-            for (int j = 1; j <= 3; j++) {
+            for (int j = 1; j <= 10; j++) {
                 // 2. 리스트에서 랜덤하게 하나 추출
                 String randomSticker = stickerImages.get(random.nextInt(stickerImages.size()));
 
