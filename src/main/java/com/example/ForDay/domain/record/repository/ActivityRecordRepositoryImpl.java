@@ -16,6 +16,8 @@ import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.type.Role;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -24,6 +26,7 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -220,6 +223,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         hobbyCondition(hobbyInfoId, hobbyName),
                         user.id.ne(currentUserId),
                         user.deleted.isFalse(),
+                        user.role.eq(Role.USER),
                         record.deleted.isFalse(),
                         storyFilterType == StoryFilterType.HOT ? record.id.in(hotIds) : ltLastRecordId(lastRecordId),
                         notInBlockList(blockFriendIds),
@@ -235,8 +239,20 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 // --- Helper Methods ---
 
     private BooleanExpression hobbyCondition(Long hobbyInfoId, String hobbyName) {
-        return record.hobby.hobbyInfoId.eq(hobbyInfoId)
-                .or(record.hobby.hobbyName.eq(hobbyName));
+        if (hobbyInfoId != null && StringUtils.hasText(hobbyName)) {
+            return record.hobby.hobbyInfoId.eq(hobbyInfoId)
+                    .or(record.hobby.hobbyName.eq(hobbyName));
+        }
+
+        if (hobbyInfoId != null) {
+            return record.hobby.hobbyInfoId.eq(hobbyInfoId);
+        }
+
+        if (StringUtils.hasText(hobbyName)) {
+            return record.hobby.hobbyName.eq(hobbyName);
+        }
+
+        return null;
     }
 
     private BooleanExpression ltLastRecordId(Long lastRecordId) {
