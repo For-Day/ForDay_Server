@@ -208,7 +208,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                 user.nickname,
                                 user.profileImageUrl
                         ),
-                        reaction.id.isNotNull()  // pressedAweSome (좋아요 여부)
+                        reaction.id.isNotNull(),  // pressedAweSome (좋아요 여부)
+                        hobby.hobbyName
                 ))
                 .from(record)
                 .join(record.activity, activity)
@@ -239,20 +240,23 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 // --- Helper Methods ---
 
     private BooleanExpression hobbyCondition(Long hobbyInfoId, String hobbyName) {
+        if (hobbyInfoId == null && !StringUtils.hasText(hobbyName)) {
+            return null;
+        }
+
+        // 2. 둘 다 값이 있는 경우 (OR 조건)
         if (hobbyInfoId != null && StringUtils.hasText(hobbyName)) {
             return record.hobby.hobbyInfoId.eq(hobbyInfoId)
                     .or(record.hobby.hobbyName.eq(hobbyName));
         }
 
+        // 3. hobbyInfoId만 있는 경우
         if (hobbyInfoId != null) {
             return record.hobby.hobbyInfoId.eq(hobbyInfoId);
         }
 
-        if (StringUtils.hasText(hobbyName)) {
-            return record.hobby.hobbyName.eq(hobbyName);
-        }
-
-        return null;
+        // 4. hobbyName만 있는 경우
+        return record.hobby.hobbyName.eq(hobbyName);
     }
 
     private BooleanExpression ltLastRecordId(Long lastRecordId) {

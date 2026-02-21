@@ -29,6 +29,7 @@ public class GetActivityRecordByStoryResDto {
         private String memo;
         private UserInfoDto userInfo;
         private boolean pressedAweSome;
+        private String hobbyName;
     }
 
     @Data
