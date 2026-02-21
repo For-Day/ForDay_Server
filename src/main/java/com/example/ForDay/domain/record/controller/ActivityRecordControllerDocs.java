@@ -373,7 +373,7 @@ public interface ActivityRecordControllerDocs {
                     content = @Content(schema = @Schema(implementation = GetActivityRecordByStoryResDto.class))
             )
     })GetActivityRecordByStoryResDto getActivityRecordByStory(
-            @Parameter(description = "취미 ID (null이면 가장 최근 취미로 조회)", example = "14")
+            @Parameter(description = "취미 ID (null이면 전체 조회, 아니면 조회하고자하는 취미의 id 값)", example = "14")
             @RequestParam(name = "hobbyId", required = false) Long hobbyId,
 
             @Parameter(description = "마지막으로 조회된 기록 ID (null이면 처음부터 조회)", example = "42")
