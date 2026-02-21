@@ -557,7 +557,7 @@ public class ActivityRecordService {
                 .userInfo(!isOwner ? GetRecordDetailResDto.UserInfoDto.builder()
                         .userId(detail.writerId())
                         .nickname(detail.writerNickname())
-                        .profileImageUrl(detail.imageUrl())
+                        .profileImageUrl(s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()))
                         .build() : null)
                 .visibility(detail.visibility())
                 .newReaction(newR)
