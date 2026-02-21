@@ -77,7 +77,7 @@ public class ActivityRecordService {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        if(detail.recordDeleted()) {
+        if (detail.recordDeleted()) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
 
@@ -98,7 +98,7 @@ public class ActivityRecordService {
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
-        boolean scraped= activityRecordScrapRepository.existsByScrap(detail.recordId(), currentUserId);
+        boolean scraped = activityRecordScrapRepository.existsByScrap(detail.recordId(), currentUserId);
 
         log.info("[getRecordDetail] 조회 성공 - RecordId: {}, Writer: {}, Reactions: {}, Scraped: {}",
                 recordId, detail.writerId(), summaries.size(), scraped);
@@ -114,7 +114,7 @@ public class ActivityRecordService {
         RecordDetailQueryDto recordDetail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        if(recordDetail.recordDeleted()) {
+        if (recordDetail.recordDeleted()) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
 
@@ -148,7 +148,7 @@ public class ActivityRecordService {
         ReportActivityRecordDto recordDto = activityRecordRepository.getReportActivityRecord(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        if(recordDto.isRecordDeleted()) {
+        if (recordDto.isRecordDeleted()) {
             log.warn("[reactToRecord] 실패: 삭제된 기록 - RecordId: {}", recordId);
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
@@ -279,7 +279,7 @@ public class ActivityRecordService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
         // 이미 삭제된 경우 예외 처리
-        if(activityRecord.isDeleted()) {
+        if (activityRecord.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
 
@@ -335,7 +335,7 @@ public class ActivityRecordService {
         checkBlockedAndDeletedUser(relations, currentUserId, activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
         validateRecordAuthority(relations, activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUserId);
 
-        if(activityRecordScrapRepository.existsByScrap(recordId, currentUser.getId())) {
+        if (activityRecordScrapRepository.existsByScrap(recordId, currentUser.getId())) {
             throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
         }
 
@@ -355,7 +355,7 @@ public class ActivityRecordService {
         ActivityRecord activityRecord = getActivityRecord(recordId);
 
         Optional<ActivityRecordScrap> scarp = activityRecordScrapRepository.findByActivityRecordIdAndUserId(activityRecord.getId(), currentUser.getId());
-        if(scarp.isEmpty()) {
+        if (scarp.isEmpty()) {
             return new DeleteActivityRecordScrapResDto("스크랩이 존재하지 않거나 이미 삭제되었습니다.", activityRecord.getId(), false);
         }
         ActivityRecordScrap activityRecordScrap = scarp.get();
@@ -378,7 +378,7 @@ public class ActivityRecordService {
         checkBlockedAndDeletedUser(relations, currentUser.getId(), activityRecord.getWriterId(), activityRecord.isWriterDeleted()); // 차단이나 탈퇴가 있는지 확인
         validateRecordAuthority(relations, activityRecord.getVisibility(), activityRecord.getWriterId(), currentUser.getId());
 
-        if(activityRecordReportRepository.existsByReportedRecordIdAndReporterId(activityRecord.getRecordId(), currentUser.getId())) {
+        if (activityRecordReportRepository.existsByReportedRecordIdAndReporterId(activityRecord.getRecordId(), currentUser.getId())) {
             throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);
         }
 
@@ -404,31 +404,42 @@ public class ActivityRecordService {
         log.info("[getActivityRecordByStory] 스토리 리스트 조회 - User: {}, Filter: {}, Keyword: {}",
                 currentUser.getId(), storyFilterType, keyword);
 
-        if(Strings.hasText(keyword)) {
+        if (Strings.hasText(keyword)) {
             // 최근 검색어 저장 로직
             recentRedisService.createRecentKeyword(currentUser.getId(), keyword);
         }
 
+        List<Hobby> activeHobbies = null;
         // 1. 해당 유저의 진행 중(IN_PROGRESS)인 취미를 최신 생성순(Id 내림차순)으로 조회
-        List<Hobby> activeHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
-                currentUser.getId(),
-                HobbyStatus.IN_PROGRESS
-        );
+        if (lastRecordId == null) {
+            activeHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
+                    currentUser.getId(),
+                    HobbyStatus.IN_PROGRESS
+            );
+        }
 
-        if(activeHobbies.isEmpty()) return new GetActivityRecordByStoryResDto();
+        Long hobbyInfoId = null;
+        String hobbyName = null;
 
-        Hobby targetHobby = resolveTargetHobby(hobbyId, activeHobbies);
-        if (targetHobby == null) return new GetActivityRecordByStoryResDto();
+        if (hobbyId != null) {
+            Hobby targetHobby = hobbyRepository.findById(hobbyId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+            hobbyInfoId = targetHobby.getHobbyInfoId();
+            hobbyName = targetHobby.getHobbyName();
+        }
 
-        List<GetActivityRecordByStoryResDto.StoryTabInfo> tabInfos = activeHobbies.stream()
-                .map(h -> GetActivityRecordByStoryResDto.StoryTabInfo.from(h, isCurrentHobby(targetHobby, h)))
-                .toList();
+        List<GetActivityRecordByStoryResDto.StoryTabInfo> tabInfos = null;
+        if (activeHobbies != null) {
+            tabInfos = activeHobbies.stream()
+                    .map(h -> GetActivityRecordByStoryResDto.StoryTabInfo.from(h, h.getId().equals(hobbyId)))
+                    .toList();
+        }
 
         List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId()); // 현재 유저의 친구 목록 (공개 범위가 FRIEND 이면 조회되도록)
         List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId()); // 차단 유저 목록 (조회시 배제)
         List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUser.getId());
 
-        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(targetHobby.getHobbyInfoId(), lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds, storyFilterType, targetHobby.getHobbyName());
+        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds, storyFilterType, hobbyName);
 
 
         boolean hasNext = false;
@@ -459,31 +470,6 @@ public class ActivityRecordService {
                 recordDtos,
                 hasNext
         );
-    }
-
-    private Hobby resolveTargetHobby(Long hobbyId, List<Hobby> activeHobbies) {
-        if (hobbyId == null) {
-            return activeHobbies.get(0); // 최신순 조회라 첫 번째가 가장 최근
-        }
-
-        // 유저의 진행중 취미 목록 안에서만 찾기 (권한/소유 검증 자동)
-        return activeHobbies.stream()
-                .filter(h -> h.getId().equals(hobbyId))
-                .findFirst()
-                .orElse(activeHobbies.get(0));
-    }
-
-    private boolean isCurrentHobby(Hobby targetHobby, Hobby hobby) {
-        return targetHobby != null && hobby != null && targetHobby.getId().equals(hobby.getId());
-    }
-
-    private Hobby getLatestInProgressHobby(User user) {
-        return hobbyRepository
-                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
-                        user.getId(),
-                        HobbyStatus.IN_PROGRESS
-                )
-                .orElse(null);
     }
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {
@@ -567,12 +553,12 @@ public class ActivityRecordService {
 
     private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
         // 한쪽이라도 차단 관계가 있는지 확인
-        if(friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+        if (friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
 
         // 타겟유저가 탈퇴한 회원인 경우
-        if(deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        if (deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
 
     private void checkBlockedAndDeletedUser(List<FriendRelation> relations, String me, String target, boolean deleted) {
