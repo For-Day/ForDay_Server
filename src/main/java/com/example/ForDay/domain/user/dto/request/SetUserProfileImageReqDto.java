@@ -13,7 +13,6 @@ import org.hibernate.validator.constraints.URL;
 public class SetUserProfileImageReqDto {
 
     @Schema(description = "설정할 프로필 이미지 URL", example = "https://forday-s3.amazonaws.com/profiles/unique-image-name.png")
-    @NotBlank(message = "프로필 이미지 URL은 필수입니다.")
     @URL(message = "올바른 URL 형식이어야 합니다.")
     private String profileImageUrl;
 }

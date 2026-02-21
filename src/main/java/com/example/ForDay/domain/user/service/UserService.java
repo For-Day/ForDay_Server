@@ -34,6 +34,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -142,54 +143,58 @@ public class UserService {
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         String newImageUrl = reqDto.getProfileImageUrl();
-        log.info("[setUserProfileImage] 프로필 이미지 변경 요청 - UserId: {}", currentUser.getId());
 
-        if (Objects.equals(currentUser.getProfileImageUrl(), newImageUrl)) {
-            return new SetUserProfileImageResDto(currentUser.getProfileImageUrl(), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
+        String currentUrl = StringUtils.hasText(currentUser.getProfileImageUrl()) ? currentUser.getProfileImageUrl() : null;
+        String targetUrl = StringUtils.hasText(newImageUrl) ? newImageUrl : null;
+
+        if (Objects.equals(currentUrl, targetUrl)) {
+            return new SetUserProfileImageResDto(currentUrl, "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
-        String newKey = s3Service.extractKeyFromFileUrl(newImageUrl);
-        if (!s3Service.existsByKey(newKey)) {
-            log.error("[setUserProfileImage] S3에 존재하지 않는 이미지 키: {}", newKey);
-            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-        }
+        validateNewImage(targetUrl);
 
         String oldImageUrl = currentUser.getProfileImageUrl();
-
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
 
         if (StringUtils.hasText(oldImageUrl)) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    log.info("[S3-Cleanup] 프로필 변경 완료. 이전 이미지들 삭제 시작: {}", oldImageUrl);
-                    try {
-                        // 원본 키
-                        String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
-                        // 리사이즈(Main) 키
-                        String oldMainResizedUrl = s3Util.toProfileMainResizedUrl(oldImageUrl);
-                        String oldMainResizedKey = s3Service.extractKeyFromFileUrl(oldMainResizedUrl);
-                        // 리사이즈(List) 키
-                        String oldListResizedUrl = s3Util.toProfileListResizedUrl(oldImageUrl);
-                        String oldListResizedKey = s3Service.extractKeyFromFileUrl(oldListResizedUrl);
-
-                        s3Service.deleteByKey(oldKey);
-                        s3Service.deleteByKey(oldMainResizedKey);
-                        s3Service.deleteByKey(oldListResizedKey);
-
-                        log.debug("[S3-Cleanup] 이전 프로필 리사이징 이미지들(Main, List) 정리 완료");
-
-                    } catch (Exception e) {
-                        log.error("기존 프로필 이미지 S3 삭제 실패: {}", oldImageUrl, e);
-                    }
-                }
-            });
+            registerS3Deletion(oldImageUrl);
         }
 
-        // 응답은 메인 리사이즈 URL로 반환
-        String mainResizedUrl = s3Util.toProfileMainResizedUrl(newImageUrl);
-        return new SetUserProfileImageResDto(mainResizedUrl, "프로필 이미지가 성공적으로 변경되었습니다.");
+        return new SetUserProfileImageResDto(
+                s3Util.toProfileMainResizedUrl(newImageUrl),
+                "프로필 이미지가 성공적으로 변경되었습니다."
+        );
+    }
+
+    private void validateNewImage(String targetUrl) {
+        if (targetUrl != null) {
+            String newKey = s3Service.extractKeyFromFileUrl(targetUrl);
+            if (!s3Service.existsByKey(newKey)) {
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+            }
+        }
+    }
+
+    private void registerS3Deletion(String oldImageUrl) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                log.info("[S3-Cleanup] 이전 이미지 삭제 시작: {}", oldImageUrl);
+                try {
+                    // 리스트 형태로 만들어서 한 번에 삭제 로직 실행
+                    List<String> keysToDelete = Stream.of(
+                            oldImageUrl,
+                            s3Util.toProfileMainResizedUrl(oldImageUrl),
+                            s3Util.toProfileListResizedUrl(oldImageUrl)
+                    ).map(s3Service::extractKeyFromFileUrl).toList();
+
+                    keysToDelete.forEach(s3Service::deleteByKey);
+                } catch (Exception e) {
+                    log.error("[S3-Cleanup] 이전 프로필 이미지 삭제 실패: {}", oldImageUrl, e);
+                }
+            }
+        });
     }
 
     @Transactional(readOnly = true)
