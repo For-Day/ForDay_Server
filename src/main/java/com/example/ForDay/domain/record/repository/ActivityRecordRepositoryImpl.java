@@ -18,11 +18,13 @@ import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.Role;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.StringPath;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -209,13 +211,13 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                 user.profileImageUrl
                         ),
                         reaction.id.isNotNull(),  // pressedAweSome (좋아요 여부)
-                        hobby.hobbyName
+                        hobby.hobbyName,
+                        isRecordAuthor(record.user.id, currentUserId)
                 ))
                 .from(record)
                 .join(record.activity, activity)
                 .join(record.user, user)
                 .join(record.hobby, hobby)
-                // 서브쿼리 대신 Left Join으로 내가 반응했는지 체크 (N+1 방지)
                 .leftJoin(reaction).on(
                         reaction.activityRecord.id.eq(record.id),
                         reaction.reactedUser.id.eq(currentUserId)
@@ -234,6 +236,13 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .orderBy(createOrderSpecifier(storyFilterType, hotIds))
                 .limit(size + 1) // hasNext 판단을 위해 1개 더 조회
                 .fetch();
+    }
+
+    private BooleanExpression isRecordAuthor(StringPath recordUserId, String currentUserId) {
+        if (currentUserId == null) {
+            return Expressions.FALSE;
+        }
+        return recordUserId.eq(currentUserId);
     }
 
 // --- Helper Methods ---
