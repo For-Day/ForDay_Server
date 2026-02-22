@@ -222,7 +222,6 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 )
                 .where(
                         hobbyCondition(hobbyInfoId, hobbyName),
-                        user.id.ne(currentUserId),
                         user.deleted.isFalse(),
                         user.role.eq(Role.USER),
                         record.deleted.isFalse(),
