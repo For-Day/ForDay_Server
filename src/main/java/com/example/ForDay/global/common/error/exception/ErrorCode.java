@@ -84,7 +84,9 @@ public enum ErrorCode {
 
     // 검색어 관련
     KEYWORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 검색어입니다."),
-    ;
+
+    // 앱 버전 관련
+    PLATFORM_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 플랫폼에 대한 버전 정보가 존재하지 않습니다.");
 
     private final HttpStatus status;
     private final String message;

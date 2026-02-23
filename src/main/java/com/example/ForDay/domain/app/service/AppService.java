@@ -6,8 +6,11 @@ import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
 import com.example.ForDay.domain.app.dto.response.GeneratePresignedUrlResDto;
+import com.example.ForDay.domain.app.dto.response.VersionPolicyResDto;
 import com.example.ForDay.domain.app.entity.AppVersion;
 import com.example.ForDay.domain.app.repository.AppVersionRepository;
+import com.example.ForDay.domain.app.type.Platform;
+import com.example.ForDay.domain.app.type.UpdateType;
 import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -49,15 +52,10 @@ public class AppService {
                                 hobbyCard.getImageCode()
                         ))
                         .toList();
-
-        String latestVersion = appVersionRepository.findLatestVersion()
-                .map(AppVersion::getVersion)
-                .orElse("1.0.0");
-
         log.info("[getMetaData] 조회 완료 - 취미 정보 개수: {}개", hobbyCardDtos.size());
 
         return new AppMetaDataResDto(
-                latestVersion, // 앱 버전 관리는 나중에 구현
+                "1.0.0",
                 hobbyCardDtos
         );
     }
@@ -145,5 +143,47 @@ public class AppService {
 
         log.info("[deleteS3Image] 모든 관련 이미지 삭제 완료 - Original Key: {}", originalKey);
         return new MessageResDto("이미지가 성공적으로 삭제되었습니다.");
+    }
+
+    @Transactional(readOnly = true)
+    public VersionPolicyResDto getPolicy(Platform platform, String appVersion, int build) {
+        // 1. 해당 플랫폼의 최신 정책 조회 (엔티티)
+        AppVersion policy = appVersionRepository.findFirstByPlatformOrderByCreatedAtDesc(platform)
+                .orElseThrow(() -> new CustomException(ErrorCode.PLATFORM_NOT_FOUND));
+
+        // 2. 버전 비교를 위한 객체 생성
+        AppVersionUtil current = AppVersionUtil.of(appVersion, build);
+        AppVersionUtil minSupported = AppVersionUtil.of(policy.getMinSupportedVersion(), policy.getMinSupportedBuild());
+        AppVersionUtil latest = AppVersionUtil.of(policy.getLatestVersion(), policy.getLatestBuild());
+
+        // 3. 우선순위에 따른 업데이트 타입 및 메시지 결정
+        UpdateType updateType;
+        String message;
+
+        if (policy.getBlockEnabled()) {
+            updateType = UpdateType.BLOCK;
+            message = policy.getBlockMessage();
+        } else if (current.compareTo(minSupported) < 0) {
+            updateType = UpdateType.FORCE;
+            message = policy.getForceMessage();
+        } else if (current.compareTo(latest) < 0) {
+            updateType = UpdateType.RECOMMEND;
+            message = policy.getRecommendMessage();
+        } else {
+            updateType = UpdateType.NONE;
+            message = "";
+        }
+
+        // 4. DTO 변환 및 반환
+        return new VersionPolicyResDto(
+                policy.getPolicyVersion(),
+                platform,
+                new VersionPolicyResDto.Current(current.versionString(), current.build()),
+                new VersionPolicyResDto.Threshold(minSupported.versionString(), minSupported.build()),
+                new VersionPolicyResDto.Threshold(latest.versionString(), latest.build()),
+                updateType,
+                policy.getStoreUrl(),
+                message
+        );
     }
 }
