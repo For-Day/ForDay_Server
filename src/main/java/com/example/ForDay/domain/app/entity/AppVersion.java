@@ -22,6 +22,7 @@ public class AppVersion extends BaseTimeEntity {
     private Long id;
 
     @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
     private Platform platform;
 
     @Column(name = "policy_version", nullable = false)
