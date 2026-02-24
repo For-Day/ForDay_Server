@@ -30,6 +30,7 @@ public class GetActivityRecordByStoryResDto {
         private UserInfoDto userInfo;
         private boolean pressedAweSome;
         private String hobbyName;
+        private boolean recordAuthor;
     }
 
     @Data
