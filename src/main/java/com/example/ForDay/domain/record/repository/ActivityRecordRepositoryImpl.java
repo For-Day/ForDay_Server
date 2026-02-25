@@ -11,6 +11,7 @@ import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.entity.QActivityRecordReport;
 import com.example.ForDay.domain.record.service.RedisReactionService;
+import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
@@ -220,7 +221,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .join(record.hobby, hobby)
                 .leftJoin(reaction).on(
                         reaction.activityRecord.id.eq(record.id),
-                        reaction.reactedUser.id.eq(currentUserId)
+                        reaction.reactedUser.id.eq(currentUserId),
+                        reaction.reactionType.eq(RecordReactionType.AWESOME)
                 )
                 .where(
                         hobbyCondition(hobbyInfoId, hobbyName),
