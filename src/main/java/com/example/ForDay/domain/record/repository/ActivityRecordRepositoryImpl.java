@@ -222,7 +222,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .leftJoin(reaction).on(
                         reaction.activityRecord.id.eq(record.id),
                         reaction.reactedUser.id.eq(currentUserId),
-                        reaction.reactionType.eq(RecordReactionType.AWESOME)
+                        reaction.reactionType.eq(RecordReactionType.GREAT)
                 )
                 .where(
                         hobbyCondition(hobbyInfoId, hobbyName),
