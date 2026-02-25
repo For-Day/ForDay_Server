@@ -121,7 +121,7 @@ public class User extends BaseTimeEntity {
         }
 
         if (this.socialId != null && !this.socialId.startsWith("withdrawn_")) {
-            this.socialId = "withdrawn_" + this.socialId;
+            this.socialId = "withdrawn_" + this.socialId + this.id.substring(0, 8);
         }
 
         this.profileImageUrl = null;
