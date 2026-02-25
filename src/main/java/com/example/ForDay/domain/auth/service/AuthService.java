@@ -226,11 +226,22 @@ public class AuthService {
     @Transactional
     public SwitchAccountResDto switchAccount(@Valid SwitchAccountReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user); // 현재 유저
+
+        log.info("Switch account attempt - userId: {}, currentRole: {}, requestSocialType: {}",
+                currentUser.getId(),
+                currentUser.getRole(),
+                reqDto.getSocialType());
+
         if(!currentUser.getRole().equals(Role.GUEST)) { // 게스트가 아니면 예외
+            log.warn("Switch account denied - userId: {} is not GUEST (role: {})",
+                    currentUser.getId(),
+                    currentUser.getRole());
             throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
         }
 
         if(reqDto.getSocialType() == SocialType.GUEST) { // 요청 타입이 게스트이면 예외
+            log.warn("Invalid switch request - userId: {} tried to switch to GUEST",
+                    currentUser.getId());
             throw new CustomException(ErrorCode.INVALID_REQUEST_TYPE);
         }
 
@@ -238,6 +249,8 @@ public class AuthService {
         String refreshToken = "";
         switch (reqDto.getSocialType()) {
             case KAKAO -> {
+                log.info("Calling Kakao API - userId: {}", currentUser.getId());
+
                 // kakao 회원 정보 받아오기
                 KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getSocialCode());
 
@@ -245,15 +258,21 @@ public class AuthService {
 
                 // 이미 존재하는 회원이면 전환 방지
                 if(userRepository.existsBySocialId(socialId)) {
+                    log.warn("Switch failed - socialId already exists: {}", socialId);
                     throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
                 }
 
                 // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> KAKAO
                 currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
+                userRepository.save(currentUser);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
+
+                log.info("Switch success - userId: {}, newSocialType: KAKAO, socialId: {}",
+                        currentUser.getId(), socialId);
             }
             case APPLE -> {
+                log.info("Calling Apple API - userId: {}", currentUser.getId());
                 // 프론트에서 code값을 보내면서 로그인/회원가입 요청을 한다.
                 // code와 애플 설정값을 이용하여 직접 JWT 토큰 생성후 apple api에 유저 정보 요청을 보낸다. -> 응답으로 idToken과 accessToken을 받는다.
                 AppleTokenResDto appleTokenResDto = appleService.getAppleToken(reqDto.getSocialCode());
@@ -267,6 +286,7 @@ public class AuthService {
 
                 // 이미 존재하는 회원이면 전환 방지
                 if(userRepository.existsBySocialId(socialId)) {
+                    log.warn("Switch failed - socialId already exists: {}", socialId);
                     throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
                 }
 
@@ -276,8 +296,12 @@ public class AuthService {
 
                 // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> APPLE
                 currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
+                userRepository.save(currentUser);
                 accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
+
+                log.info("Switch success - userId: {}, newSocialType: APPLE, socialId: {}",
+                        currentUser.getId(), socialId);
             }
         }
 
