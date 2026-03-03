@@ -34,4 +34,13 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
             "WHERE (f.requester.id = :uid1 AND f.targetUser.id = :uid2) " +
             "OR (f.requester.id = :uid2 AND f.targetUser.id = :uid1)")
     List<FriendRelation> findAllRelationsBetween(@Param("uid1") String uid1, @Param("uid2") String uid2);
+
+    @Query("""
+    SELECT fr
+    FROM FriendRelation fr
+    WHERE (fr.requester.id = :currentUserId AND fr.targetUser.id = :targetUserId)
+       OR (fr.requester.id = :targetUserId AND fr.targetUser.id = :currentUserId)
+""")
+    List<FriendRelation> findBothDirections(@Param("currentUserId") String currentUserId,
+                                            @Param("targetUserId") String targetUserId);
 }
