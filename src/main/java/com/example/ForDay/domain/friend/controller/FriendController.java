@@ -38,6 +38,7 @@ public class FriendController implements FriendControllerDocs {
         return friendService.blockFriend(reqDto, user);
     }
 
+    @Override
     @PostMapping("/report")
     public ReportFriendResDto reportFriend(@RequestBody @Valid ReportFriendReqDto reqDto,
                                            @AuthenticationPrincipal CustomUserDetails user) {

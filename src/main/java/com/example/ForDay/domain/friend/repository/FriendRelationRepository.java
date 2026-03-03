@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FriendRelationRepository extends JpaRepository<FriendRelation, Long>, FriendRelationRepositoryCustom {
-    Optional<FriendRelation> findByRequesterIdAndTargetUserId(String id, String id1);
-
     boolean existsByRequesterIdAndTargetUserIdAndRelationStatus(String id, String id1, FriendRelationStatus friendRelationStatus);
 
     @Query("SELECT COUNT(f) > 0 FROM FriendRelation f " +
@@ -43,4 +41,6 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
 """)
     List<FriendRelation> findBothDirections(@Param("currentUserId") String currentUserId,
                                             @Param("targetUserId") String targetUserId);
+
+    Optional<FriendRelation> findByRequesterIdAndTargetId(String requesterId, String targetUserId);
 }
