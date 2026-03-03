@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 public record RecordDetailQueryDto(
         Long hobbyId,
+        String hobbyName,
         Long activityId,
         Long recordId,
         String imageUrl,
