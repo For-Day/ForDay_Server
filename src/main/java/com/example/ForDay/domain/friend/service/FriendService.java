@@ -113,7 +113,7 @@ public class FriendService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         FriendRelation myRelation = friendRelationRepository
-                .findByRequesterIdAndTargetId(currentUser.getId(), targetUser.getId())
+                .findByRequesterIdAndTargetUserId(currentUser.getId(), targetUser.getId())
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
         if (myRelation.getRelationStatus() != FriendRelationStatus.FOLLOW) {

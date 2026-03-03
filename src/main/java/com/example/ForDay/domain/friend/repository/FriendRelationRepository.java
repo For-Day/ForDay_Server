@@ -42,5 +42,5 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
     List<FriendRelation> findBothDirections(@Param("currentUserId") String currentUserId,
                                             @Param("targetUserId") String targetUserId);
 
-    Optional<FriendRelation> findByRequesterIdAndTargetId(String requesterId, String targetUserId);
+    Optional<FriendRelation> findByRequesterIdAndTargetUserId(String requesterId, String targetUserId);
 }
