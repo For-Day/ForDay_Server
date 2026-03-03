@@ -112,6 +112,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
         return Optional.ofNullable(queryFactory
                 .select(Projections.constructor(RecordDetailQueryDto.class,
                         record.hobby.id,
+                        record.hobby.hobbyName,
                         record.activity.id,
                         record.id,
                         record.imageUrl,

@@ -2,10 +2,9 @@ package com.example.ForDay.domain.friend.controller;
 
 import com.example.ForDay.domain.friend.dto.request.AddFriendReqDto;
 import com.example.ForDay.domain.friend.dto.request.BlockFriendReqDto;
-import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
-import com.example.ForDay.domain.friend.dto.response.BlockFriendResDto;
-import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
-import com.example.ForDay.domain.friend.dto.response.GetFriendListResDto;
+import com.example.ForDay.domain.friend.dto.request.ReportFriendReqDto;
+import com.example.ForDay.domain.friend.dto.response.*;
+import com.example.ForDay.global.common.error.ErrorResponse;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,7 +21,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 
 @Tag(name = "Friend", description = "친구 관계 관리 API")
-public interface FriendControllerDocs {
+public interface
+
+FriendControllerDocs {
 
     @Operation(
             summary = "친구 맺기 (팔로우)",
@@ -114,4 +115,40 @@ public interface FriendControllerDocs {
             @Parameter(description = "한 페이지에 조회할 유저 수", example = "20")
             @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
             @AuthenticationPrincipal CustomUserDetails user);
+
+    @Operation(
+            summary = "친구 신고",
+            description = "특정 사용자를 신고합니다. 이미 신고한 경우에도 200 OK로 응답합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "신고 성공 또는 이미 신고된 상태"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "자기 자신 신고",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
+    public ReportFriendResDto reportFriend(
+            @RequestBody
+            @Valid
+            @Parameter(description = "신고 요청 정보", required = true)
+            ReportFriendReqDto reqDto,
+            @AuthenticationPrincipal
+            @Parameter(hidden = true) // Swagger에 표시 안 함
+            CustomUserDetails user
+    );
 }
