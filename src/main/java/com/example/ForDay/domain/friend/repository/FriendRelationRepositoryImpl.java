@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Set;
 
 @RequiredArgsConstructor
-public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCustom{
+public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private QUser user = QUser.user;
     private QFriendRelation relation = QFriendRelation.friendRelation;
@@ -57,13 +57,14 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
     public List<String> findAllBlockedIdsByUserId(String userId) {
         QFriendRelation friendRelation = QFriendRelation.friendRelation;
 
-        // 1. 내가 차단한 사람들
+        // 1. 내가 차단하거나 신고한 사람들
         List<String> blockedByMe = queryFactory
                 .select(friendRelation.targetUser.id)
                 .from(friendRelation)
                 .where(friendRelation.requester.id.eq(userId)
-                        .and(friendRelation.relationStatus.eq(FriendRelationStatus.BLOCK)))
-                .fetch();
+                        .and(friendRelation.relationStatus.eq(FriendRelationStatus.BLOCK))
+                                .or(friendRelation.relationStatus.eq(FriendRelationStatus.REPORT)))
+                        .fetch();
 
         // 2. 나를 차단한 사람들
         List<String> blockedMe = queryFactory

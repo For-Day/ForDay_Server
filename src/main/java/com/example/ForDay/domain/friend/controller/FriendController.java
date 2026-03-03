@@ -2,10 +2,8 @@ package com.example.ForDay.domain.friend.controller;
 
 import com.example.ForDay.domain.friend.dto.request.AddFriendReqDto;
 import com.example.ForDay.domain.friend.dto.request.BlockFriendReqDto;
-import com.example.ForDay.domain.friend.dto.response.AddFriendResDto;
-import com.example.ForDay.domain.friend.dto.response.BlockFriendResDto;
-import com.example.ForDay.domain.friend.dto.response.DeleteFriendResDto;
-import com.example.ForDay.domain.friend.dto.response.GetFriendListResDto;
+import com.example.ForDay.domain.friend.dto.request.ReportFriendReqDto;
+import com.example.ForDay.domain.friend.dto.response.*;
 import com.example.ForDay.domain.friend.service.FriendService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -38,6 +36,13 @@ public class FriendController implements FriendControllerDocs {
     public BlockFriendResDto blockFriend(@RequestBody @Valid BlockFriendReqDto reqDto,
                                          @AuthenticationPrincipal CustomUserDetails user) {
         return friendService.blockFriend(reqDto, user);
+    }
+
+    @Override
+    @PostMapping("/report")
+    public ReportFriendResDto reportFriend(@RequestBody @Valid ReportFriendReqDto reqDto,
+                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return friendService.reportFriend(reqDto, user);
     }
 
     @Override

@@ -531,6 +531,7 @@ public class ActivityRecordService {
                                                                     GetRecordDetailResDto.UserReactionDto userR, boolean scraped) {
         return GetRecordDetailResDto.builder()
                 .hobbyId(detail.hobbyId())
+                .hobbyName(detail.hobbyName())
                 .activityId(detail.activityId())
                 .activityContent(detail.activityContent())
                 .activityRecordId(detail.recordId())
