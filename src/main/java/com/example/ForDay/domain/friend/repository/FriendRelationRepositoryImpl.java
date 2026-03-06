@@ -61,9 +61,10 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
         List<String> blockedByMe = queryFactory
                 .select(friendRelation.targetUser.id)
                 .from(friendRelation)
-                .where(friendRelation.requester.id.eq(userId)
-                        .and(friendRelation.relationStatus.eq(FriendRelationStatus.BLOCK))
-                                .or(friendRelation.relationStatus.eq(FriendRelationStatus.REPORT)))
+                .where(
+                        friendRelation.requester.id.eq(userId),
+                        friendRelation.relationStatus.in(FriendRelationStatus.BLOCK, FriendRelationStatus.REPORT) // 이 부분이 괄호로 묶인 OR 역할
+                )
                         .fetch();
 
         // 2. 나를 차단한 사람들
