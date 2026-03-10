@@ -257,54 +257,47 @@ public class ActivityService {
     @Transactional(readOnly = true)
     public GetAiRecommendItemsResDto getAiRecommendItems(Long hobbyId, CustomUserDetails user, AIItemType type) {
         User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
-        String socialId = currentUser.getSocialId();
+        log.info("[AI Recommend] 아이템 조회 시작 - HobbyId: {}, Type: {}", hobbyId, type);
 
-        // 1. 취미 조회
-        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUserId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        // 취미 조회 및 검증
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
 
-        // 2. 오늘 날짜 범위 설정
-        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
-        LocalDateTime endOfToday = LocalDate.now().atTime(LocalTime.MAX);
-
-        // 3. 오늘 생성된 추천 아이템 조회
+        // 오늘 생성된 추천 아이템 조회
         List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(
-                hobby.getId(), startOfToday, endOfToday, type
+                hobby.getId(),
+                LocalDate.now().atStartOfDay(),
+                LocalDate.now().atTime(LocalTime.MAX),
+                type
         );
 
-        if(items.isEmpty()) {
+        if (items.isEmpty()) {
             return new GetAiRecommendItemsResDto();
         }
 
-        // 4. DTO 변환
-        List<GetAiRecommendItemsResDto.ItemDto> itemDtos = items.stream()
-                .map(item -> new GetAiRecommendItemsResDto.ItemDto(
-                        item.getId(),
-                        item.getContent(),
-                        item.getDescription()
-                ))
-                .toList();
+        // 사용자 요약 문구 생성 (핵심 로직 분리)
+        String userSummaryText = determineUserSummary(currentUser, hobby);
 
-        // 메세지 조회
-        String userSummaryText = "";
-        long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), hobbyId);
-
-        if(recordCount >=5) {
-            // 기존에 사용자 요약 문구가 존재하는지 redis에 조회
-            if(userSummaryAIService.hasSummary(socialId, hobbyId)) {
-                userSummaryText = userSummaryAIService.getSummary(socialId, hobby.getId());
-            } else {
-                // fast api에 요청
-                userSummaryText = userSummaryAIService.fetchAndSaveUserSummary(currentUserId, socialId, hobbyId, hobby.getHobbyName());
-            }
-
-        }
-        userSummaryText += " 이전에 추천 받은 활동들이에요.";
-
-        return new GetAiRecommendItemsResDto(userSummaryText, hobby.getId(), hobby.getHobbyName(), itemDtos);
+        // DTO 변환 및 반환
+        return GetAiRecommendItemsResDto.of(hobby, items, userSummaryText);
     }
 
-    // 유틸 클래스
+    private String determineUserSummary(User user, Hobby hobby) {
+        long recordCount = activityRecordRepository.countByUserIdAndHobbyId(user.getId(), hobby.getId());
+
+        // 기록이 5개 미만이면 기본 문구 반환
+        if (recordCount < 5) {
+            return "이전에 추천 받은 활동들이에요.";
+        }
+
+        // 기록이 5개 이상일 때 요약 로직 수행
+        String summary = userSummaryAIService.hasSummary(user.getSocialId(), hobby.getId())
+                ? userSummaryAIService.getSummary(user.getSocialId(), hobby.getId())
+                : userSummaryAIService.fetchAndSaveUserSummary(user.getId(), user.getSocialId(), hobby.getId(), hobby.getHobbyName());
+
+        return summary + " 이전에 추천 받은 활동들이에요.";
+    }
+
     private void createHobbyCard(Hobby hobby, User currentUser) {
         Long hobbyId = hobby.getId();
         String userId = currentUser.getId();
