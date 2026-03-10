@@ -2,10 +2,15 @@ package com.example.ForDay.domain.hobby.entity;
 
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
+
+import java.util.Objects;
+
 
 @Entity
 @Table(name = "user_hobbies")
@@ -105,5 +110,26 @@ public class Hobby extends BaseTimeEntity {
         this.hobbyTimeMinutes = hobbyTimeMinutes;
         this.executionCount = executionCount;
         this.goalDays = goalDays;
+    }
+
+    public boolean isStickerFull() {
+        final Integer STICKER_COMPLETE_COUNT = 66;
+
+        if (this.currentStickerNum == null || this.goalDays == null) {
+            return false;
+        }
+        return Objects.equals(this.currentStickerNum.intValue(), STICKER_COMPLETE_COUNT)
+                && Objects.equals(this.goalDays.intValue(), STICKER_COMPLETE_COUNT);
+    }
+
+    public void validateCanRecord() {
+        // 1. 진행 상태 확인
+        if (this.status != HobbyStatus.IN_PROGRESS) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+        // 2. 이미 다 채웠는지 확인
+        if (this.isStickerFull()) {
+            throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
+        }
     }
 }
