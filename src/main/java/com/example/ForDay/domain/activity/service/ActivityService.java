@@ -216,44 +216,42 @@ public class ActivityService {
         return new MessageResDto("활동이 삭제되었어요.");
     }
 
+    // 여기부터
     @Transactional
     public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
 
-        // [시작] 활동 담기 요청 로그
         log.info("[Activity Collect] 시작 - 사용자: {}, 취미ID: {}, 활동ID: {}",
-                currentUserId, hobbyId, activityId);
+                currentUser.getId(), hobbyId, activityId);
 
-        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUserId)
+        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
                 .orElseThrow(() -> {
-                    log.warn("[Activity Collect] 실패 - 취미를 찾을 수 없음. 취미ID: {}, 사용자ID: {}", hobbyId, currentUserId);
+                    log.warn("[Activity Collect] 실패 - 취미를 찾을 수 없음. 취미ID: {}, 사용자ID: {}", hobbyId, currentUser.getId());
                     return new CustomException(ErrorCode.HOBBY_NOT_FOUND);
                 });
 
-        ActivityRecordCollectInfo activity = activityRepository.getCollectActivityInfo(activityId)
+        ActivityRecordCollectInfo originActivity = activityRepository.getCollectActivityInfo(activityId)
                 .orElseThrow(() -> {
                     log.warn("[Activity Collect] 실패 - 원본 활동을 찾을 수 없음. 활동ID: {}", activityId);
                     return new CustomException(ErrorCode.ACTIVITY_NOT_FOUND);
                 });
 
-        checkBlockedAndDeletedUser(currentUserId, activity.getUserId(), activity.isUserDeleted());
-        log.info("[Activity Collect] 검증 완료 - 활동 소유자ID: {}", activity.getUserId());
+        hobby.validateInProgress();
+        validateTargetUser(currentUser.getId(), originActivity);
+        log.info("[Activity Collect] 검증 완료 - 활동 소유자ID: {}", originActivity.getUserId());
 
-        Activity build = Activity.builder()
-                .user(currentUser)
-                .hobby(hobby)
-                .content(activity.getContent())
-                .aiRecommended(false)
-                .build();
-
-        Activity savedActivity = activityRepository.save(build);
-
+        Activity newActivity = activityRepository.save(Activity.from(currentUser, hobby, originActivity));
 
         log.info("[Activity Collect] 완료 - 생성된 활동ID: {}, 저장된 취미: {}",
-                savedActivity.getId(), hobby.getHobbyName());
+                newActivity.getId(), hobby.getHobbyName());
 
-        return new CollectActivityResDto(hobby.getId(), hobby.getHobbyName(), build.getId(), build.getContent(), "활동담기를 완료했어요.");
+        return new CollectActivityResDto(
+                hobby.getId(),
+                hobby.getHobbyName(),
+                newActivity.getId(),
+                newActivity.getContent(),
+                "활동담기를 완료했어요."
+        );
     }
 
     @Transactional(readOnly = true)
@@ -415,12 +413,18 @@ public class ActivityService {
         }
     }
 
-    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
-        // 한쪽이라도 차단 관계가 있는지 확인
-        if (friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
+    private void validateTargetUser(String currentUserId, ActivityRecordCollectInfo target) {
+        // 탈퇴한 회원인지 먼저 확인
+        if (target.isUserDeleted()) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+
+        // 차단 관계 확인 (양방향)
+        boolean isBlocked = friendRelationRepository.existsByFriendship(currentUserId, target.getUserId(), FriendRelationStatus.BLOCK)
+                || friendRelationRepository.existsByFriendship(target.getUserId(), currentUserId, FriendRelationStatus.BLOCK);
+
+        if (isBlocked) {
             throw new CustomException(ErrorCode.ACTIVITY_NOT_FOUND);
         }
-        // 타겟유저가 탈퇴한 회원인 경우
-        if (deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
 }

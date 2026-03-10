@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.activity.entity;
 
+import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
@@ -43,6 +44,15 @@ public class Activity extends BaseTimeEntity {
     @Column(name = "last_recorded_at")
     @Builder.Default
     private LocalDateTime lastRecordedAt = null;
+
+    public static Activity from(User user, Hobby hobby, ActivityRecordCollectInfo info) {
+        return Activity.builder()
+                .user(user)
+                .hobby(hobby)
+                .content(info.getContent())
+                .aiRecommended(false)
+                .build();
+    }
 
     public void record() {
         this.collectedStickerNum++;
