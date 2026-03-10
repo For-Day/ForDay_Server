@@ -177,7 +177,7 @@ public class ActivityService {
         Activity activity = getActivityByUserId(activityId, currentUser.getId());
 
         // 진행 중인 취미가 아니면 활동 수정 불가
-        checkHobbyInProgressStatus(activity.getHobby());
+        activity.getHobby().validateInProgress();
 
         String beforeContent = activity.getContent();
         activity.updateContent(reqDto.getContent());

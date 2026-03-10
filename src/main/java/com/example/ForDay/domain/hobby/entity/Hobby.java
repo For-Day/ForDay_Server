@@ -132,4 +132,10 @@ public class Hobby extends BaseTimeEntity {
             throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
         }
     }
+
+    public void validateInProgress() {
+        if (this.status != HobbyStatus.IN_PROGRESS) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+    }
 }
