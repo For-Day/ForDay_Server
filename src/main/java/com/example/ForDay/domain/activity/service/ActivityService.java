@@ -206,7 +206,7 @@ public class ActivityService {
         }
 
         // 진행 중인 취미가 아니면 활동 삭제 불가
-        checkHobbyInProgressStatus(activity.getHobby());
+        activity.getHobby().validateInProgress();
         activityRepository.delete(activity);
 
         log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}",
