@@ -94,7 +94,6 @@ public class ActivityRecordService {
         }
 
         List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
-
         GetRecordDetailResDto.UserReactionDto userReaction = createUserReactionDto(summaries, currentUserId);
         GetRecordDetailResDto.NewReactionDto newReaction = createNewReactionDto(summaries, isRecordOwner);
 
@@ -110,7 +109,7 @@ public class ActivityRecordService {
     public GetRecordReactionUsersResDto getRecordReactionUsers(
             Long recordId, RecordReactionType type, CustomUserDetails user, String lastUserId, Integer size
     ) {
-        // 1. 엔티티 전체 대신 권한 확인용 DTO만 조회 (Fetch Join 제거 효과)
+        // 엔티티 전체 대신 권한 확인용 DTO만 조회 (Fetch Join 제거 효과)
         RecordDetailQueryDto recordDetail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
@@ -120,8 +119,8 @@ public class ActivityRecordService {
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
 
-        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, recordDetail.writerId()); //
-        checkBlockedAndDeletedUser(relations, currentUserId, recordDetail.writerId(), recordDetail.writerDeleted()); // 차단이나 탈퇴가 있는지 확인
+        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, recordDetail.writerId());
+        checkBlockedAndDeletedUser(relations, currentUserId, recordDetail.writerId(), recordDetail.writerDeleted());
         validateRecordAuthority(relations, recordDetail.visibility(), recordDetail.writerId(), currentUserId);
 
         boolean isRecordOwner = Objects.equals(currentUserId, recordDetail.writerId());
@@ -201,7 +200,7 @@ public class ActivityRecordService {
             throw new CustomException(ErrorCode.REACTION_NOT_FOUND);
         }
 
-        // 3. Redis 점수 차감
+        // Redis 점수 차감
         redisReactionService.decrementRankingScore(recordId);
 
         log.info("[cancelReactToRecord] 리액션 취소 완료 - RecordId: {}, UserId: {}", recordId, userId);
@@ -251,13 +250,7 @@ public class ActivityRecordService {
                 });
             }
         }
-        activityRecord.updateRecord(
-                activity,
-                reqDto.getSticker(),
-                reqDto.getMemo(),
-                reqDto.getVisibility(),
-                newImageUrl
-        );
+        activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), newImageUrl);
 
         log.info("[updateActivityRecord] 기록 수정 완료 - RecordId: {}", recordId);
         return new UpdateActivityRecordResDto(
@@ -271,6 +264,7 @@ public class ActivityRecordService {
         );
     }
 
+    // 리팩토링 필요
     @Transactional
     public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -410,7 +404,7 @@ public class ActivityRecordService {
         }
 
         List<Hobby> activeHobbies = null;
-        // 1. 해당 유저의 진행 중(IN_PROGRESS)인 취미를 최신 생성순(Id 내림차순)으로 조회
+        // 해당 유저의 진행 중(IN_PROGRESS)인 취미를 최신 생성순(Id 내림차순)으로 조회
         if (lastRecordId == null) {
             activeHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
                     currentUser.getId(),
@@ -435,12 +429,9 @@ public class ActivityRecordService {
                     .toList();
         }
 
-        List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId()); // 현재 유저의 친구 목록 (공개 범위가 FRIEND 이면 조회되도록)
-        List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId()); // 차단 유저 목록 (조회시 배제)
-        List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUser.getId());
-
-        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds, storyFilterType, hobbyName);
-
+        List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(
+                hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), storyFilterType, hobbyName
+        );
 
         boolean hasNext = false;
         if (recordDtos.size() > size) {
@@ -450,11 +441,11 @@ public class ActivityRecordService {
 
         // 썸네일용 이미지 url 반환 (기록 이미지 url & 유저 이미지 url)
         recordDtos.forEach(dto -> {
-            // 1. 기록 이미지 URL 변환 (Feed Thumbnail용)
+            // 기록 이미지 URL 변환 (Feed Thumbnail용)
             if (dto.getThumbnailUrl() != null) {
                 dto.setThumbnailUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailUrl()));
             }
-            // 2. 유저 프로필 이미지 URL 변환 (Profile List용)
+            // 유저 프로필 이미지 URL 변환 (Profile List용)
             if (dto.getUserInfo() != null && dto.getUserInfo().getProfileImageUrl() != null) {
                 String originalProfileUrl = dto.getUserInfo().getProfileImageUrl();
                 dto.getUserInfo().setProfileImageUrl(s3Util.toProfileListResizedUrl(originalProfileUrl));
