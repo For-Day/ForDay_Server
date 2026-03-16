@@ -11,6 +11,5 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ActivityRecommendItemRepositoryCustom {
-
     List<ActivityRecommendItem> findAllByHobbyIdAndDate(Long id, LocalDateTime startOfToday, LocalDateTime endOfToday, AIItemType type);
 }

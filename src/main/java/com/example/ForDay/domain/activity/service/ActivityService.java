@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
-import com.example.ForDay.domain.activity.dto.FastAPIHobbyCardReqDto;
+import com.example.ForDay.domain.activity.dto.request.FastAPIHobbyCardReqDto;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.FastAPIHobbyCardResDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
@@ -39,7 +39,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Objects;
@@ -216,7 +215,6 @@ public class ActivityService {
         return new MessageResDto("활동이 삭제되었어요.");
     }
 
-    // 여기부터
     @Transactional
     public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -275,7 +273,7 @@ public class ActivityService {
             return new GetAiRecommendItemsResDto();
         }
 
-        // 사용자 요약 문구 생성 (핵심 로직 분리)
+        // 사용자 요약 문구 생성
         String userSummaryText = determineUserSummary(currentUser, hobby);
 
         // DTO 변환 및 반환

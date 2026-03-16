@@ -17,7 +17,6 @@ public class GetAiRecommendItemsResDto {
     private String hobbyName;
     private List<ItemDto> activityItems;
 
-    // 정적 팩토리 메서드 구현
     public static GetAiRecommendItemsResDto of(Hobby hobby, List<ActivityRecommendItem> items, String userSummaryText) {
         List<ItemDto> itemDtos = items.stream()
                 .map(item -> new ItemDto(

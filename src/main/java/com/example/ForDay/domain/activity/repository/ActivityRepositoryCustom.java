@@ -12,6 +12,5 @@ import java.util.Optional;
 public interface ActivityRepositoryCustom {
     GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, Integer size);
     GetActivityListResDto getActivityList(Long hobbyId, String userId);
-
     Optional<ActivityRecordCollectInfo> getCollectActivityInfo(Long activityId);
 }
