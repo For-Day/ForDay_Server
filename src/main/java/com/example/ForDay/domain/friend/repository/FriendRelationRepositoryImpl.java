@@ -24,14 +24,7 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
 
     @Override
     public List<GetFriendListResDto.UserInfoDto> findMyFriendList(String currentUserId, String lastUserId, Integer size) {
-        // 나를 차단한 유저들의 ID를 찾는 서브쿼리
-        JPQLQuery<String> blockedMeUserIds = JPAExpressions
-                .select(relation.requester.id)
-                .from(relation)
-                .where(
-                        relation.targetUser.id.eq(currentUserId),
-                        relation.relationStatus.eq(FriendRelationStatus.BLOCK)
-                );
+        QFriendRelation subRelation = new QFriendRelation("subRelation");
 
         return queryFactory
                 .select(Projections.constructor(GetFriendListResDto.UserInfoDto.class,
@@ -41,11 +34,16 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
                 ))
                 .from(relation)
                 .join(relation.targetUser, user)
+                .leftJoin(subRelation).on(
+                        subRelation.requester.id.eq(user.id),
+                        subRelation.targetUser.id.eq(currentUserId),
+                        subRelation.relationStatus.eq(FriendRelationStatus.BLOCK)
+                )
                 .where(
                         relation.requester.id.eq(currentUserId),
                         relation.relationStatus.eq(FriendRelationStatus.FOLLOW),
                         user.deleted.isFalse(),
-                        user.id.notIn(blockedMeUserIds),
+                        subRelation.id.isNull(),
                         ltLastUserId(lastUserId)
                 )
                 .orderBy(relation.createdAt.desc(), user.id.desc())
