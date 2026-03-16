@@ -64,7 +64,6 @@ public class UserService {
 
     @Transactional
     public NicknameCheckResDto nicknameCheck(String nickname) {
-
         // 길이 체크 (10자 초과)
         if (nickname.length() > 10) {
             return new NicknameCheckResDto(
@@ -85,20 +84,13 @@ public class UserService {
 
         // DB 중복 체크
         boolean exists = userRepository.existsByNickname(nickname);
-
         if (exists) {
-            return new NicknameCheckResDto(
-                    nickname,
-                    false,
-                    "이미 사용 중인 닉네임입니다."
+            return new NicknameCheckResDto(nickname, false,"이미 사용 중인 닉네임입니다."
             );
         }
 
         // 사용 가능
-        return new NicknameCheckResDto(
-                nickname,
-                true,
-                "사용 가능한 닉네임입니다."
+        return new NicknameCheckResDto(nickname,true,"사용 가능한 닉네임입니다."
         );
     }
 
@@ -126,7 +118,6 @@ public class UserService {
             User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             checkBlockedAndDeletedUser(currentUser.getId(), targetId, targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
@@ -142,24 +133,29 @@ public class UserService {
     @Transactional
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        String newImageUrl = reqDto.getProfileImageUrl();
+        String newImageUrl = StringUtils.hasText(reqDto.getProfileImageUrl()) ? reqDto.getProfileImageUrl() : null;
+        String oldImageUrl = currentUser.getProfileImageUrl();
 
-        String currentUrl = StringUtils.hasText(currentUser.getProfileImageUrl()) ? currentUser.getProfileImageUrl() : null;
-        String targetUrl = StringUtils.hasText(newImageUrl) ? newImageUrl : null;
-
-        if (Objects.equals(currentUrl, targetUrl)) {
-            return new SetUserProfileImageResDto(currentUrl, "이미 동일한 프로필 이미지로 설정되어 있습니다.");
+        // 동일 이미지 여부 체크
+        if (Objects.equals(oldImageUrl, newImageUrl)) {
+            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl),"이미 동일한 프로필 이미지로 설정되어 있습니다."
+            );
         }
 
-        validateNewImage(targetUrl);
+        // 새로운 이미지가 있는 경우에만 S3 존재 여부 검증
+        validateNewImage(newImageUrl);
 
-        String oldImageUrl = currentUser.getProfileImageUrl();
+        // 상태 업데이트
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
 
+        // 이전 이미지가 실제 S3 객체였다면 삭제 등록
         if (StringUtils.hasText(oldImageUrl)) {
             registerS3Deletion(oldImageUrl);
         }
+
+        log.info("[PROFILE] Image changed for user: {} ({} -> {})",
+                currentUser.getId(), oldImageUrl, newImageUrl);
 
         return new SetUserProfileImageResDto(
                 s3Util.toProfileMainResizedUrl(newImageUrl),
