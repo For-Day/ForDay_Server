@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.activity.dto;
+package com.example.ForDay.domain.activity.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

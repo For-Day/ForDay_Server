@@ -78,7 +78,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
 
     @Override
-    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities, List<Long> reportedRecordIds, String currentUserId) {
+    public List<GetUserFeedListResDto.FeedDto> findUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, String userId, List<RecordVisibility> visibilities, String currentUserId) {
         return queryFactory
                 .select(Projections.constructor(
                         GetUserFeedListResDto.FeedDto.class,

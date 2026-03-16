@@ -64,7 +64,6 @@ public class UserService {
 
     @Transactional
     public NicknameCheckResDto nicknameCheck(String nickname) {
-
         // 길이 체크 (10자 초과)
         if (nickname.length() > 10) {
             return new NicknameCheckResDto(
@@ -85,20 +84,13 @@ public class UserService {
 
         // DB 중복 체크
         boolean exists = userRepository.existsByNickname(nickname);
-
         if (exists) {
-            return new NicknameCheckResDto(
-                    nickname,
-                    false,
-                    "이미 사용 중인 닉네임입니다."
+            return new NicknameCheckResDto(nickname, false,"이미 사용 중인 닉네임입니다."
             );
         }
 
         // 사용 가능
-        return new NicknameCheckResDto(
-                nickname,
-                true,
-                "사용 가능한 닉네임입니다."
+        return new NicknameCheckResDto(nickname,true,"사용 가능한 닉네임입니다."
         );
     }
 
@@ -126,7 +118,6 @@ public class UserService {
             User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             checkBlockedAndDeletedUser(currentUser.getId(), targetId, targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
@@ -142,59 +133,34 @@ public class UserService {
     @Transactional
     public SetUserProfileImageResDto setUserProfileImage(SetUserProfileImageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        String newImageUrl = reqDto.getProfileImageUrl();
+        String newImageUrl = StringUtils.hasText(reqDto.getProfileImageUrl()) ? reqDto.getProfileImageUrl() : null;
+        String oldImageUrl = currentUser.getProfileImageUrl();
 
-        String currentUrl = StringUtils.hasText(currentUser.getProfileImageUrl()) ? currentUser.getProfileImageUrl() : null;
-        String targetUrl = StringUtils.hasText(newImageUrl) ? newImageUrl : null;
-
-        if (Objects.equals(currentUrl, targetUrl)) {
-            return new SetUserProfileImageResDto(currentUrl, "이미 동일한 프로필 이미지로 설정되어 있습니다.");
+        // 동일 이미지 여부 체크
+        if (Objects.equals(oldImageUrl, newImageUrl)) {
+            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl),"이미 동일한 프로필 이미지로 설정되어 있습니다."
+            );
         }
 
-        validateNewImage(targetUrl);
+        // 새로운 이미지가 있는 경우에만 S3 존재 여부 검증
+        validateNewImage(newImageUrl);
 
-        String oldImageUrl = currentUser.getProfileImageUrl();
+        // 상태 업데이트
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
 
+        // 이전 이미지가 실제 S3 객체였다면 삭제 등록
         if (StringUtils.hasText(oldImageUrl)) {
             registerS3Deletion(oldImageUrl);
         }
+
+        log.info("[PROFILE] Image changed for user: {} ({} -> {})",
+                currentUser.getId(), oldImageUrl, newImageUrl);
 
         return new SetUserProfileImageResDto(
                 s3Util.toProfileMainResizedUrl(newImageUrl),
                 "프로필 이미지가 성공적으로 변경되었습니다."
         );
-    }
-
-    private void validateNewImage(String targetUrl) {
-        if (targetUrl != null) {
-            String newKey = s3Service.extractKeyFromFileUrl(targetUrl);
-            if (!s3Service.existsByKey(newKey)) {
-                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-            }
-        }
-    }
-
-    private void registerS3Deletion(String oldImageUrl) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                log.info("[S3-Cleanup] 이전 이미지 삭제 시작: {}", oldImageUrl);
-                try {
-                    // 리스트 형태로 만들어서 한 번에 삭제 로직 실행
-                    List<String> keysToDelete = Stream.of(
-                            oldImageUrl,
-                            s3Util.toProfileMainResizedUrl(oldImageUrl),
-                            s3Util.toProfileListResizedUrl(oldImageUrl)
-                    ).map(s3Service::extractKeyFromFileUrl).toList();
-
-                    keysToDelete.forEach(s3Service::deleteByKey);
-                } catch (Exception e) {
-                    log.error("[S3-Cleanup] 이전 프로필 이미지 삭제 실패: {}", oldImageUrl, e);
-                }
-            }
-        });
     }
 
     @Transactional(readOnly = true)
@@ -203,7 +169,6 @@ public class UserService {
 
         if(userId != null) {
             targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
             checkBlockedAndDeletedUser(userUtil.getCurrentUser(user).getId(), targetUser.getId(), targetUser.isDeleted());
         } else {
            targetUser = userUtil.getCurrentUser(user);
@@ -229,9 +194,10 @@ public class UserService {
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
     }
 
+    // 여기서부터
     @Transactional(readOnly = true)
     public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user, String userId) {
-        User targetUser;
+        User targetUser; // 조회하고자하는 피드 주인
 
         List<RecordVisibility> visibilities = new ArrayList<>();
         String currentUserId = userUtil.getCurrentUser(user).getId();
@@ -249,20 +215,17 @@ public class UserService {
             checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
             visibilities.add(RecordVisibility.PUBLIC);
 
-            if (friendRelationRepository.existsByFriendship(
+            if (friendRelationRepository.existsByFriendship( // 현재 사용자가 피드 주인을 follow 한 상황일 때
                     currentUserId, targetUser.getId(), FriendRelationStatus.FOLLOW)) {
                 visibilities.add(RecordVisibility.FRIEND);
             }
         }
-        String targetUserId = targetUser.getId();
-        List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUserId);
-
         Long totalFeedCount = null;
         if(lastRecordId == null) {
-            totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetUserId);
+            totalFeedCount = activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetUser.getId());
         }
 
-        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUserId, visibilities, reportedRecordIds, currentUserId);
+        List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(hobbyIds, lastRecordId, feedSize, targetUser.getId(), visibilities, currentUserId);
 
         boolean hasNext = false;
         if (feedList.size() > feedSize) {
@@ -289,7 +252,7 @@ public class UserService {
         if(userId != null) {
             User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
             List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
-            checkBlockedAndDeletedUser(relations, currentUserId, targetUserId, targetUser.isDeleted());
+            checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
         }
         List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, targetUserId);
 
@@ -308,26 +271,30 @@ public class UserService {
     public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-        String targetUserId = (userId == null) ? currentUser.getId() : userId;
+        String targetUserId = (userId == null) ? currentUserId : userId;
 
-        if (userId != null) {
+        List<RecordVisibility> visibilities = new ArrayList<>(List.of(RecordVisibility.PUBLIC));
+
+        if (userId == null || userId.equals(currentUserId)) {
+            // 내 스크랩 조회: 모든 권한 오픈
+            visibilities.addAll(List.of(RecordVisibility.FRIEND, RecordVisibility.PRIVATE));
+        } else {
+            // 남의 스크랩 조회
             User targetUser = userRepository.findById(targetUserId)
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-            List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
-            checkBlockedAndDeletedUser(relations, currentUserId, targetUserId, targetUser.isDeleted());
+
+            // 차단 및 탈퇴 체크
+            checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
+
+            // 내가 피드 주인을 팔로우 중이라면 FRIEND 권한 추가
+            if (friendRelationRepository.existsByFriendship(currentUserId, targetUserId, FriendRelationStatus.FOLLOW)) {
+                visibilities.add(RecordVisibility.FRIEND);
+            }
         }
 
-        List<GetUserScrapListResDto.ScrapDto> scrapDtos;
-        if (userId == null) {
-            scrapDtos = activityRecordScrapRepository.getMyScrapList(lastScrapId, size, currentUser.getId());
-        } else {
-            List<String> myFriendIds = friendRelationRepository.findAllFriendIdsByUserId(currentUser.getId());
-            List<String> blockFriendIds = friendRelationRepository.findAllBlockedIdsByUserId(currentUser.getId());
-            List<Long> reportedRecordIds = reportRepository.findReportedRecordIdsByReporterId(currentUser.getId());
-            scrapDtos = activityRecordScrapRepository.getOtherScrapList(
-                    lastScrapId, size, targetUserId, currentUser.getId(), myFriendIds, blockFriendIds, reportedRecordIds
-            );
-        }
+        List<GetUserScrapListResDto.ScrapDto> scrapDtos = activityRecordScrapRepository.getScrapList(
+                lastScrapId, size, targetUserId, currentUserId, visibilities
+        );
 
         boolean hasNext = false;
         if (scrapDtos.size() > size) {
@@ -358,7 +325,7 @@ public class UserService {
         if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
     }
 
-    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, String me, String target, boolean deleted) {
+    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, boolean deleted) {
         // 리스트에서 차단(BLOCK)이 하나라도 있는지 확인
         boolean isBlocked = relations.stream()
                 .anyMatch(f -> f.getRelationStatus() == FriendRelationStatus.BLOCK);
@@ -366,5 +333,35 @@ public class UserService {
         if (isBlocked || deleted) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
+    }
+
+    private void validateNewImage(String targetUrl) {
+        if (targetUrl != null) {
+            String newKey = s3Service.extractKeyFromFileUrl(targetUrl);
+            if (!s3Service.existsByKey(newKey)) {
+                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+            }
+        }
+    }
+
+    private void registerS3Deletion(String oldImageUrl) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                log.info("[S3-Cleanup] 이전 이미지 삭제 시작: {}", oldImageUrl);
+                try {
+                    // 리스트 형태로 만들어서 한 번에 삭제 로직 실행
+                    List<String> keysToDelete = Stream.of(
+                            oldImageUrl,
+                            s3Util.toProfileMainResizedUrl(oldImageUrl),
+                            s3Util.toProfileListResizedUrl(oldImageUrl)
+                    ).map(s3Service::extractKeyFromFileUrl).toList();
+
+                    keysToDelete.forEach(s3Service::deleteByKey);
+                } catch (Exception e) {
+                    log.error("[S3-Cleanup] 이전 프로필 이미지 삭제 실패: {}", oldImageUrl, e);
+                }
+            }
+        });
     }
 }

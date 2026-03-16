@@ -16,15 +16,13 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Modifying
     @Transactional
     @Query("""
-    DELETE FROM User u
-    WHERE u.role = 'GUEST'
-      AND u.lastActivityAt IS NOT NULL
-      AND u.lastActivityAt < :threshold""")
+            DELETE FROM User u
+            WHERE u.role = 'GUEST'
+              AND u.lastActivityAt IS NOT NULL
+              AND u.lastActivityAt < :threshold""")
     int deleteOldGuests(@Param("threshold") LocalDateTime threshold);
 
     boolean existsByNickname(String nickname);
 
     boolean existsBySocialId(String socialId);
-
-    User getReferenceBySocialId(String userId);
 }
