@@ -15,6 +15,5 @@ public interface HobbyRepositoryCustom {
     MyHobbySettingResDto myHobbySetting(User user, HobbyStatus hobbyStatus);
     OnboardingDataDto getOnboardingDate(User user);
     List<GetHobbyInProgressResDto.HobbyDto> findUserTabHobbyList(User currentUser);
-
     List<ReCheckHobbyInfoResDto.HobbyInfoDto> reCheckHobbyInfo(String currentUserId);
 }

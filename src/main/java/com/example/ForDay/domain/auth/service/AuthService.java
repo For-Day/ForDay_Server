@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.auth.service;
 
+import com.example.ForDay.domain.auth.dto.LoginInternalResult;
 import com.example.ForDay.domain.auth.dto.request.*;
 import com.example.ForDay.domain.auth.dto.response.*;
 import com.example.ForDay.domain.auth.repository.RefreshTokenRepository;
@@ -46,34 +47,25 @@ public class AuthService {
 
         // 카카오 accessToken을 활용하여 카카오 사용자 정보 얻기
         KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getKakaoAccessToken());
-        String socialId = SocialType.KAKAO.toString().toLowerCase() + "_" + kakaoProfileDto.getId();
+        String socialId = createSocialId(SocialType.KAKAO, String.valueOf(kakaoProfileDto.getId()));
 
         log.info("[LOGIN] Kakao userId={}", kakaoProfileDto.getId());
 
-        boolean isNewUser = false;
-
         User user = userRepository.findBySocialId(socialId);
-        if (user == null) {
+        boolean isNewUser = (user == null);
+        if (isNewUser) {
             // 회원가입이 되어 있지 않다면 회원가입
             log.info("[LOGIN] New Kakao user registered. kakaoId={}", kakaoProfileDto.getId());
-            isNewUser = true;
-            // 회원가입 (유저 엔티티 생성)
             user = userService.createOauth(socialId, kakaoProfileDto.getKakao_account().getEmail(), SocialType.KAKAO);
         }
 
         log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
-        // 회원 가입 되어 있는 경우 -> 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
-        String refreshToken = jwtUtil.createRefreshToken(socialId);
-        refreshTokenService.save(socialId, refreshToken);
+        LoginInternalResult result = processCommonLogin(user, SocialType.KAKAO);
 
-        boolean isNicknameSet = hasNickname(user); // 닉네임 설정 여부
-        boolean onboardingCompleted = user.isOnboardingCompleted(); // 온보딩 완료 여부
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
-
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.KAKAO, onboardingCompleted, isNicknameSet, dataDto, user.getNickname());
-    }
+        return new LoginResDto(result.accessToken(), result.refreshToken(), isNewUser,
+                SocialType.KAKAO, result.onboardingCompleted(),
+                result.isNicknameSet(), result.onboardingData(), user.getNickname());}
 
     @Transactional
     public LoginResDto appleLogin(AppleLoginReqDto reqDto) {
@@ -86,45 +78,45 @@ public class AuthService {
         Claims claims = appleService.verifyAndParseAppleIdToken(appleTokenResDto);
 
         // 사용자 정보에서 socialId와 email 추출
-        String socialId = SocialType.APPLE.toString().toLowerCase() + "_" + claims.getSubject();
-        String email = claims.containsKey("email")
-                ? claims.get("email", String.class)
-                : null;
-        User user = userRepository.findBySocialId(socialId);
+        String socialId = createSocialId(SocialType.APPLE, claims.getSubject());
+        String email = claims.containsKey("email") ? claims.get("email", String.class) : null;
 
-        boolean isNewUser = false;
-        if (user == null) {
+        User user = userRepository.findBySocialId(socialId);
+        boolean isNewUser = (user == null);
+        if (isNewUser) {
             // 처음 회원가입 하는 유저
             log.info("[LOGIN] New Apple user registered. appleId={}", socialId);
-            isNewUser = true;
             user = userService.createOauth(socialId, email, SocialType.APPLE);
         }
 
         log.info("[LOGIN] Apple login success userId={}", user.getId());
 
-        String accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
-        String refreshToken = jwtUtil.createRefreshToken(socialId);
-        refreshTokenService.save(socialId, refreshToken);
+        LoginInternalResult result = processCommonLogin(user, SocialType.APPLE);
 
-        boolean isNicknameSet = hasNickname(user);
-        boolean onboardingCompleted = user.isOnboardingCompleted();
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
-
-        return new LoginResDto(accessToken, refreshToken, isNewUser, SocialType.APPLE, onboardingCompleted, isNicknameSet, dataDto, user.getNickname());
+        return new LoginResDto(
+                result.accessToken(),
+                result.refreshToken(),
+                isNewUser,
+                SocialType.APPLE,
+                result.onboardingCompleted(),
+                result.isNicknameSet(),
+                result.onboardingData(),
+                user.getNickname()
+        );
     }
 
     @Transactional
     public GuestLoginResDto guestLogin(GuestLoginReqDto reqDto) {
         User user;
         String guestUserId = reqDto.getGuestUserId();
-        boolean newUser;
+        boolean isNewUser = false;
 
-        if(guestUserId != null && StringUtils.hasText(guestUserId) && guestUserId.startsWith("withdrawn")) {
+        if(StringUtils.hasText(guestUserId) && guestUserId.startsWith("withdrawn")) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
         // 처음 가입하는 게스트 로그인일 때
-        if (guestUserId == null || guestUserId.isBlank()) {
+        if (StringUtils.hasText(guestUserId)) {
             String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
             user = userRepository.save(User.builder()
@@ -132,7 +124,7 @@ public class AuthService {
                     .socialType(SocialType.GUEST)
                     .socialId(socialId)
                     .build());
-            newUser = true;
+            isNewUser = true;
 
             log.info("[GUEST] New guest created id={}", user.getId());
 
@@ -143,7 +135,6 @@ public class AuthService {
             if (user.getRole() != Role.GUEST) {
                 throw new CustomException(ErrorCode.INVALID_USER_ROLE);
             }
-            newUser = false;
         }
 
         String socialId = user.getSocialId();
@@ -151,16 +142,12 @@ public class AuthService {
         user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
         log.info("[GUEST] Last activity updated userId={}", user.getId());
 
-        String accessToken = jwtUtil.createAccessToken(socialId, user.getRole(), SocialType.GUEST);
-        String refreshToken = jwtUtil.createRefreshToken(socialId);
+        LoginInternalResult result = processCommonLogin(user, SocialType.GUEST);
 
-        boolean isNicknameSet = hasNickname(user);
-        boolean onboardingCompleted = user.isOnboardingCompleted();
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
-
-        refreshTokenService.save(socialId, refreshToken);
-
-        return new GuestLoginResDto(accessToken, refreshToken, newUser, SocialType.GUEST, socialId, onboardingCompleted, isNicknameSet, dataDto, user.getNickname());
+        return new GuestLoginResDto(result.accessToken(), result.refreshToken(), isNewUser,
+                SocialType.GUEST, user.getSocialId(),
+                result.onboardingCompleted(), result.isNicknameSet(),
+                result.onboardingData(), user.getNickname());
     }
 
     @Transactional
@@ -329,5 +316,24 @@ public class AuthService {
         return StringUtils.hasText(user.getNickname());
     }
 
+    private String createSocialId(SocialType type, String id) {
+        return type.toString().toLowerCase() + "_" + id;
+    }
+
+    private LoginInternalResult processCommonLogin(User user, SocialType socialType) {
+        String socialId = user.getSocialId();
+
+        // 토큰 발급 및 저장
+        String accessToken = jwtUtil.createAccessToken(socialId, user.getRole(), socialType);
+        String refreshToken = jwtUtil.createRefreshToken(socialId);
+        refreshTokenService.save(socialId, refreshToken);
+
+        // 온보딩 상태 조회
+        boolean isNicknameSet = hasNickname(user);
+        boolean onboardingCompleted = user.isOnboardingCompleted();
+        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
+
+        return new LoginInternalResult(accessToken, refreshToken, onboardingCompleted, isNicknameSet, dataDto);
+    }
 
 }
