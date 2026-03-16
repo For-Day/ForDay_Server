@@ -1,11 +1,16 @@
 package com.example.ForDay.domain.record.repository;
 
+import com.example.ForDay.domain.friend.entity.QFriendRelation;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.record.entity.QActivityRecord;
+import com.example.ForDay.domain.record.entity.QActivityRecordReport;
 import com.example.ForDay.domain.record.entity.QActivityRecordScrap;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.response.GetUserScrapListResDto;
+import com.example.ForDay.domain.user.entity.QUser;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
@@ -16,6 +21,10 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
     private final JPAQueryFactory queryFactory;
     private final QActivityRecord record = QActivityRecord.activityRecord;
     private final QActivityRecordScrap scrap = QActivityRecordScrap.activityRecordScrap;
+    QActivityRecordReport report = QActivityRecordReport.activityRecordReport;
+    QFriendRelation relation = QFriendRelation.friendRelation;
+    QUser user = QUser.user;
+
 
     @Override
     public List<GetUserScrapListResDto.ScrapDto> getMyScrapList(Long lastScrapId, Integer size, String targetUserId) {
@@ -69,6 +78,44 @@ public class ActivityRecordScrapRepositoryImpl implements ActivityRecordScrapRep
                                                 )
                                 ),
                         notInReportedList(reportedRecordIds)
+                )
+                .orderBy(scrap.id.desc())
+                .limit(size + 1)
+                .fetch();
+    }
+
+    public List<GetUserScrapListResDto.ScrapDto> getScrapList(
+            Long lastScrapId,
+            Integer size,
+            String targetUserId,
+            String currentUserId,
+            List<RecordVisibility> visibilities) {
+
+        return queryFactory
+                .select(Projections.constructor(GetUserScrapListResDto.ScrapDto.class,
+                        scrap.id,
+                        record.id,
+                        record.imageUrl,
+                        record.sticker,
+                        record.memo,
+                        scrap.createdAt
+                ))
+                .from(scrap)
+                .join(scrap.activityRecord, record)
+                .join(record.user, user) // 게시글 작성자 정보 조인
+                .where(
+                        scrap.user.id.eq(targetUserId),          // 특정 유저가 스크랩한 목록
+                        ltLastScrapId(lastScrapId),              // No-offset 페이징
+                        record.deleted.isFalse(),                // 삭제되지 않은 게시글
+                        user.deleted.isFalse(),                  // 탈퇴하지 않은 작성자
+                        record.visibility.in(visibilities),      // 계산된 조회 권한 필터링
+                        // 내가 신고한 게시글 제외
+                        JPAExpressions
+                                .selectFrom(report)
+                                .where(
+                                        report.reportedRecord.id.eq(record.id),
+                                        report.reporter.id.eq(currentUserId)
+                                ).notExists()
                 )
                 .orderBy(scrap.id.desc())
                 .limit(size + 1)
