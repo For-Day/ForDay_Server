@@ -1,6 +1,8 @@
 package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.activity.entity.QActivity;
+import com.example.ForDay.domain.friend.entity.QFriendRelation;
+import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
@@ -18,8 +20,6 @@ import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.Role;
-import com.querydsl.core.BooleanBuilder;
-import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -188,10 +188,9 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     @Override
     public List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(
             Long hobbyInfoId, Long lastRecordId, Integer size, String keyword,
-            String currentUserId, List<String> myFriendIds, List<String> blockFriendIds,
-            List<Long> reportedRecordIds, StoryFilterType storyFilterType, String hobbyName) {
+            String currentUserId, StoryFilterType storyFilterType, String hobbyName) {
 
-        // 1. HOT 필터일 경우 Redis에서 ID 리스트 미리 조회
+        // HOT 필터일 경우 Redis 조회
         List<Long> hotIds = null;
         if (storyFilterType == StoryFilterType.HOT) {
             Double lastScore = (lastRecordId != null) ? redisReactionService.getScore(lastRecordId) : null;
@@ -199,22 +198,23 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
             if (hotIds.isEmpty()) return Collections.emptyList();
         }
 
-        // 2. 메인 쿼리 실행
+        QFriendRelation blockRelation = new QFriendRelation("blockRelation");
+        QFriendRelation followRelation = new QFriendRelation("followRelation");
+        QActivityRecordReport report = QActivityRecordReport.activityRecordReport;
+
         return queryFactory
                 .select(Projections.constructor(GetActivityRecordByStoryResDto.RecordDto.class,
-                        record.id,               // recordId
-                        record.imageUrl,         // thumbnailUrl
-                        record.sticker,          // sticker
-                        activity.content,        // title (활동 내용)
-                        record.memo,             // memo
-                        Projections.constructor(GetActivityRecordByStoryResDto.UserInfoDto.class, // userInfoDto
-                                user.id,
-                                user.nickname,
-                                user.profileImageUrl
+                        record.id,
+                        record.imageUrl,
+                        record.sticker,
+                        activity.content,
+                        record.memo,
+                        Projections.constructor(GetActivityRecordByStoryResDto.UserInfoDto.class,
+                                user.id, user.nickname, user.profileImageUrl
                         ),
-                        reaction.id.isNotNull(),  // pressedAweSome (좋아요 여부)
+                        reaction.id.isNotNull(),
                         hobby.hobbyName,
-                        isRecordAuthor(record.user.id, currentUserId)
+                        record.user.id.eq(currentUserId)
                 ))
                 .from(record)
                 .join(record.activity, activity)
@@ -231,24 +231,40 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         user.role.eq(Role.USER),
                         record.deleted.isFalse(),
                         storyFilterType == StoryFilterType.HOT ? record.id.in(hotIds) : ltLastRecordId(lastRecordId),
-                        notInBlockList(blockFriendIds),
-                        notInReportedList(reportedRecordIds),
                         containsKeyword(keyword),
-                        getVisibilityCondition(storyFilterType, myFriendIds)
+                        // 상호 차단 관계 배제 (내가 차단했거나, 상대가 나를 차단했거나)
+                        JPAExpressions
+                                .selectFrom(blockRelation)
+                                .where(
+                                        (blockRelation.requester.id.eq(currentUserId).and(blockRelation.targetUser.id.eq(user.id)))
+                                                .or(blockRelation.requester.id.eq(user.id).and(blockRelation.targetUser.id.eq(currentUserId))),
+                                        blockRelation.relationStatus.eq(FriendRelationStatus.BLOCK)
+                                ).notExists(),
+                        // 내가 신고한 게시글 배제
+                        JPAExpressions
+                                .selectFrom(report)
+                                .where(
+                                        report.reportedRecord.id.eq(record.id),
+                                        report.reporter.id.eq(currentUserId)
+                                ).notExists(),
+                        // 공개 범위(Visibility) 필터링
+                        record.visibility.eq(RecordVisibility.PUBLIC) // PUBLIC은 기본 통과
+                                .or(record.visibility.eq(RecordVisibility.FRIEND) // FRIEND인 경우
+                                        .and(JPAExpressions // 내가 작성자를 팔로우 중인지 확인
+                                                .selectFrom(followRelation)
+                                                .where(
+                                                        followRelation.requester.id.eq(currentUserId),
+                                                        followRelation.targetUser.id.eq(user.id),
+                                                        followRelation.relationStatus.eq(FriendRelationStatus.FOLLOW)
+                                                ).exists()
+                                        )
+                                        .or(record.user.id.eq(currentUserId))
+                                )
                 )
                 .orderBy(createOrderSpecifier(storyFilterType, hotIds))
-                .limit(size + 1) // hasNext 판단을 위해 1개 더 조회
+                .limit(size + 1)
                 .fetch();
     }
-
-    private BooleanExpression isRecordAuthor(StringPath recordUserId, String currentUserId) {
-        if (currentUserId == null) {
-            return Expressions.FALSE;
-        }
-        return recordUserId.eq(currentUserId);
-    }
-
-// --- Helper Methods ---
 
     private BooleanExpression hobbyCondition(Long hobbyInfoId, String hobbyName) {
         if (hobbyInfoId == null && !StringUtils.hasText(hobbyName)) {
@@ -287,27 +303,9 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
         return new OrderSpecifier<?>[]{record.id.desc()};
     }
 
-    private BooleanExpression getVisibilityCondition(StoryFilterType type, List<String> myFriendIds) {
-        if (type == StoryFilterType.MY_FRIEND) {
-            return record.visibility.eq(RecordVisibility.FRIEND)
-                    .and(user.id.in(myFriendIds));
-        }
-        return record.visibility.eq(RecordVisibility.PUBLIC)
-                .or(record.visibility.eq(RecordVisibility.FRIEND).and(user.id.in(myFriendIds)));
-    }
-
-    private BooleanExpression notInReportedList(List<Long> reportedRecordIds) {
-        return (reportedRecordIds == null || reportedRecordIds.isEmpty()) ? null : record.id.notIn(reportedRecordIds);
-    }
-
-    private BooleanExpression notInBlockList(List<String> blockFriendIds) {
-        return (blockFriendIds == null || blockFriendIds.isEmpty()) ? null : user.id.notIn(blockFriendIds);
-    }
-
     private BooleanExpression containsKeyword(String keyword) {
         return (keyword == null || keyword.isBlank()) ? null : activity.content.contains(keyword).or(record.memo.contains(keyword));
     }
-
 
     private BooleanExpression hobbyIdIn(List<Long> hobbyIds) {
         if (hobbyIds == null || hobbyIds.isEmpty()) return null;
