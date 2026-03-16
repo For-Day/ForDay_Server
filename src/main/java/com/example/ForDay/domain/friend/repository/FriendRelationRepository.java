@@ -10,16 +10,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FriendRelationRepository extends JpaRepository<FriendRelation, Long>, FriendRelationRepositoryCustom {
-    boolean existsByRequesterIdAndTargetUserIdAndRelationStatus(String id, String id1, FriendRelationStatus friendRelationStatus);
-
     @Query("SELECT COUNT(f) > 0 FROM FriendRelation f " +
             "WHERE f.requester.id = :requesterId " +
             "AND f.targetUser.id = :targetId " +
             "AND f.relationStatus = :status")
-    boolean existsByFriendship(
-            @Param("requesterId") String requesterId,
-            @Param("targetId") String targetId,
-            @Param("status") FriendRelationStatus status
+    boolean existsByFriendship(@Param("requesterId") String requesterId, @Param("targetId") String targetId, @Param("status") FriendRelationStatus status
     );
 
     @Query("SELECT CASE WHEN f.requester.id = :userId THEN f.targetUser.id ELSE f.requester.id END " +
@@ -34,13 +29,12 @@ public interface FriendRelationRepository extends JpaRepository<FriendRelation, 
     List<FriendRelation> findAllRelationsBetween(@Param("uid1") String uid1, @Param("uid2") String uid2);
 
     @Query("""
-    SELECT fr
-    FROM FriendRelation fr
-    WHERE (fr.requester.id = :currentUserId AND fr.targetUser.id = :targetUserId)
-       OR (fr.requester.id = :targetUserId AND fr.targetUser.id = :currentUserId)
-""")
-    List<FriendRelation> findBothDirections(@Param("currentUserId") String currentUserId,
-                                            @Param("targetUserId") String targetUserId);
+                SELECT fr
+                FROM FriendRelation fr
+                WHERE (fr.requester.id = :currentUserId AND fr.targetUser.id = :targetUserId)
+                   OR (fr.requester.id = :targetUserId AND fr.targetUser.id = :currentUserId)
+            """)
+    List<FriendRelation> findBothDirections(@Param("currentUserId") String currentUserId, @Param("targetUserId") String targetUserId);
 
     Optional<FriendRelation> findByRequesterIdAndTargetUserId(String requesterId, String targetUserId);
 }

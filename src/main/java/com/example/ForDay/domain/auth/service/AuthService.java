@@ -116,7 +116,7 @@ public class AuthService {
         }
 
         // 처음 가입하는 게스트 로그인일 때
-        if (StringUtils.hasText(guestUserId)) {
+        if (!StringUtils.hasText(guestUserId)) {
             String socialId = "guest_" + UUID.randomUUID(); // 게스트용 socialId 생성
 
             user = userRepository.save(User.builder()
@@ -136,8 +136,6 @@ public class AuthService {
                 throw new CustomException(ErrorCode.INVALID_USER_ROLE);
             }
         }
-
-        String socialId = user.getSocialId();
 
         user.updateLastActivity(); // 게스트 마지막 활동 일시 업데이트
         log.info("[GUEST] Last activity updated userId={}", user.getId());
