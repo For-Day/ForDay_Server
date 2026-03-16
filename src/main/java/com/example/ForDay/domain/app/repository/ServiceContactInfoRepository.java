@@ -10,6 +10,5 @@ import java.security.Provider;
 import java.util.Optional;
 
 public interface ServiceContactInfoRepository extends JpaRepository<ServiceContactInfo, Long> {
-
     Optional<ServiceContactInfo> findFirstByOrderByInfoIdAsc();
 }
