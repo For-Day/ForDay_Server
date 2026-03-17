@@ -1,11 +1,11 @@
-package com.example.ForDay.domain.record.controller;
+package com.example.ForDay.domain.record.controller.v1;
 
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
-import com.example.ForDay.domain.record.service.ActivityRecordService;
+import com.example.ForDay.domain.record.service.v1.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.global.oauth.CustomUserDetails;

@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.record.service;
+package com.example.ForDay.domain.record.service.v1;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -6,7 +6,6 @@ import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
-import com.example.ForDay.domain.hobby.dto.response.GetHobbyStoryTabsResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -24,6 +23,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordReactionReposit
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;

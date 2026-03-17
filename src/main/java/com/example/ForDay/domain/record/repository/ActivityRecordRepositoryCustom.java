@@ -4,12 +4,14 @@ import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryResDto;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.User;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +29,8 @@ public interface ActivityRecordRepositoryCustom {
     Optional<ReportActivityRecordDto> getReportActivityRecord(Long recordId);
 
     List<GetActivityRecordByStoryResDto.RecordDto> getActivityRecordByStory(Long hobbyInfoId, Long lastRecordId, Integer size, String keyword, String currentUserId, StoryFilterType storyFilterType, String hobbyName);
+
+    Long findPrevRecordId(Long recordId, LocalDateTime localDateTime, RecordSearchConditionReqDto condition, String currentUserId, List<Long> hobbyIds);
+
+    Long findNextRecordId(Long recordId, LocalDateTime localDateTime, RecordSearchConditionReqDto condition, String currentUserId, List<Long> hobbyIds);
 }

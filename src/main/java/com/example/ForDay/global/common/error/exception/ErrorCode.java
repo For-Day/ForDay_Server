@@ -50,6 +50,7 @@ public enum ErrorCode {
     INVALID_PAGE_REQUEST(HttpStatus.BAD_REQUEST,"요청한 페이지가 존재하지 않습니다."),
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
     ALREADY_HAVE_HOBBY(HttpStatus.CONFLICT, "이미 가지고 있는 취미입니다."),
+    HOBBY_ID_REQUIRED(HttpStatus.BAD_REQUEST, "특정 취미 소식 조회 시 취미 ID는 필수입니다."),
 
     // 활동 관련
     ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."),
