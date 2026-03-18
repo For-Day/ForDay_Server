@@ -49,7 +49,6 @@ public class UserService {
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
-    private final ActivityRecordReportRepository reportRepository;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
