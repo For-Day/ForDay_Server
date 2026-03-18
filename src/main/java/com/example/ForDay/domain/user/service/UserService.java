@@ -9,7 +9,6 @@ import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
-import com.example.ForDay.domain.record.service.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
@@ -194,7 +193,6 @@ public class UserService {
         return new GetHobbyInProgressResDto(inProgressHobbyCount, hobbyCardCount, hobbyList);
     }
 
-    // 여기서부터
     @Transactional(readOnly = true)
     public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user, String userId) {
         User targetUser; // 조회하고자하는 피드 주인

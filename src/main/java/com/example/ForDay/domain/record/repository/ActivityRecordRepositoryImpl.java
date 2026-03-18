@@ -8,11 +8,11 @@ import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryResDto;
-import com.example.ForDay.domain.record.entity.QActivityRecord;
-import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
-import com.example.ForDay.domain.record.entity.QActivityRecordReport;
+import com.example.ForDay.domain.record.entity.*;
 import com.example.ForDay.domain.record.service.RedisReactionService;
+import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
@@ -20,6 +20,7 @@ import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.Role;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -31,6 +32,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +48,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private final QActivityRecordReaction reaction = QActivityRecordReaction.activityRecordReaction;
     private final QActivityRecordReport activityRecordReport = QActivityRecordReport.activityRecordReport;
     private final QHobby hobby = QHobby.hobby;
+    private final QActivityRecordScrap scrap = QActivityRecordScrap.activityRecordScrap;
 
     @Override
     public List<GetStickerInfoResDto.StickerDto> getStickerInfo(
@@ -89,12 +92,13 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         record.createdAt
                 ))
                 .from(record)
+                .join(record.user, user)
                 .where(
-                        record.user.id.eq(userId),
+                        user.id.eq(userId),
                         ltLastRecordId(lastRecordId),
                         hobbyIdIn(hobbyIds),
                         record.visibility.in(visibilities),
-                        record.deleted.isFalse(), // 삭제 안된 기록만 조회
+                        record.deleted.isFalse(),
                         JPAExpressions
                                 .selectFrom(activityRecordReport)
                                 .where(
@@ -236,9 +240,14 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         JPAExpressions
                                 .selectFrom(blockRelation)
                                 .where(
-                                        (blockRelation.requester.id.eq(currentUserId).and(blockRelation.targetUser.id.eq(user.id)))
-                                                .or(blockRelation.requester.id.eq(user.id).and(blockRelation.targetUser.id.eq(currentUserId))),
-                                        blockRelation.relationStatus.eq(FriendRelationStatus.BLOCK)
+                                        (blockRelation.requester.id.eq(currentUserId).and(blockRelation.targetUser.id.eq(record.user.id))
+                                                .or(blockRelation.requester.id.eq(record.user.id).and(blockRelation.targetUser.id.eq(currentUserId))))
+                                                .and(blockRelation.relationStatus.eq(FriendRelationStatus.BLOCK))
+                                                .or(
+                                                        blockRelation.requester.id.eq(currentUserId)
+                                                                .and(blockRelation.targetUser.id.eq(record.user.id))
+                                                                .and(blockRelation.relationStatus.eq(FriendRelationStatus.REPORT))
+                                                )
                                 ).notExists(),
                         // 내가 신고한 게시글 배제
                         JPAExpressions
@@ -266,23 +275,144 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .fetch();
     }
 
+    @Override
+    public Long findPrevRecordId(Long currentId, LocalDateTime currentCreatedAt, RecordSearchConditionReqDto cond, String currentUserId, List<Long> hobbyIds) {
+        Long currentScrapId = getScrapIdIfContextIsScrap(currentId, cond, currentUserId);
+
+        return queryFactory
+                .select(record.id)
+                .from(record)
+                .leftJoin(scrap).on(scrap.activityRecord.id.eq(record.id))
+                .where(
+                        cond.context() == ContextType.USER_SCRAP
+                                ? (currentScrapId != null ? scrap.id.gt(currentScrapId) : null) // 더 최근에 스크랩한 것
+                                : (record.createdAt.gt(currentCreatedAt)
+                                .or(record.createdAt.eq(currentCreatedAt).and(record.id.gt(currentId)))),
+                        commonFilter(cond, currentUserId, hobbyIds)
+                )
+                .orderBy(cond.context() == ContextType.USER_SCRAP
+                        ? scrap.id.asc()
+                        : record.createdAt.asc(), record.id.asc())
+                .limit(1)
+                .fetchOne();
+    }
+
+    @Override
+    public Long findNextRecordId(Long currentId, LocalDateTime currentCreatedAt, RecordSearchConditionReqDto cond, String currentUserId, List<Long> hobbyIds) {
+        // 스크랩 컨텍스트일 경우 현재 글의 scrapId를 조회
+        Long currentScrapId = getScrapIdIfContextIsScrap(currentId, cond, currentUserId);
+
+        return queryFactory
+                .select(record.id)
+                .from(record)
+                .leftJoin(scrap).on(scrap.activityRecord.id.eq(record.id))
+                .where(
+                        cond.context() == ContextType.USER_SCRAP
+                                ? (currentScrapId != null ? scrap.id.lt(currentScrapId) : null) // 더 이전에 스크랩한 것
+                                : (record.createdAt.lt(currentCreatedAt)
+                                .or(record.createdAt.eq(currentCreatedAt).and(record.id.lt(currentId)))),
+                        commonFilter(cond, currentUserId, hobbyIds)
+                )
+                .orderBy(cond.context() == ContextType.USER_SCRAP
+                        ? scrap.id.desc()
+                        : record.createdAt.desc(), record.id.desc())
+                .limit(1)
+                .fetchOne();
+    }
+
+    private Long getScrapIdIfContextIsScrap(Long currentId, RecordSearchConditionReqDto cond, String currentUserId) {
+        if (cond.context() != ContextType.USER_SCRAP) return null;
+
+        String targetId = (!StringUtils.hasText(cond.userId())) ? currentUserId : cond.userId();
+        return queryFactory
+                .select(scrap.id)
+                .from(scrap)
+                .where(
+                        scrap.activityRecord.id.eq(currentId),
+                        scrap.user.id.eq(targetId)
+                )
+                .fetchOne();
+    }
+
+    private BooleanBuilder commonFilter(RecordSearchConditionReqDto cond, String currentUserId, List<Long> hobbyIds) {
+        BooleanBuilder builder = new BooleanBuilder();
+
+        builder.and(record.deleted.isFalse());
+        builder.and(record.user.deleted.isFalse());
+        builder.and(notReportedBy(currentUserId));
+        builder.and(notBlockedOrReported(currentUserId));
+
+        String targetId = (!StringUtils.hasText(cond.userId())) ? currentUserId : cond.userId();
+
+        switch (cond.context()) {
+            case STORY_ALL -> {
+                if(StringUtils.hasText(cond.keyword())) {
+                    builder.and(activity.content.contains(cond.keyword()).or(record.memo.contains(cond.keyword())));
+                }
+                builder.and(publicOrFriendVisibility(currentUserId));
+            }
+            case STORY_HOBBY -> {
+                // hobbyIds 리스트의 첫 번째 값을 기준으로 이름/InfoId 필터링
+                if (hobbyIds != null && !hobbyIds.isEmpty()) {
+                    Long baseHobbyId = hobbyIds.get(0);
+                    QHobby subHobby = new QHobby("subHobby");
+
+                    builder.and(
+                            record.hobby.hobbyName.eq(
+                                            JPAExpressions.select(subHobby.hobbyName)
+                                                    .from(subHobby)
+                                                    .where(subHobby.id.eq(baseHobbyId))
+                                    )
+                                    .or(
+                                            record.hobby.hobbyInfoId.isNotNull()
+                                                    .and(record.hobby.hobbyInfoId.eq(
+                                                            JPAExpressions.select(subHobby.hobbyInfoId)
+                                                                    .from(subHobby)
+                                                                    .where(subHobby.id.eq(baseHobbyId))
+                                                    ))
+                                    )
+                    );
+                }
+                if(StringUtils.hasText(cond.keyword())) {
+                    builder.and(activity.content.contains(cond.keyword()).or(record.memo.contains(cond.keyword())));
+                }
+                builder.and(publicOrFriendVisibility(currentUserId));
+            }
+            case USER_FEED -> {
+                builder.and(record.user.id.eq(targetId));
+                if (!targetId.equals(currentUserId)) {
+                    builder.and(publicOrFriendVisibility(currentUserId));
+                }
+                // 기존 직접 in 필터 대신 공통 메서드 사용 (비어있으면 자동 null 처리로 전체조회)
+                builder.and(hobbyIdIn(hobbyIds));
+            }
+            case USER_SCRAP -> {
+                builder.and(scrap.user.id.eq(targetId));
+                builder.and(record.user.id.eq(currentUserId)
+                        .or(publicOrFriendVisibility(currentUserId)));
+            }
+        }
+        return builder;
+    }
+
+    private BooleanExpression publicOrFriendVisibility(String currentUserId) {
+        return record.visibility.eq(RecordVisibility.PUBLIC)
+                .or(record.visibility.eq(RecordVisibility.FRIEND)
+                        .and(isFollowing(currentUserId, record.user.id)));
+    }
+
     private BooleanExpression hobbyCondition(Long hobbyInfoId, String hobbyName) {
         if (hobbyInfoId == null && !StringUtils.hasText(hobbyName)) {
             return null;
         }
-
-        // 2. 둘 다 값이 있는 경우 (OR 조건)
         if (hobbyInfoId != null && StringUtils.hasText(hobbyName)) {
             return record.hobby.hobbyInfoId.eq(hobbyInfoId)
                     .or(record.hobby.hobbyName.eq(hobbyName));
         }
-
-        // 3. hobbyInfoId만 있는 경우
         if (hobbyInfoId != null) {
             return record.hobby.hobbyInfoId.eq(hobbyInfoId);
         }
 
-        // 4. hobbyName만 있는 경우
         return record.hobby.hobbyName.eq(hobbyName);
     }
 
@@ -312,5 +442,52 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
         return record.hobby.id.in(hobbyIds);
     }
 
+    private BooleanExpression notReportedBy(String currentUserId) {
+        if (currentUserId == null) return null;
+        QActivityRecordReport report = QActivityRecordReport.activityRecordReport;
+        return JPAExpressions
+                .selectFrom(report)
+                .where(
+                        report.reportedRecord.id.eq(record.id),
+                        report.reporter.id.eq(currentUserId)
+                ).notExists();
+    }
+
+    // 내가 상대방을 팔로우 중인지 확인 (FRIEND 권한 확인용)
+    private BooleanExpression isFollowing(String requesterId, StringPath targetUserIdPath) {
+        if (requesterId == null) return Expressions.asBoolean(false).isTrue().and(Expressions.asBoolean(false));
+        QFriendRelation followRelation = new QFriendRelation("followRelation");
+        return JPAExpressions
+                .selectFrom(followRelation)
+                .where(
+                        followRelation.requester.id.eq(requesterId),
+                        followRelation.targetUser.id.eq(targetUserIdPath),
+                        followRelation.relationStatus.eq(FriendRelationStatus.FOLLOW)
+                ).exists();
+    }
+
+    // 상호 차단 및 내가 신고한 유저 제외
+    private BooleanExpression notBlockedOrReported(String currentUserId) {
+        if (currentUserId == null) return null;
+        QFriendRelation rel = new QFriendRelation("rel");
+
+        return JPAExpressions
+                .selectFrom(rel)
+                .where(
+                        // 1. 상호 차단 (A가 B를 BLOCK 하거나 OR B가 A를 BLOCK 한 경우)
+                        (
+                                (rel.requester.id.eq(currentUserId).and(rel.targetUser.id.eq(record.user.id)))
+                                        .or(rel.requester.id.eq(record.user.id).and(rel.targetUser.id.eq(currentUserId)))
+                        ).and(rel.relationStatus.eq(FriendRelationStatus.BLOCK))
+
+                                .or(
+                                        // 2. 단방향 신고 (내가 게시글 작성자를 REPORT 한 경우만)
+                                        rel.requester.id.eq(currentUserId)
+                                                .and(rel.targetUser.id.eq(record.user.id))
+                                                .and(rel.relationStatus.eq(FriendRelationStatus.REPORT))
+                                )
+                ).notExists();
+    }
 
 }
+
