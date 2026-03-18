@@ -17,7 +17,6 @@ import java.util.List;
 public class ActivityRecordControllerV2 {
     private final ActivityRecordServiceV2 activityRecordServiceV2;
 
-    // 소식 목록 조회에서 검색어 추가
     @GetMapping("/{recordId}")
     public GetRecordDetailResDtoV2 getRecordDetailV2(@PathVariable(name = "recordId") Long recordId,
                                                      @Valid @ModelAttribute RecordSearchConditionReqDto condition,

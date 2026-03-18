@@ -393,75 +393,77 @@ public class ActivityRecordService {
 
 
     @Transactional(readOnly = true)
-    public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user, StoryFilterType storyFilterType) {
+    public GetActivityRecordByStoryResDto getActivityRecordByStory(
+            Long hobbyId, Long lastRecordId, Integer size, String keyword,
+            CustomUserDetails user, StoryFilterType storyFilterType) {
+
         User currentUser = userUtil.getCurrentUser(user);
-        log.info("[getActivityRecordByStory] 스토리 리스트 조회 - User: {}, Filter: {}, Keyword: {}",
+        log.info("[getActivityRecordByStory] 조회 시작 - User: {}, Filter: {}, Keyword: {}",
                 currentUser.getId(), storyFilterType, keyword);
 
-        if (Strings.hasText(keyword)) {
-            // 최근 검색어 저장 로직
-            recentRedisService.createRecentKeyword(currentUser.getId(), keyword);
-        }
+        // 검색어 저장
+        saveRecentKeywordIfPresent(currentUser.getId(), keyword);
 
-        List<Hobby> activeHobbies = null;
-        // 해당 유저의 진행 중(IN_PROGRESS)인 취미를 최신 생성순(Id 내림차순)으로 조회
-        if (lastRecordId == null) {
-            activeHobbies = hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(
-                    currentUser.getId(),
-                    HobbyStatus.IN_PROGRESS
-            );
-        }
+        // 상단 탭 정보 조회 (첫 페이지 조회 시에만)
+        List<GetActivityRecordByStoryResDto.StoryTabInfo> tabInfos = getStoryTabInfos(currentUser.getId(), hobbyId, lastRecordId);
 
-        Long hobbyInfoId = null;
-        String hobbyName = null;
+        // 취미 상세 정보 조회 (검색 조건용)
+        HobbyInfo hInfo = getTargetHobbyInfo(hobbyId);
 
-        if (hobbyId != null) {
-            Hobby targetHobby = hobbyRepository.findById(hobbyId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
-            hobbyInfoId = targetHobby.getHobbyInfoId();
-            hobbyName = targetHobby.getHobbyName();
-        }
-
-        List<GetActivityRecordByStoryResDto.StoryTabInfo> tabInfos = null;
-        if (activeHobbies != null) {
-            tabInfos = activeHobbies.stream()
-                    .map(h -> GetActivityRecordByStoryResDto.StoryTabInfo.from(h, h.getId().equals(hobbyId)))
-                    .toList();
-        }
-
+        // 데이터 조회 및 페이징 처리
         List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(
-                hobbyInfoId, lastRecordId, size, keyword, currentUser.getId(), storyFilterType, hobbyName
+                hInfo.id(), lastRecordId, size + 1, keyword, currentUser.getId(), storyFilterType, hInfo.name()
         );
 
-        boolean hasNext = false;
-        if (recordDtos.size() > size) {
-            hasNext = true;
-            recordDtos.remove(size.intValue());
-        }
+        boolean hasNext = recordDtos.size() > size;
+        if (hasNext) recordDtos.remove(size.intValue());
 
-        // 썸네일용 이미지 url 반환 (기록 이미지 url & 유저 이미지 url)
-        recordDtos.forEach(dto -> {
-            // 기록 이미지 URL 변환 (Feed Thumbnail용)
-            if (dto.getThumbnailUrl() != null) {
-                dto.setThumbnailUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailUrl()));
-            }
-            // 유저 프로필 이미지 URL 변환 (Profile List용)
-            if (dto.getUserInfo() != null && dto.getUserInfo().getProfileImageUrl() != null) {
-                String originalProfileUrl = dto.getUserInfo().getProfileImageUrl();
-                dto.getUserInfo().setProfileImageUrl(s3Util.toProfileListResizedUrl(originalProfileUrl));
-            }
-        });
+        // 이미지 URL 변환
+        convertImageUrls(recordDtos);
 
         Long lastId = recordDtos.isEmpty() ? null : recordDtos.get(recordDtos.size() - 1).getRecordId();
 
-        log.info("[getActivityRecordByStory] 조회 완료");
-        return new GetActivityRecordByStoryResDto(
-                tabInfos,
-                lastId,
-                recordDtos,
-                hasNext
-        );
+        return new GetActivityRecordByStoryResDto(tabInfos, lastId, recordDtos, hasNext);
     }
+
+        private void saveRecentKeywordIfPresent(String userId, String keyword) {
+        if (Strings.hasText(keyword)) {
+            recentRedisService.createRecentKeyword(userId, keyword);
+        }
+    }
+
+        private List<GetActivityRecordByStoryResDto.StoryTabInfo> getStoryTabInfos(String userId, Long hobbyId, Long lastRecordId) {
+        if (lastRecordId != null) return null;
+
+        return hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(userId, HobbyStatus.IN_PROGRESS)
+                .stream()
+                .map(h -> GetActivityRecordByStoryResDto.StoryTabInfo.from(h, h.getId().equals(hobbyId)))
+                .toList();
+    }
+
+    private HobbyInfo getTargetHobbyInfo(Long hobbyId) {
+        if (hobbyId == null) return new HobbyInfo(null, null);
+
+        Hobby targetHobby = hobbyRepository.findById(hobbyId)
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        return new HobbyInfo(targetHobby.getHobbyInfoId(), targetHobby.getHobbyName());
+    }
+
+    private void convertImageUrls(List<GetActivityRecordByStoryResDto.RecordDto> dtos) {
+        dtos.forEach(dto -> {
+            if (dto.getThumbnailUrl() != null) {
+                dto.setThumbnailUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailUrl()));
+            }
+            if (dto.getUserInfo() != null && dto.getUserInfo().getProfileImageUrl() != null) {
+                dto.getUserInfo().setProfileImageUrl(
+                        s3Util.toProfileListResizedUrl(dto.getUserInfo().getProfileImageUrl())
+                );
+            }
+        });
+    }
+
+
+    private record HobbyInfo(Long id, String name) {}
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {
         if (writerId.equals(currentUserId)) return;

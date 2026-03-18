@@ -159,7 +159,6 @@ public class ActivityRecordServiceV2 {
         if (friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
-
         // 타겟유저가 탈퇴한 회원인 경우
         if (deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
     }
