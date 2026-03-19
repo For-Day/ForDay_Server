@@ -72,6 +72,7 @@ public class ActivityRecordService {
     private final RedisReactionService redisReactionService;
     private final UserRepository userRepository;
 
+    // 이제 사용 x
     @Transactional(readOnly = true)
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
@@ -143,37 +144,29 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        ReportActivityRecordDto recordDto = activityRecordRepository.getReportActivityRecord(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        if (recordDto.isRecordDeleted()) {
-            log.warn("[reactToRecord] 실패: 삭제된 기록 - RecordId: {}", recordId);
-            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
-        }
+    public ReactToRecordResDto reactToRecord(
+            Long recordId,
+            RecordReactionType type,
+            CustomUserDetails user
+    ) {
+        // 현재 로그인한 사용자 조회
         User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
-
-        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, recordDto.getWriterId());
-        checkBlockedAndDeletedUser(relations, currentUserId, recordDto.getWriterId(), recordDto.isWriterDeleted());
-        validateRecordAuthority(relations, recordDto.getVisibility(), recordDto.getWriterId(), currentUserId);
-
-        if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordDto.getRecordId(), currentUserId, type)) {
-            log.info("[reactToRecord] 중복 리액션 무시 - RecordId: {}, Type: {}", recordId, type);
-            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
-        }
-
-        recordReactionRepository.save(ActivityRecordReaction.builder()
-                .activityRecord(activityRecordRepository.getReferenceById(recordId))
-                .reactedUser(userRepository.getReferenceById(currentUserId))
-                .reactionType(type)
-                .readWriter(false)
-                .build());
-
-        redisReactionService.incrementRankingScore(recordDto.getRecordId());
-
-        log.info("[reactToRecord] 리액션 등록 완료 - RecordId: {}", recordId);
-        return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", type, recordId);
+        // 기록 조회 + 삭제 여부 검증
+        ReportActivityRecordDto record = getValidRecord(recordId);
+        // 차단 여부, 친구 관계, 공개 범위 등 접근 권한 검증
+        validateAccess(record, currentUser);
+        // 동일 유저의 동일 타입 리액션 중복 여부 체크
+        validateDuplicateReaction(recordId, currentUser.getId(), type);
+        // 리액션 엔티티 생성 및 저장
+        saveReaction(recordId, currentUser.getId(), type);
+        // 리액션 증가에 따른 랭킹 점수 업데이트 (Redis)
+        updateRanking(record.getRecordId());
+        // 최종 응답 반환
+        return new ReactToRecordResDto(
+                "반응이 정상적으로 등록되었습니다.",
+                type,
+                recordId
+        );
     }
 
     @Transactional
@@ -187,7 +180,6 @@ public class ActivityRecordService {
         if (previous == next) {
             return new UpdateRecordVisibilityResDto("이미 설정된 공개 범위입니다.", previous, next);
         }
-
         activityRecord.updateVisibility(next);
         return new UpdateRecordVisibilityResDto("공개 범위가 정상적으로 변경되었습니다.", previous, next);
     }
@@ -208,59 +200,34 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
+    public UpdateActivityRecordResDto updateActivityRecord(
+            Long recordId,
+            UpdateActivityRecordReqDto reqDto,
+            CustomUserDetails user
+    ) {
         User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
-        log.info("[updateActivityRecord] 기록 수정 시작 - RecordId: {}, UserId: {}", recordId, currentUserId);
 
-        ActivityRecord activityRecord = activityRecordRepository.findByIdAndUserId(recordId, currentUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        ActivityRecord record = getActivityRecord(recordId, currentUser);
+        Activity activity = getActivity(reqDto.getActivityId(), currentUser);
 
-        Activity activity = activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+        handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl());
 
-        String oldImageUrl = activityRecord.getImageUrl();
-        String newImageUrl = reqDto.getImageUrl();
+        record.updateRecord(
+                activity,
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                reqDto.getImageUrl()
+        );
 
-        if (StringUtils.hasText(newImageUrl) && !newImageUrl.equals(oldImageUrl)) {
-            String s3Key = s3Service.extractKeyFromFileUrl(newImageUrl);
-            if (!s3Service.existsByKey(s3Key)) {
-                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-            }
-            if (StringUtils.hasText(oldImageUrl)) {
-                log.info("[updateActivityRecord] 이미지 변경 감지 - 기존 이미지 삭제 예약: {}", oldImageUrl);
-
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        try {
-                            String oldKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
-                            // 썸네일 경로도 함께 삭제
-                            String oldThumbUrl = s3Util.toFeedThumbResizedUrl(oldImageUrl);
-                            String oldThumbKey = s3Service.extractKeyFromFileUrl(oldThumbUrl);
-
-                            s3Service.deleteByKey(oldKey);
-                            s3Service.deleteByKey(oldThumbKey);
-
-                            log.info("[S3-Cleanup] 트랜잭션 커밋됨. 기존 이미지 삭제 실행: {}", oldImageUrl);
-                        } catch (Exception e) {
-                            log.error("기존 활동 기록 이미지 S3 삭제 실패: {}", oldImageUrl, e);
-                        }
-                    }
-                });
-            }
-        }
-        activityRecord.updateRecord(activity, reqDto.getSticker(), reqDto.getMemo(), reqDto.getVisibility(), newImageUrl);
-
-        log.info("[updateActivityRecord] 기록 수정 완료 - RecordId: {}", recordId);
         return new UpdateActivityRecordResDto(
                 "활동 기록이 정상적으로 수정되었습니다.",
                 activity.getId(),
                 activity.getContent(),
-                activityRecord.getSticker(),
-                activityRecord.getMemo(),
-                activityRecord.getImageUrl(),
-                activityRecord.getVisibility()
+                record.getSticker(),
+                record.getMemo(),
+                record.getImageUrl(),
+                record.getVisibility()
         );
     }
 
@@ -317,78 +284,74 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public AddActivityRecordScrapResDto addActivityRecordScrap(Long recordId, CustomUserDetails user) {
+    public AddActivityRecordScrapResDto addActivityRecordScrap(
+            Long recordId,
+            CustomUserDetails user
+    ) {
         User currentUser = userUtil.getCurrentUser(user);
-        String currentUserId = currentUser.getId();
 
-        ActivityRecordWithUserDto activityRecordDto = activityRecordRepository.getActivityRecordWithUser(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, activityRecordDto.getWriterId());
-
-        checkBlockedAndDeletedUser(relations, currentUserId, activityRecordDto.getWriterId(), activityRecordDto.isWriterDeleted());
-        validateRecordAuthority(relations, activityRecordDto.getVisibility(), activityRecordDto.getWriterId(), currentUserId);
-
-        if (activityRecordScrapRepository.existsByScrap(recordId, currentUser.getId())) {
-            throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
-        }
-
-        ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
-
-        activityRecordScrapRepository.save(ActivityRecordScrap.builder()
-                .activityRecord(recordProxy)
-                .user(currentUser)
-                .build());
+        ActivityRecordWithUserDto record = getAccessibleRecordWithUser(recordId, currentUser);
+        validateDuplicateScrap(recordId, currentUser.getId());
+        saveScrap(recordId, currentUser);
 
         return new AddActivityRecordScrapResDto("스크랩을 완료했어요.", recordId, true);
     }
 
     @Transactional
-    public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(Long recordId, CustomUserDetails user) {
+    public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(
+            Long recordId,
+            CustomUserDetails user
+    ) {
         User currentUser = userUtil.getCurrentUser(user);
-        ActivityRecord activityRecord = getActivityRecord(recordId);
 
-        Optional<ActivityRecordScrap> scarp = activityRecordScrapRepository.findByActivityRecordIdAndUserId(activityRecord.getId(), currentUser.getId());
-        if (scarp.isEmpty()) {
-            return new DeleteActivityRecordScrapResDto("스크랩이 존재하지 않거나 이미 삭제되었습니다.", activityRecord.getId(), false);
+        ActivityRecordWithUserDto record = getAccessibleRecordWithUser(recordId, currentUser);
+        Optional<ActivityRecordScrap> scrap =
+                findScrap(recordId, currentUser.getId());
+
+        if (scrap.isEmpty()) {
+            return new DeleteActivityRecordScrapResDto(
+                    "스크랩이 존재하지 않거나 이미 삭제되었습니다.",
+                    recordId,
+                    false
+            );
         }
-        ActivityRecordScrap activityRecordScrap = scarp.get();
+        deleteScrap(scrap.get());
 
-        activityRecordScrapRepository.delete(activityRecordScrap);
-
-        return new DeleteActivityRecordScrapResDto("스크랩 취소가 완료되었습니다.", recordId, false);
+        return new DeleteActivityRecordScrapResDto(
+                "스크랩 취소가 완료되었습니다.",
+                recordId,
+                false
+        );
     }
 
     @Transactional
-    public ReportActivityRecordResDto reportActivityRecord(Long recordId, ReportActivityRecordReqDto reqDto, CustomUserDetails user) throws CustomException {
+    public ReportActivityRecordResDto reportActivityRecord(
+            Long recordId,
+            ReportActivityRecordReqDto reqDto,
+            CustomUserDetails user
+    ) {
         User currentUser = userUtil.getCurrentUser(user);
-        log.info("[reportActivityRecord] 기록 신고 접수 - RecordId: {}, Reporter: {}, Reason: {}",
-                recordId, currentUser.getId(), reqDto.getReason());
 
-        ReportActivityRecordDto activityRecord = activityRecordRepository.getReportActivityRecord(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        log.info("[reportActivityRecord] 신고 요청 - recordId={}, reporter={}",
+                recordId, currentUser.getId());
 
-        List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUser.getId(), activityRecord.getWriterId()); // 현재 유저와 작성자 사이의 모든 관계 조회
-        checkBlockedAndDeletedUser(relations, currentUser.getId(), activityRecord.getWriterId(), activityRecord.isWriterDeleted()); // 차단이나 탈퇴가 있는지 확인
-        validateRecordAuthority(relations, activityRecord.getVisibility(), activityRecord.getWriterId(), currentUser.getId());
+        // 기록 조회 + 접근 권한 검증
+        ReportActivityRecordDto record = getAccessibleReportRecord(recordId, currentUser);
 
-        if (activityRecordReportRepository.existsByReportedRecordIdAndReporterId(activityRecord.getRecordId(), currentUser.getId())) {
-            throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);
-        }
+        // 중복 신고 방지
+        validateDuplicateReport(record.getRecordId(), currentUser.getId());
 
-        ActivityRecord recordProxy = activityRecordRepository.getReferenceById(recordId);
-        User reportedUserProxy = userRepository.getReferenceById(activityRecord.getWriterId());
+        // 신고 저장
+        saveReport(record, currentUser, reqDto.getReason());
 
-        ActivityRecordReport report = ActivityRecordReport.builder()
-                .reporter(currentUser)
-                .reportedUser(reportedUserProxy)
-                .reportedRecord(recordProxy)
-                .reason(reqDto.getReason())
-                .build();
-        activityRecordReportRepository.save(report);
+        log.info("[reportActivityRecord] 신고 완료 - recordId={}", recordId);
 
-        log.info("[reportActivityRecord] 신고 저장 성공 - RecordId: {}", recordId);
-        return new ReportActivityRecordResDto(recordId, activityRecord.getWriterId(), activityRecord.getWriterNickname(), "기록이 정상적으로 신고되었습니다.");
+        return new ReportActivityRecordResDto(
+                record.getRecordId(),
+                record.getWriterId(),
+                record.getWriterNickname(),
+                "기록이 정상적으로 신고되었습니다."
+        );
     }
 
 
@@ -579,5 +542,245 @@ public class ActivityRecordService {
         } else if (visibility == RecordVisibility.PRIVATE) {
             throw new CustomException(ErrorCode.PRIVATE_RECORD);
         }
+    }
+
+    private ActivityRecord getActivityRecord(Long recordId, User user) {
+        return activityRecordRepository.findByIdAndUserId(recordId, user.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+    }
+
+    private Activity getActivity(Long activityId, User user) {
+        return activityRepository.findByIdAndUserId(activityId, user.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+    }
+
+    private void handleImageUpdate(String oldImageUrl, String newImageUrl) {
+
+        if (!isImageChanged(oldImageUrl, newImageUrl)) {
+            return;
+        }
+
+        validateNewImageExists(newImageUrl);
+
+        if (hasOldImage(oldImageUrl)) {
+            registerImageDeletionAfterCommit(oldImageUrl);
+        }
+    }
+
+    private boolean isImageChanged(String oldUrl, String newUrl) {
+        return StringUtils.hasText(newUrl) && !newUrl.equals(oldUrl);
+    }
+
+    private void validateNewImageExists(String imageUrl) {
+        String key = s3Service.extractKeyFromFileUrl(imageUrl);
+
+        if (!s3Service.existsByKey(key)) {
+            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
+        }
+    }
+
+    private boolean hasOldImage(String oldImageUrl) {
+        return StringUtils.hasText(oldImageUrl);
+    }
+
+    private void registerImageDeletionAfterCommit(String oldImageUrl) {
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteImageWithThumbnail(oldImageUrl);
+            }
+        });
+    }
+
+    private void deleteImageWithThumbnail(String imageUrl) {
+        try {
+            String originalKey = s3Service.extractKeyFromFileUrl(imageUrl);
+
+            String thumbUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
+            String thumbKey = s3Service.extractKeyFromFileUrl(thumbUrl);
+
+            s3Service.deleteByKey(originalKey);
+            s3Service.deleteByKey(thumbKey);
+
+            log.info("[S3-Cleanup] 기존 이미지 삭제 완료: {}", imageUrl);
+
+        } catch (Exception e) {
+            log.error("[S3-Cleanup] 삭제 실패: {}", imageUrl, e);
+        }
+    }
+
+    private ReportActivityRecordDto getValidRecord(Long recordId) {
+        ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        if (record.isRecordDeleted()) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+
+        return record;
+    }
+
+    private void validateAccess(ReportActivityRecordDto record, User user) {
+        String currentUserId = user.getId();
+
+        List<FriendRelation> relations =
+                friendRelationRepository.findAllRelationsBetween(currentUserId, record.getWriterId());
+
+        checkBlockedAndDeletedUser(
+                relations,
+                currentUserId,
+                record.getWriterId(),
+                record.isWriterDeleted()
+        );
+
+        validateRecordAuthority(
+                relations,
+                record.getVisibility(),
+                record.getWriterId(),
+                currentUserId
+        );
+    }
+
+    private void validateDuplicateReaction(Long recordId, String userId, RecordReactionType type) {
+
+        boolean exists = recordReactionRepository
+                .existsByRecordIdAndUserIdAndType(recordId, userId, type);
+
+        if (exists) {
+            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
+        }
+    }
+
+    private void saveReaction(Long recordId, String userId, RecordReactionType type) {
+
+        ActivityRecordReaction reaction = ActivityRecordReaction.builder()
+                .activityRecord(activityRecordRepository.getReferenceById(recordId))
+                .reactedUser(userRepository.getReferenceById(userId))
+                .reactionType(type)
+                .readWriter(false)
+                .build();
+
+        recordReactionRepository.save(reaction);
+    }
+
+    private void updateRanking(Long recordId) {
+        redisReactionService.incrementRankingScore(recordId);
+    }
+
+    private ActivityRecordWithUserDto getAccessibleRecordWithUser(Long recordId, User user) {
+
+        ActivityRecordWithUserDto record =
+                activityRecordRepository.getActivityRecordWithUser(recordId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        String currentUserId = user.getId();
+
+        List<FriendRelation> relations =
+                friendRelationRepository.findAllRelationsBetween(currentUserId, record.getWriterId());
+
+        checkBlockedAndDeletedUser(
+                relations,
+                currentUserId,
+                record.getWriterId(),
+                record.isWriterDeleted()
+        );
+
+        validateRecordAuthority(
+                relations,
+                record.getVisibility(),
+                record.getWriterId(),
+                currentUserId
+        );
+
+        return record;
+    }
+
+    private void validateDuplicateScrap(Long recordId, String userId) {
+        if (activityRecordScrapRepository.existsByScrap(recordId, userId)) {
+            throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
+        }
+    }
+
+    private Optional<ActivityRecordScrap> findScrap(Long recordId, String userId) {
+        return activityRecordScrapRepository
+                .findByActivityRecordIdAndUserId(recordId, userId);
+    }
+
+    private void saveScrap(Long recordId, User user) {
+
+        ActivityRecord recordProxy =
+                activityRecordRepository.getReferenceById(recordId);
+
+        ActivityRecordScrap scrap = ActivityRecordScrap.builder()
+                .activityRecord(recordProxy)
+                .user(user)
+                .build();
+
+        activityRecordScrapRepository.save(scrap);
+    }
+
+    private void deleteScrap(ActivityRecordScrap scrap) {
+        activityRecordScrapRepository.delete(scrap);
+    }
+
+    private void validateDuplicateReport(Long recordId, String userId) {
+
+        boolean exists = activityRecordReportRepository
+                .existsByReportedRecordIdAndReporterId(recordId, userId);
+
+        if (exists) {
+            throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);
+        }
+    }
+
+    private void saveReport(
+            ReportActivityRecordDto record,
+            User reporter,
+            String reason
+    ) {
+
+        ActivityRecord recordProxy =
+                activityRecordRepository.getReferenceById(record.getRecordId());
+
+        User reportedUserProxy =
+                userRepository.getReferenceById(record.getWriterId());
+
+        ActivityRecordReport report = ActivityRecordReport.builder()
+                .reporter(reporter)
+                .reportedUser(reportedUserProxy)
+                .reportedRecord(recordProxy)
+                .reason(reason)
+                .build();
+
+        activityRecordReportRepository.save(report);
+    }
+
+    private ReportActivityRecordDto getAccessibleReportRecord(Long recordId, User user) {
+
+        ReportActivityRecordDto record =
+                activityRecordRepository.getReportActivityRecord(recordId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        String currentUserId = user.getId();
+
+        List<FriendRelation> relations =
+                friendRelationRepository.findAllRelationsBetween(currentUserId, record.getWriterId());
+
+        checkBlockedAndDeletedUser(
+                relations,
+                currentUserId,
+                record.getWriterId(),
+                record.isWriterDeleted()
+        );
+
+        validateRecordAuthority(
+                relations,
+                record.getVisibility(),
+                record.getWriterId(),
+                currentUserId
+        );
+
+        return record;
     }
 }
