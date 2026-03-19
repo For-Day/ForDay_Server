@@ -1323,5 +1323,32 @@ public interface HobbyControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+    @Operation(
+            summary = "취미 칩 목록 조회",
+            description = "사용자의 취미 목록을 조회하고, 각 취미의 오늘 기록 여부(todayRecorded)를 반환합니다. " +
+                    "todayRecorded가 true이면 오늘 이미 기록된 상태입니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GetHobbyListByChipResDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자 또는 취미를 찾을 수 없음"
+            )
+    })
+    GetHobbyListByChipResDto getHobbyListByChip(
+            @Parameter(
+                    description = "조회할 취미 상태 (ALL, IN_PROGRESS, ARCHIVED)",
+                    example = "IN_PROGRESS"
+            )
+            @RequestParam(value = "status") HobbyStatus status,
 
+            @AuthenticationPrincipal CustomUserDetails user
+    );
 }
