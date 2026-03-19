@@ -24,7 +24,7 @@ public class ReactionListResDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public class ReactionUserDto {
+    public static class ReactionUserDto {
 
         private String userId;
 

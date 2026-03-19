@@ -14,5 +14,5 @@ public interface ActivityRecordReactionRepositoryCustom {
 
     List<GetRecordReactionUsersResDto.ReactionUserInfo> findReactionUsersDtoByType(Long recordId, RecordReactionType type, String lastUserId, Integer size, boolean isRecordOwner);
 
-    Map<RecordReactionType, ReactionSummaryResDto.ReactionSliceDto> getReactionSummary(Long recordId, int size, String currentUserId);
+    Map<String, ReactionSummaryResDto.ReactionSliceDto> getReactionSummary(Long recordId, int size, String currentUserId);
 }

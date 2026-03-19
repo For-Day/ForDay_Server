@@ -2,6 +2,7 @@ package com.example.ForDay.domain.reaction.service;
 
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.record.dto.response.ReactionListResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -36,13 +37,13 @@ public class RecordReactionService {
         ReactionSummaryResDto.ReactionCountDto reactionCountDto = getReactionCountSummary(record.getId());
 
         // size에 따른 전체 유저 목록 조회
-        Map<RecordReactionType, ReactionSummaryResDto.ReactionSliceDto> tabs = activityRecordReactionRepository.getReactionSummary(recordId, size, currentUser.getId());
+        Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs = activityRecordReactionRepository.getReactionSummary(recordId, size, currentUser.getId());
         processReactionProfileUrls(tabs);
 
         return new ReactionSummaryResDto(record.getId(), reactionCountDto, tabs);
     }
 
-    private void processReactionProfileUrls(Map<RecordReactionType, ReactionSummaryResDto.ReactionSliceDto> tabs) {
+    private void processReactionProfileUrls(Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs) {
         tabs.values().forEach(sliceDto -> {
             if (sliceDto != null && sliceDto.getUsers() != null) {
                 sliceDto.getUsers().forEach(userDto -> {
@@ -64,5 +65,9 @@ public class RecordReactionService {
     private ActivityRecord getRecord(Long recordId) {
         return activityRecordRepository.findById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+    }
+
+    public ReactionListResDto getReactions(Long recordId, RecordReactionType type, String cursor, int size, CustomUserDetails user) {
+        return null;
     }
 }

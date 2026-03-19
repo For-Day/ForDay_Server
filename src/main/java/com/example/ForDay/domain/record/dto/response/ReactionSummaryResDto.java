@@ -20,7 +20,7 @@ public class ReactionSummaryResDto {
     // 감정 개수 요약
     private ReactionCountDto reactionSummary;
 
-    private Map<RecordReactionType, ReactionSliceDto> tabs;
+    private Map<String, ReactionSliceDto> tabs;
 
     @Data
     @Builder
@@ -41,7 +41,7 @@ public class ReactionSummaryResDto {
     @AllArgsConstructor
     public static class ReactionSliceDto {
         private List<ReactionUserDto> users;
-        private String nextCursor;
+        private String lastUserId;
         private boolean hasNext;
     }
 

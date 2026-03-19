@@ -1,9 +1,9 @@
 package com.example.ForDay.domain.reaction.repository;
 
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.reaction.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
-import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.QUser;
 import com.example.ForDay.infra.s3.util.S3Util;
@@ -16,6 +16,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -80,11 +81,13 @@ public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReact
     }
 
     @Override
-    public Map<RecordReactionType, ReactionSummaryResDto.ReactionSliceDto> getReactionSummary(Long recordId, int size, String currentUserId) {
+    public Map<String, ReactionSummaryResDto.ReactionSliceDto> getReactionSummary(Long recordId, int size, String currentUserId) {
+        // 내 반응 우선순위 부여
         NumberExpression<Integer> myReactionPriority = new CaseBuilder()
                 .when(activityRecordReaction.reactedUser.id.eq(currentUserId)).then(0)
                 .otherwise(1);
 
+        // 전체 반응 조회
         List<ActivityRecordReaction> allReactions = queryFactory
                 .selectFrom(activityRecordReaction)
                 .join(activityRecordReaction.reactedUser).fetchJoin()
@@ -94,33 +97,43 @@ public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReact
                         activityRecordReaction.createdAt.desc())
                 .fetch();
 
-        return Arrays.stream(RecordReactionType.values())
-                .collect(Collectors.toMap(
-                        type -> type,
-                        type -> {
-                            List<ReactionSummaryResDto.ReactionUserDto> filteredUsers = allReactions.stream()
-                                    .filter(r -> r.getReactionType() == type)
-                                    .limit(size + 1) // 다음 페이지 확인용
-                                    .map(r -> ReactionSummaryResDto.ReactionUserDto.builder()
-                                            .userId(r.getReactedUser().getId())
-                                            .nickname(r.getReactedUser().getNickname())
-                                            .profileImageUrl(r.getReactedUser().getProfileImageUrl())
-                                            .reactionType(r.getReactionType())
-                                            .build())
-                                    .collect(Collectors.toList());
+        Map<String, ReactionSummaryResDto.ReactionSliceDto> resultTabs = new LinkedHashMap<>();
+        resultTabs.put("ALL", createSliceDto(allReactions, size));
+        for (RecordReactionType type : RecordReactionType.values()) {
+            List<ActivityRecordReaction> filtered = allReactions.stream()
+                    .filter(r -> r.getReactionType() == type)
+                    .toList();
 
-                            boolean hasNext = filteredUsers.size() > size;
-                            if (hasNext) {
-                                filteredUsers.remove(size);
-                            }
+            resultTabs.put(type.name(), createSliceDto(filtered, size));
+        }
 
-                            return ReactionSummaryResDto.ReactionSliceDto.builder()
-                                    .users(filteredUsers)
-                                    .hasNext(hasNext)
-                                    .nextCursor(null)
-                                    .build();
-                        }
-                ));
+        return resultTabs;
+    }
+
+    private ReactionSummaryResDto.ReactionSliceDto createSliceDto(List<ActivityRecordReaction> reactions, int size) {
+        // 다음 페이지 여부 확인을 위해 size + 1까지 stream 처리
+        List<ReactionSummaryResDto.ReactionUserDto> userDtos = reactions.stream()
+                .limit(size + 1)
+                .map(r -> ReactionSummaryResDto.ReactionUserDto.builder()
+                        .userId(r.getReactedUser().getId())
+                        .nickname(r.getReactedUser().getNickname())
+                        .profileImageUrl(r.getReactedUser().getProfileImageUrl())
+                        .reactionType(r.getReactionType())
+                        .build())
+                .collect(Collectors.toList());
+
+        boolean hasNext = userDtos.size() > size;
+
+        // 다음 페이지 데이터가 있다면 결과 리스트에서 제거
+        if (hasNext) {
+            userDtos.remove(size);
+        }
+
+        return ReactionSummaryResDto.ReactionSliceDto.builder()
+                .users(userDtos)
+                .hasNext(hasNext)
+                .lastUserId(null) // 필요시 마지막 유저 ID 등을 할당
+                .build();
     }
 
     private BooleanExpression ltLastUserId(String lastUserId) {
