@@ -188,4 +188,11 @@ public class HobbyController implements HobbyControllerDocs {
                                          @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.updateHobby(hobbyId, reqDto, user);
     }
+
+    @Override
+    @GetMapping("/chips")
+    public GetHobbyListByChipResDto getHobbyListByChip(@RequestParam(value = "status")  HobbyStatus status,
+                                                       @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getHobbyListByChip(status, user);
+    }
 }

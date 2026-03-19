@@ -453,6 +453,43 @@ public class HobbyService {
         return new UpdateHobbyResDto(hobby.getId(), hobby.getHobbyInfoId(), hobby.getHobbyName(), hobby.getHobbyPurpose(), hobby.getHobbyTimeMinutes(), hobby.getExecutionCount(), hobby.getGoalDays());
     }
 
+    @Transactional(readOnly = true)
+    public GetHobbyListByChipResDto getHobbyListByChip(HobbyStatus status, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        // 취미 조회
+        List<Hobby> hobbies = getHobbiesByStatus(currentUser.getId(), status);
+
+        // DTO 변환 (오늘 기록 여부 포함)
+        List<GetHobbyListByChipResDto.HobbyInfoByChip> hobbyInfos =
+                hobbies.stream()
+                        .map(hobby -> toHobbyInfo(currentUser.getId(), hobby))
+                        .toList();
+        return new GetHobbyListByChipResDto(hobbyInfos);
+    }
+
+    private List<Hobby> getHobbiesByStatus(String userId, HobbyStatus status) {
+        if (status == HobbyStatus.ALL) {
+            return hobbyRepository.findAllByUserIdOrderByIdDesc(userId);
+        }
+        return hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(userId, status);
+    }
+
+    private GetHobbyListByChipResDto.HobbyInfoByChip toHobbyInfo(String userId, Hobby hobby) {
+
+        boolean todayRecorded = isTodayRecorded(userId, hobby.getId());
+
+        return new GetHobbyListByChipResDto.HobbyInfoByChip(
+                hobby.getId(),
+                hobby.getHobbyName(),
+                todayRecorded
+        );
+    }
+
+    private boolean isTodayRecorded(String userId, Long hobbyId) {
+        String key = todayRecordRedisService.createRecordKey(userId, hobbyId);
+        return todayRecordRedisService.hasKey(key);
+    }
+
     private GetHomeHobbyInfoResDto buildFinalResponse(GetHomeHobbyInfoResDto response, User user, Hobby hobby) {
         String socialId = user.getSocialId();
         Long hobbyId = hobby.getId();
