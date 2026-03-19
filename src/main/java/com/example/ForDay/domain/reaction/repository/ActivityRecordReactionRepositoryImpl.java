@@ -1,18 +1,24 @@
-package com.example.ForDay.domain.record.repository;
+package com.example.ForDay.domain.reaction.repository;
 
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
-import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.QUser;
+import com.example.ForDay.infra.s3.util.S3Util;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReactionRepositoryCustom {
@@ -73,14 +79,54 @@ public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReact
                 .fetch();
     }
 
-    // lastUserId가 있을 때만 '다음 페이지' 조건 생성
+    @Override
+    public Map<RecordReactionType, ReactionSummaryResDto.ReactionSliceDto> getReactionSummary(Long recordId, int size, String currentUserId) {
+        NumberExpression<Integer> myReactionPriority = new CaseBuilder()
+                .when(activityRecordReaction.reactedUser.id.eq(currentUserId)).then(0)
+                .otherwise(1);
+
+        List<ActivityRecordReaction> allReactions = queryFactory
+                .selectFrom(activityRecordReaction)
+                .join(activityRecordReaction.reactedUser).fetchJoin()
+                .where(activityRecordReaction.activityRecord.id.eq(recordId))
+                .orderBy(
+                        myReactionPriority.asc(),
+                        activityRecordReaction.createdAt.desc())
+                .fetch();
+
+        return Arrays.stream(RecordReactionType.values())
+                .collect(Collectors.toMap(
+                        type -> type,
+                        type -> {
+                            List<ReactionSummaryResDto.ReactionUserDto> filteredUsers = allReactions.stream()
+                                    .filter(r -> r.getReactionType() == type)
+                                    .limit(size + 1) // 다음 페이지 확인용
+                                    .map(r -> ReactionSummaryResDto.ReactionUserDto.builder()
+                                            .userId(r.getReactedUser().getId())
+                                            .nickname(r.getReactedUser().getNickname())
+                                            .profileImageUrl(r.getReactedUser().getProfileImageUrl())
+                                            .reactionType(r.getReactionType())
+                                            .build())
+                                    .collect(Collectors.toList());
+
+                            boolean hasNext = filteredUsers.size() > size;
+                            if (hasNext) {
+                                filteredUsers.remove(size);
+                            }
+
+                            return ReactionSummaryResDto.ReactionSliceDto.builder()
+                                    .users(filteredUsers)
+                                    .hasNext(hasNext)
+                                    .nextCursor(null)
+                                    .build();
+                        }
+                ));
+    }
+
     private BooleanExpression ltLastUserId(String lastUserId) {
         if (lastUserId == null) {
             return null;
         }
-        // 실제 운영 환경에서는 ID가 아닌 정렬 기준값(ex: createdAt)으로 비교하는 것이 더 빠릅니다.
-        // 여기서는 단순성을 위해 ID 기반 예시를 들거나,
-        // 정렬 순서상 특정 시점 이후의 데이터를 가져오는 로직을 넣어야 합니다.
         return activityRecordReaction.reactedUser.id.gt(lastUserId);
     }
 }

@@ -1,5 +1,6 @@
-package com.example.ForDay.domain.record.entity;
+package com.example.ForDay.domain.reaction.entity;
 
+import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;

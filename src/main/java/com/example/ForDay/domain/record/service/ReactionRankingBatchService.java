@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.record.dto.ReactionCountDto;
-import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;

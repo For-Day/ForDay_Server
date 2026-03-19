@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.entity;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
