@@ -1245,14 +1245,14 @@ public interface HobbyControllerDocs {
     @Operation(
             summary = "취미 수정",
             description = """
-                온보딩 완료 & 닉네임 미완료 상태에서만 취미 정보를 수정합니다.
-
-                ✔ 허용 상태
-                - 온보딩 완료
-                - 닉네임 미설정
-
-                ❌ 그 외 상태에서는 예외가 발생합니다.
-                """
+                    온보딩 완료 & 닉네임 미완료 상태에서만 취미 정보를 수정합니다.
+                    
+                    ✔ 허용 상태
+                    - 온보딩 완료
+                    - 닉네임 미설정
+                    
+                    ❌ 그 외 상태에서는 예외가 발생합니다.
+                    """
     )
     @ApiResponses({
             @ApiResponse(
@@ -1270,15 +1270,15 @@ public interface HobbyControllerDocs {
                                     name = "INVALID_HOBBY_STATUS",
                                     summary = "온보딩/닉네임 상태 오류",
                                     value = """
-                        {
-                          "status": 400,
-                          "success": false,
-                          "data": {
-                            "errorClassName": "INVALID_HOBBY_STATUS",
-                            "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
-                          }
-                        }
-                        """
+                                            {
+                                              "status": 400,
+                                              "success": false,
+                                              "data": {
+                                                "errorClassName": "INVALID_HOBBY_STATUS",
+                                                "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+                                              }
+                                            }
+                                            """
                             )
                     )
             ),
@@ -1291,15 +1291,15 @@ public interface HobbyControllerDocs {
                                     name = "HOBBY_NOT_FOUND",
                                     summary = "취미 ID 없음",
                                     value = """
-                        {
-                          "status": 404,
-                          "success": false,
-                          "data": {
-                            "errorClassName": "HOBBY_NOT_FOUND",
-                            "message": "존재하지 않는 취미입니다."
-                          }
-                        }
-                        """
+                                            {
+                                              "status": 404,
+                                              "success": false,
+                                              "data": {
+                                                "errorClassName": "HOBBY_NOT_FOUND",
+                                                "message": "존재하지 않는 취미입니다."
+                                              }
+                                            }
+                                            """
                             )
                     )
             )
@@ -1322,5 +1322,6 @@ public interface HobbyControllerDocs {
             @Parameter(hidden = true)
             @AuthenticationPrincipal CustomUserDetails user
     );
+
 
 }
