@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.hobby.entity;
 
+import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -137,5 +138,18 @@ public class Hobby extends BaseTimeEntity {
         if (this.status != HobbyStatus.IN_PROGRESS) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
+    }
+
+    public static Hobby createNewHobby(User user, ActivityCreateReqDto reqDto, Integer defaultGoalDays) {
+        return Hobby.builder()
+                .user(user)
+                .hobbyInfoId(reqDto.getHobbyInfoId())
+                .hobbyName(reqDto.getHobbyName())
+                .hobbyPurpose(reqDto.getHobbyPurpose())
+                .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
+                .executionCount(reqDto.getExecutionCount())
+                .goalDays(reqDto.getIsDurationSet() ? defaultGoalDays : null)
+                .status(HobbyStatus.IN_PROGRESS) // 생성 시 기본 상태 강제
+                .build();
     }
 }
