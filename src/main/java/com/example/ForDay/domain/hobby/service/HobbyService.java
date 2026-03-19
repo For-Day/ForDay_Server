@@ -81,28 +81,12 @@ public class HobbyService {
         validateMaxInProgressHobbies(currentUser);
         // 취미 중복 여부 검증
         validateDuplicateHobby(reqDto, currentUser);
-
         // 취미 엔티티 생성 및 저장
-        Hobby hobby = Hobby.builder()
-                .user(currentUser)
-                .hobbyInfoId(reqDto.getHobbyInfoId())
-                .hobbyName(reqDto.getHobbyName())
-                .hobbyPurpose(reqDto.getHobbyPurpose())
-                .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
-                .executionCount(reqDto.getExecutionCount())
-                .goalDays(reqDto.getIsDurationSet() ? DEFAULT_GOAL_DAYS : null)
-                .status(HobbyStatus.IN_PROGRESS)
-                .build();
+        Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, reqDto, DEFAULT_GOAL_DAYS));
+        // 온보딩 상태 업데이트
+        handleUserOnboarding(currentUser);
 
-        hobbyRepository.save(hobby);
-
-        if (!currentUser.isOnboardingCompleted()) {
-            currentUser.completeOnboarding();
-            log.info("[ActivityCreate] User onboarding marked as completed: userId={}", currentUser.getId());
-            userRepository.save(currentUser);
-        }
-
-        return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
+        return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", savedHobby.getId());
     }
 
     @Transactional
@@ -866,6 +850,15 @@ public class HobbyService {
             if (hobbyRepository.existsByHobbyNameAndUserId(reqDto.getHobbyName(), user.getId())) {
                 throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
             }
+        }
+    }
+
+    private void handleUserOnboarding(User user) {
+        if (!user.isOnboardingCompleted()) {
+            user.completeOnboarding();
+            log.info("[ActivityCreate] User onboarding marked as completed: userId={}", user.getId());
+            // @Transactional 환경에서는 영속성 컨텍스트 덕분에 userRepository.save()가 없어도
+            // 메서드 종료 시 변경 감지(Dirty Checking)로 자동 Update 쿼리가 나갑니다.
         }
     }
 }

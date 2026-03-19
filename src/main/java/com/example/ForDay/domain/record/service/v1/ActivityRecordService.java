@@ -426,13 +426,13 @@ public class ActivityRecordService {
         return new GetActivityRecordByStoryResDto(tabInfos, lastId, recordDtos, hasNext);
     }
 
-        private void saveRecentKeywordIfPresent(String userId, String keyword) {
+    private void saveRecentKeywordIfPresent(String userId, String keyword) {
         if (Strings.hasText(keyword)) {
             recentRedisService.createRecentKeyword(userId, keyword);
         }
     }
 
-        private List<GetActivityRecordByStoryResDto.StoryTabInfo> getStoryTabInfos(String userId, Long hobbyId, Long lastRecordId) {
+    private List<GetActivityRecordByStoryResDto.StoryTabInfo> getStoryTabInfos(String userId, Long hobbyId, Long lastRecordId) {
         if (lastRecordId != null) return null;
 
         return hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(userId, HobbyStatus.IN_PROGRESS)
@@ -463,7 +463,8 @@ public class ActivityRecordService {
     }
 
 
-    private record HobbyInfo(Long id, String name) {}
+    private record HobbyInfo(Long id, String name) {
+    }
 
     private void validateRecordAuthority(RecordVisibility visibility, String writerId, String currentUserId) {
         if (writerId.equals(currentUserId)) return;
