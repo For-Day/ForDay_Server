@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.reaction.entity;
 
+import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -25,14 +26,14 @@ public class ActivityRecordReactionCount extends BaseTimeEntity {
     private Long amazingCount;
     private Long fightingCount;
 
-    public static ActivityRecordReactionCount init(Long recordId, Long totalCount, Long awesomeCount, Long greatCount, Long amazingCount, Long fightingCount) {
-        ActivityRecordReactionCount count = new ActivityRecordReactionCount();
-        count.recordId = recordId;
-        count.totalCount = totalCount;
-        count.awesomeCount = awesomeCount;
-        count.greatCount = greatCount;
-        count.amazingCount = amazingCount;
-        count.fightingCount = fightingCount;
-        return count;
+    public static ActivityRecordReactionCount init(Long recordId, RecordReactionType type) {
+        return ActivityRecordReactionCount.builder()
+                .recordId(recordId)
+                .totalCount(1L)
+                .awesomeCount(type == RecordReactionType.AWESOME ? 1L : 0L)
+                .greatCount(type == RecordReactionType.GREAT ? 1L : 0L)
+                .amazingCount(type == RecordReactionType.AMAZING ? 1L : 0L)
+                .fightingCount(type == RecordReactionType.FIGHTING ? 1L : 0L)
+                .build();
     }
 }
