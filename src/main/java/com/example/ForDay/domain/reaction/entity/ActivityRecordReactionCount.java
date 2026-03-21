@@ -24,4 +24,15 @@ public class ActivityRecordReactionCount extends BaseTimeEntity {
     private Long greatCount;
     private Long amazingCount;
     private Long fightingCount;
+
+    public static ActivityRecordReactionCount init(Long recordId, Long totalCount, Long awesomeCount, Long greatCount, Long amazingCount, Long fightingCount) {
+        ActivityRecordReactionCount count = new ActivityRecordReactionCount();
+        count.recordId = recordId;
+        count.totalCount = totalCount;
+        count.awesomeCount = awesomeCount;
+        count.greatCount = greatCount;
+        count.amazingCount = amazingCount;
+        count.fightingCount = fightingCount;
+        return count;
+    }
 }

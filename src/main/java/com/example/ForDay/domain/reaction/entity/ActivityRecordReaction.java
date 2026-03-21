@@ -11,7 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "activity_record_reactions")
+@Table(
+        name = "activity_record_reactions",
+        indexes = {
+                @Index(name = "idx_reaction_record_type", columnList = "activity_record_id, reactionType")
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

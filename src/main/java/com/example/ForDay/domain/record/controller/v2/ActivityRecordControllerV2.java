@@ -3,7 +3,7 @@ package com.example.ForDay.domain.record.controller.v2;
 import com.example.ForDay.domain.reaction.service.RecordReactionService;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
-import com.example.ForDay.domain.record.dto.response.ReactionListResDto;
+import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.service.v2.ActivityRecordServiceV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -41,12 +41,12 @@ public class ActivityRecordControllerV2 {
 
     // 무한 스크롤 (탭별 조회)
     @GetMapping("/{recordId}/reactions")
-    public ReactionListResDto getReactions(@PathVariable Long recordId,
-                                           @RequestParam(required = false) RecordReactionType type, // null이면 ALL
-                                           @RequestParam(required = false) String cursor, // encoded cursor
-                                           @RequestParam(defaultValue = "10") int size,
-                                           @AuthenticationPrincipal CustomUserDetails user
+    public ReactionTabScrollResDto getReactionTabScroll(@PathVariable Long recordId,
+                                                @RequestParam(required = false) RecordReactionType type,
+                                                @RequestParam(required = false) Long lastReactionId,
+                                                @RequestParam(defaultValue = "10") int size,
+                                                @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return recordReactionService.getReactions(recordId, type, cursor, size, user);
+        return recordReactionService.getReactionTabScroll(recordId, type, lastReactionId, size, user);
     }
 }

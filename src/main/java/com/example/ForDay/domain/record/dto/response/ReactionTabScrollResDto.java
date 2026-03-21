@@ -7,31 +7,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReactionListResDto {
-
-    private List<ReactionUserDto> users;
-
-    private String nextCursor;
-
-    private boolean hasNext;
+public class ReactionTabScrollResDto {
+    private Map<String, ReactionSliceDto> tabs;
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ReactionUserDto {
-
-        private String userId;
-
-        private String nickname;
-
-        private String profileImageUrl;
-
-        private RecordReactionType reactionType;
+    public static class ReactionSliceDto {
+        private List<ReactionSummaryResDto.ReactionUserDto> users;
+        private Long lastReactionId;
+        private boolean hasNext;
     }
 }

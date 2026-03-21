@@ -2,7 +2,7 @@ package com.example.ForDay.domain.reaction.service;
 
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
-import com.example.ForDay.domain.record.dto.response.ReactionListResDto;
+import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -43,6 +43,16 @@ public class RecordReactionService {
         return new ReactionSummaryResDto(record.getId(), reactionCountDto, tabs);
     }
 
+    @Transactional(readOnly = true)
+    public ReactionTabScrollResDto getReactionTabScroll(Long recordId, RecordReactionType type, Long lastReactionId, int size, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ActivityRecord record = getRecord(recordId);
+
+        return activityRecordReactionRepository.getReactionTabScroll(
+                record.getId(), type, lastReactionId, size, currentUser.getId()
+        );
+    }
+
     private void processReactionProfileUrls(Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs) {
         tabs.values().forEach(sliceDto -> {
             if (sliceDto != null && sliceDto.getUsers() != null) {
@@ -65,9 +75,5 @@ public class RecordReactionService {
     private ActivityRecord getRecord(Long recordId) {
         return activityRecordRepository.findById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-    }
-
-    public ReactionListResDto getReactions(Long recordId, RecordReactionType type, String cursor, int size, CustomUserDetails user) {
-        return null;
     }
 }

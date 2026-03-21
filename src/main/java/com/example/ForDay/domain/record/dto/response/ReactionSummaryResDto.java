@@ -41,7 +41,7 @@ public class ReactionSummaryResDto {
     @AllArgsConstructor
     public static class ReactionSliceDto {
         private List<ReactionUserDto> users;
-        private String lastUserId;
+        private Long lastReactionId;
         private boolean hasNext;
     }
 
@@ -51,6 +51,7 @@ public class ReactionSummaryResDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ReactionUserDto {
+        private Long reactionId;
         private String userId;
         private String nickname;
         private String profileImageUrl;
@@ -67,7 +68,6 @@ public class ReactionSummaryResDto {
         );
     }
 
-    // 빈 객체를 만드는 정적 메서드도 추가하면 더 좋습니다.
     public static ReactionCountDto empty() {
         return new ReactionCountDto(0L, 0L, 0L, 0L, 0L);
     }
