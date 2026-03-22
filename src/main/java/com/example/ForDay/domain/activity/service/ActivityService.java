@@ -15,6 +15,7 @@ import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
 import com.example.ForDay.domain.hobby.entity.HobbyCard;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.service.HobbyCardService;
 import com.example.ForDay.domain.hobby.service.UserSummaryAIService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -24,6 +25,7 @@ import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.service.AIService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -54,19 +56,17 @@ public class ActivityService {
     private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final HobbyCardRepository hobbyCardRepository;
     private final FriendRelationRepository friendRelationRepository;
-    private final RestTemplate restTemplate;
     private final ActivityRecommendItemRepository recommendItemRepository;
     private final UserSummaryAIService userSummaryAIService;
     private final HobbyUtil hobbyUtil;
+    private final HobbyCardService hobbyCardService;
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
 
     @Transactional
     public RecordActivityResDto recordActivity(Long activityId, RecordActivityReqDto reqDto, CustomUserDetails user) {
-
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
 
@@ -78,14 +78,12 @@ public class ActivityService {
         validateTodayRecord(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 확인
         validateS3Image(reqDto.getImageUrl()); // S3 이미지 존재 여부 확인
 
-
         ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
         activity.record(); // 해당 취미와 활동에 대해 스티커 + 1
         currentUser.obtainSticker(); // 해당 유저가 모은 스티커 + 1
         activityRecordRepository.save(activityRecord);
 
-        log.info("[RecordActivity] 기록 저장 성공 - RecordId: {}, 현재 스티커 수: {}",
-                activityRecord.getId(), hobby.getCurrentStickerNum());
+        log.info("[RecordActivity] 기록 저장 성공 - RecordId: {}, 현재 스티커 수: {}",activityRecord.getId(), hobby.getCurrentStickerNum());
 
         // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (hobby.isStickerFull()) {
@@ -94,16 +92,7 @@ public class ActivityService {
         }
         markAsRecorded(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 표시
 
-        return new RecordActivityResDto(
-                "오늘의 활동 기록이 정상적으로 작성되었습니다",
-                hobby.getId(),
-                activityRecord.getId(),
-                activity.getContent(),
-                activityRecord.getImageUrl(),
-                reqDto.getSticker(),
-                activityRecord.getMemo(),
-                isCheckStickerFull(hobby)
-        );
+        return RecordActivityResDto.of( hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
     }
 
     @Transactional
@@ -178,12 +167,7 @@ public class ActivityService {
         String beforeContent = activity.getContent();
         activity.updateContent(reqDto.getContent());
 
-        log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'",
-                activityId,
-                currentUser.getId(),
-                beforeContent,
-                reqDto.getContent()
-        );
+        log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'",activityId, currentUser.getId(), beforeContent, reqDto.getContent());
 
         return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
@@ -289,65 +273,12 @@ public class ActivityService {
     }
 
     private void createHobbyCard(Hobby hobby, User currentUser) {
-        Long hobbyId = hobby.getId();
-        String userId = currentUser.getId();
-
-        log.info("[HobbyCard] 생성 프로세스 시작 - 사용자: {}, 취미: {}", userId, hobbyId);
-
-        // fast api 서버와 통신하여 취미 카드 content 생성하기
-        FastAPIHobbyCardReqDto requestDto = FastAPIHobbyCardReqDto.builder()
-                .userHobbyId(hobbyId)
-                .build();
-
-        // FastAPI 호출
-        String url = fastApiBaseUrl + "/ai/hobby-card/content";
+        log.info("[HobbyCard] 생성 프로세스 시작 - 사용자: {}, 취미: {}", currentUser.getId(), hobby.getId());
 
         try {
-            log.info("[HobbyCard] AI 콘텐츠 생성 요청 - URL: {}", url);
-            FastAPIHobbyCardResDto response = restTemplate.postForObject(url, requestDto, FastAPIHobbyCardResDto.class);
-
-            if (response == null || response.getContent().isEmpty()) {
-                log.error("[HobbyCard] AI 응답 데이터가 유효하지 않음 - 사용자: {}", userId);
-                throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
-            }
-
-            String hobbyCardContent = response.getContent();
-
-            // 취미 카드 전용 url 생성
-            String coverImageUrl =
-                    (hobby.getCoverImageUrl() == null)
-                            ? activityRecordRepository.findLatestImageRecord(hobby.getId())
-                            .map(ActivityRecord::getImageUrl)
-                            .orElse("https://your-bucket.s3.../default-hobby-image.png") // 여기 수정 예정
-                            : hobby.getCoverImageUrl();
-
-            String hobbyCardImageUrl = null;
-            if(StringUtils.hasText(coverImageUrl)) {
-                try {
-                    String coverImageKey = s3Service.extractKeyFromFileUrl(coverImageUrl);
-                    String hobbyCardImageKey = coverImageKey.replace("cover_image/temp/", "hobby_card/temp/");
-
-                    s3Service.copyObject(coverImageKey, hobbyCardImageKey);
-                    hobbyCardImageUrl = s3Service.createFileUrl(hobbyCardImageKey);
-
-                    log.info("[HobbyCard] S3 이미지 복사 완료 - {} -> {}", coverImageKey, hobbyCardImageKey);
-                } catch (Exception s3Ex) {
-                    log.warn("[HobbyCard] S3 이미지 처리 중 오류 발생 (프로세스는 계속됨) - {}", s3Ex.getMessage());
-                }
-            }
-
-            HobbyCard hobbyCard = HobbyCard.builder()
-                    .user(currentUser)
-                    .hobby(hobby)
-                    .content(hobbyCardContent)
-                    .imageUrl(hobbyCardImageUrl)
-                    .build();
-            hobbyCardRepository.save(hobbyCard);
+            HobbyCard hobbyCard = hobbyCardService.createHobbyCard(currentUser, hobby);
             currentUser.obtainHobbyCard();
 
-            log.info("[HobbyCard] 생성 완료 - 카드ID: {}, 사용자: {}", hobbyCard.getId(), userId);
-
-            currentUser.obtainHobbyCard();
         } catch (Exception e) {
             todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), hobby.getId());
             log.error("[AI-HOBBY-CARD][ERROR] FastAPI 호출 실패: {}", e.getMessage());
