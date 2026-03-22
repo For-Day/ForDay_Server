@@ -23,6 +23,15 @@ public class GetRecordReactionUsersResDto {
     private boolean hasNext;
     private String lastUserId;
 
+    public static GetRecordReactionUsersResDto of(RecordReactionType type, List<ReactionUserInfo> reactionUsers, int size) {
+        boolean hasNext = reactionUsers.size() > size;
+        if (hasNext) reactionUsers.remove(size);
+
+        String lastUserId = reactionUsers.isEmpty() ? null : reactionUsers.get(reactionUsers.size() - 1).getUserId();
+
+        return new GetRecordReactionUsersResDto(type, reactionUsers, hasNext, lastUserId);
+    }
+
     @Data
     @AllArgsConstructor
     @Schema(description = "리액션 유저 상세 정보")

@@ -41,4 +41,13 @@ public class ActivityRecordReaction extends BaseTimeEntity {
 
     @Builder.Default
     private boolean readWriter = false;
+
+    public static ActivityRecordReaction of(ActivityRecord activityRecord, User user, RecordReactionType type) {
+        return ActivityRecordReaction.builder()
+                .activityRecord(activityRecord)
+                .reactedUser(user)
+                .reactionType(type)
+                .readWriter(false)
+                .build();
+    }
 }
