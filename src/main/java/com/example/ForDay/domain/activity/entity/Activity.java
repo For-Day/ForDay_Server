@@ -13,7 +13,15 @@ import org.hibernate.annotations.DynamicUpdate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_activities")
+@Table(
+        name = "user_activities",
+        indexes = {
+                @Index(
+                        name = "idx_ua_hobby_perfect_sort",
+                        columnList = "user_hobby_id, created_at DESC, last_recorded_at DESC, collected_sticker_num DESC, content ASC"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

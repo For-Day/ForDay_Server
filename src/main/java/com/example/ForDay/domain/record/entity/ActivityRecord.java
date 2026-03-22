@@ -18,7 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "activity_records")
+@Table(
+        name = "activity_records",
+        indexes = {
+                @Index(
+                        name = "idx_ar_user_hobby_created",
+                        columnList = "user_hobby_id, user_id, created_at DESC"
+                )
+        })
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

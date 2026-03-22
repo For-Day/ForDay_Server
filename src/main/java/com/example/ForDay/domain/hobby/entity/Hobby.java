@@ -15,7 +15,15 @@ import java.util.Objects;
 
 
 @Entity
-@Table(name = "user_hobbies")
+@Table(
+        name = "user_hobbies",
+        indexes = {
+                @Index(
+                        name = "idx_hobby_user_status_created",
+                        columnList = "user_id, status, created_at DESC"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
