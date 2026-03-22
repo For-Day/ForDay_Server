@@ -131,4 +131,13 @@ public class User extends BaseTimeEntity {
     public boolean isNicknameSet() {
         return StringUtils.hasText(this.nickname);
     }
+
+    public static User createOauth(String socialId, String email, SocialType socialType) {
+        return User.builder()
+                .role(Role.USER)
+                .email(email)
+                .socialType(socialType)
+                .socialId(socialId)
+                .build();
+    }
 }

@@ -10,6 +10,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordReportRepositor
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.domain.user.dto.TargetUserInfo;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
@@ -19,6 +20,7 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
@@ -53,15 +55,11 @@ public class UserService {
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
+    private final ActivityRecordUtil activityRecordUtil;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
-        return userRepository.save(User.builder()
-                .role(Role.USER)
-                .email(email)
-                .socialType(socialType)
-                .socialId(socialId)
-                .build());
+        return userRepository.save(User.createOauth(socialId, email, socialType));
     }
 
     @Transactional(readOnly = true)
@@ -73,7 +71,7 @@ public class UserService {
         }
 
         // 중복 검증 (DB 조회)
-        if (userRepository.existsByNickname(nickname)) {
+        if (isExistsByNickname(nickname)) {
             return new NicknameCheckResDto(nickname, false, "이미 사용 중인 닉네임입니다.");
         }
 
@@ -83,8 +81,7 @@ public class UserService {
 
     @Transactional
     public NicknameRegisterResDto nicknameRegister(String nickname, CustomUserDetails user) {
-        boolean exists = userRepository.existsByNickname(nickname);
-        if (exists) {
+        if (isExistsByNickname(nickname)) {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
@@ -100,21 +97,20 @@ public class UserService {
         User targetUser;
         String targetId;
 
-        if(userId != null) {
+        if (userId != null) {
             // 다른 사용자 정보 조회시 (차단 관계, 탈퇴한 회원인지 고려)
             User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-            checkBlockedAndDeletedUser(currentUser.getId(), targetId, targetUser.isDeleted());
+            List<FriendRelation> relations = activityRecordUtil.getRelations(currentUser.getId(), targetId);
+            activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
         } else {
             targetUser = userUtil.getCurrentUser(user);
             targetId = targetUser.getId();
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return new UserInfoResDto(s3Util.toProfileMainResizedUrl(targetUser.getProfileImageUrl()), // 프로필 조회용 url로 수정
-                targetUser.getNickname(),
-                totalStickerCount);
+        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util);
     }
 
     @Transactional
@@ -124,13 +120,12 @@ public class UserService {
         String oldImageUrl = currentUser.getProfileImageUrl();
 
         // 동일 이미지 여부 체크
-        if (Objects.equals(oldImageUrl, newImageUrl)) {
-            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl),"이미 동일한 프로필 이미지로 설정되어 있습니다."
-            );
+        if (isSameImageCheck(oldImageUrl, newImageUrl)) {
+            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
         // 새로운 이미지가 있는 경우에만 S3 존재 여부 검증
-        validateNewImage(newImageUrl);
+        s3Util.validateS3Image(newImageUrl);
 
         // 상태 업데이트
         currentUser.updateProfileImage(newImageUrl);
@@ -141,36 +136,23 @@ public class UserService {
             registerS3Deletion(oldImageUrl);
         }
 
-        log.info("[PROFILE] Image changed for user: {} ({} -> {})",
-                currentUser.getId(), oldImageUrl, newImageUrl);
+        log.info("[PROFILE] Image changed for user: {} ({} -> {})", currentUser.getId(), oldImageUrl, newImageUrl);
 
-        return new SetUserProfileImageResDto(
-                s3Util.toProfileMainResizedUrl(newImageUrl),
-                "프로필 이미지가 성공적으로 변경되었습니다."
-        );
+        return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(newImageUrl), "프로필 이미지가 성공적으로 변경되었습니다.");
     }
 
     @Transactional(readOnly = true)
     public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
-
         // 조회 대상 유저 확정 및 검증
         User targetUser = resolveTargetUser(currentUser, userId);
-
         // 취미 리스트 조회
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(targetUser);
-
-        // 진행 중인 취미 개수 카운트
-        int inProgressCount = countInProgressHobbies(hobbyList);
 
         // 썸네일 URL 가공 (커버 사이즈용)
         processHobbyThumbnailUrls(hobbyList);
 
-        return new GetHobbyInProgressResDto(
-                inProgressCount,
-                targetUser.getHobbyCardCount(),
-                hobbyList
-        );
+        return GetHobbyInProgressResDto.of(targetUser, hobbyList);
     }
 
     @Transactional(readOnly = true)
@@ -180,29 +162,18 @@ public class UserService {
 
         // 조회 대상 유저 및 권한 확정
         TargetUserInfo targetInfo = resolveTargetUserInfo(currentUserId, userId, currentUser);
-
         // 전체 개수 조회 (첫 페이지 진입 시에만)
         Long totalFeedCount = (lastRecordId == null)
                 ? activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetInfo.user().getId())
                 : null;
-
         // 피드 목록 조회 (Slice 페이징을 위해 feedSize + 1)
         List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(
                 hobbyIds, lastRecordId, feedSize + 1, targetInfo.user().getId(), targetInfo.visibilities(), currentUserId
         );
-
-        // 페이징 결과 처리
-        boolean hasNext = feedList.size() > feedSize;
-        if (hasNext) {
-            feedList.remove(feedSize.intValue());
-        }
-
         // 썸네일 URL 리사이징 처리
         processFeedThumbnailUrls(feedList);
 
-        Long lastId = feedList.isEmpty() ? null : feedList.get(feedList.size() - 1).getRecordId();
-
-        return new GetUserFeedListResDto(totalFeedCount, lastId, feedList, hasNext);
+        return GetUserFeedListResDto.of(feedList, totalFeedCount, feedSize);
     }
 
     @Transactional(readOnly = true)
@@ -210,22 +181,14 @@ public class UserService {
         String currentUserId = user.getUserId();
         String targetUserId = (userId == null) ? currentUserId : userId; // 조회하고자하는 유저
 
-        if(userId != null) {
+        if (userId != null) {
             User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-            List<FriendRelation> relations = friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
-            checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
+            List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
+            activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
         }
         List<GetUserHobbyCardListResDto.HobbyCardDto> cardDtoList = hobbyCardRepository.findUserHobbyCardList(lastHobbyCardId, size, targetUserId);
 
-        boolean hasNext = false;
-        if (cardDtoList.size() > size) {
-            hasNext = true;
-            cardDtoList.remove(size.intValue());
-        }
-
-        Long lastId = cardDtoList.isEmpty() ? null : cardDtoList.get(cardDtoList.size() - 1).getHobbyCardId();
-
-        return new GetUserHobbyCardListResDto(lastId, cardDtoList, hasNext);
+        return GetUserHobbyCardListResDto.of(cardDtoList, size);
     }
 
     @Transactional(readOnly = true)
@@ -245,19 +208,20 @@ public class UserService {
                 lastScrapId, size + 1, targetUserId, currentUserId, visibilities
         );
 
-        // 페이징 결과 처리 (HasNext 판단 및 데이터 절삭)
-        boolean hasNext = scrapDtos.size() > size;
-        if (hasNext) {
-            scrapDtos.remove(size.intValue());
-        }
-
         // 이미지 URL 가공 및 결과 생성
         processThumbnailUrls(scrapDtos);
 
         long totalCount = (lastScrapId == null) ? activityRecordScrapRepository.countByUserId(targetUserId) : 0;
-        Long nextLastId = scrapDtos.isEmpty() ? null : scrapDtos.get(scrapDtos.size() - 1).getScrapId();
 
-        return new GetUserScrapListResDto(totalCount, nextLastId, scrapDtos, hasNext);
+        return GetUserScrapListResDto.of(scrapDtos, totalCount, size);
+    }
+
+    private static boolean isSameImageCheck(String oldImageUrl, String newImageUrl) {
+        return Objects.equals(oldImageUrl, newImageUrl);
+    }
+
+    private boolean isExistsByNickname(String nickname) {
+        return userRepository.existsByNickname(nickname);
     }
 
     private Optional<String> validateNicknameFormat(String nickname) {
@@ -289,7 +253,8 @@ public class UserService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 차단 및 탈퇴 상태 체크
-        checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
+        List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
+        activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 
         // 팔로우 관계라면 FRIEND 권한 추가
         if (friendRelationRepository.existsByFriendship(currentUserId, targetUserId, FriendRelationStatus.FOLLOW)) {
@@ -303,35 +268,6 @@ public class UserService {
         scrapDtos.stream()
                 .filter(dto -> StringUtils.hasText(dto.getThumbnailImageUrl()))
                 .forEach(dto -> dto.setThumbnailImageUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailImageUrl())));
-    }
-
-    private void checkBlockedAndDeletedUser(String currentUserId, String targetId, boolean deleted) {
-        // 한쪽이라도 차단 관계가 있는지 확인
-        if(friendRelationRepository.existsByFriendship(currentUserId, targetId, FriendRelationStatus.BLOCK) || friendRelationRepository.existsByFriendship(targetId, currentUserId, FriendRelationStatus.BLOCK)) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        // 타겟유저가 탈퇴한 회원인 경우
-        if(deleted) throw new CustomException(ErrorCode.USER_NOT_FOUND);
-    }
-
-    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, boolean deleted) {
-        // 리스트에서 차단(BLOCK)이 하나라도 있는지 확인
-        boolean isBlocked = relations.stream()
-                .anyMatch(f -> f.getRelationStatus() == FriendRelationStatus.BLOCK);
-
-        if (isBlocked || deleted) {
-            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
-        }
-    }
-
-    private void validateNewImage(String targetUrl) {
-        if (targetUrl != null) {
-            String newKey = s3Service.extractKeyFromFileUrl(targetUrl);
-            if (!s3Service.existsByKey(newKey)) {
-                throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-            }
-        }
     }
 
     private void registerS3Deletion(String oldImageUrl) {
@@ -364,8 +300,8 @@ public class UserService {
         // 남의 피드 조회 시 검증 및 관계 확인
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        checkBlockedAndDeletedUser(currentUserId, targetUser.getId(), targetUser.isDeleted());
+        List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
+        activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 
         List<RecordVisibility> visibilities = new ArrayList<>(List.of(RecordVisibility.PUBLIC));
         if (friendRelationRepository.existsByFriendship(currentUserId, targetUser.getId(), FriendRelationStatus.FOLLOW)) {
@@ -381,14 +317,6 @@ public class UserService {
         );
     }
 
-    private record TargetUserInfo(User user, List<RecordVisibility> visibilities) {}
-
-    private int countInProgressHobbies(List<GetHobbyInProgressResDto.HobbyDto> hobbyList) {
-        return (int) hobbyList.stream()
-                .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
-                .count();
-    }
-
     private void processHobbyThumbnailUrls(List<GetHobbyInProgressResDto.HobbyDto> hobbyList) {
         hobbyList.stream()
                 .filter(dto -> StringUtils.hasText(dto.getThumbnailImageUrl()))
@@ -396,15 +324,15 @@ public class UserService {
     }
 
     private User resolveTargetUser(User currentUser, String userId) {
-        if (userId == null || userId.equals(currentUser.getId())) {
+        if (userId == null || Objects.equals(currentUser.getId(), userId)) {
             return currentUser;
         }
 
-        User targetUser = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 차단 및 탈퇴 상태 체크
-        checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
+        List<FriendRelation> relations = activityRecordUtil.getRelations(currentUser.getId(), targetUser.getId());
+        activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 
         return targetUser;
     }
