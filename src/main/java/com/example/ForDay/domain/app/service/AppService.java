@@ -147,16 +147,16 @@ public class AppService {
 
     @Transactional(readOnly = true)
     public VersionPolicyResDto getPolicy(Platform platform, String appVersion, int build) {
-        // 1. 해당 플랫폼의 최신 정책 조회 (엔티티)
+        // 해당 플랫폼의 최신 정책 조회 (엔티티)
         AppVersion policy = appVersionRepository.findFirstByPlatformOrderByCreatedAtDesc(platform)
                 .orElseThrow(() -> new CustomException(ErrorCode.PLATFORM_NOT_FOUND));
 
-        // 2. 버전 비교를 위한 객체 생성
+        // 버전 비교를 위한 객체 생성
         AppVersionUtil current = AppVersionUtil.of(appVersion, build);
         AppVersionUtil minSupported = AppVersionUtil.of(policy.getMinSupportedVersion(), policy.getMinSupportedBuild());
         AppVersionUtil latest = AppVersionUtil.of(policy.getLatestVersion(), policy.getLatestBuild());
 
-        // 3. 우선순위에 따른 업데이트 타입 및 메시지 결정
+        // 우선순위에 따른 업데이트 타입 및 메시지 결정
         UpdateType updateType;
         String message;
 
@@ -174,7 +174,6 @@ public class AppService {
             message = "";
         }
 
-        // 4. DTO 변환 및 반환
         return new VersionPolicyResDto(
                 policy.getPolicyVersion(),
                 platform,

@@ -1,5 +1,7 @@
 package com.example.ForDay.domain.record.dto.response;
 
+import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -31,4 +33,18 @@ public class UpdateActivityRecordResDto {
 
     @Schema(description = "공개 범위", example = "FRIEND")
     private RecordVisibility visibility;
+
+    private static final String SUCCESS_MESSAGE = "활동 기록이 정상적으로 수정되었습니다.";
+
+    public static UpdateActivityRecordResDto of(Activity activity, ActivityRecord record) {
+        return new UpdateActivityRecordResDto(
+                SUCCESS_MESSAGE,
+                activity.getId(),
+                activity.getContent(),
+                record.getSticker(),
+                record.getMemo(),
+                record.getImageUrl(),
+                record.getVisibility()
+        );
+    }
 }

@@ -38,4 +38,12 @@ public class FriendRelation extends BaseTimeEntity {
     public void changeStatus(FriendRelationStatus friendRelationStatus) {
         this.relationStatus = friendRelationStatus;
     }
+
+    public static FriendRelation of(User requester, User target, FriendRelationStatus status) {
+        return FriendRelation.builder()
+                .requester(requester)
+                .targetUser(target)
+                .relationStatus(status)
+                .build();
+    }
 }

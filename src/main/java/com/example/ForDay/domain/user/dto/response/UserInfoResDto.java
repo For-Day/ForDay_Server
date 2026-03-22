@@ -1,5 +1,7 @@
 package com.example.ForDay.domain.user.dto.response;
 
+import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.infra.s3.util.S3Util;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,4 +20,12 @@ public class UserInfoResDto {
 
     @Schema(description = "총 수집한 스티커 개수", example = "42")
     private Integer totalCollectedStickerCount;
+
+    public static UserInfoResDto of(User user, int totalStickerCount, S3Util s3Util) {
+        return new UserInfoResDto(
+                s3Util.toProfileMainResizedUrl(user.getProfileImageUrl()),
+                user.getNickname(),
+                totalStickerCount
+        );
+    }
 }

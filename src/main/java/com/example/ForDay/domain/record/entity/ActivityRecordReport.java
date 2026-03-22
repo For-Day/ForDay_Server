@@ -34,4 +34,13 @@ public class ActivityRecordReport extends BaseTimeEntity {
     private ActivityRecord reportedRecord;
 
     private String reason;
+
+    public static ActivityRecordReport of(User reporter, User reportedUser, ActivityRecord reportedRecord, String reason) {
+        return ActivityRecordReport.builder()
+                .reporter(reporter)
+                .reportedUser(reportedUser)
+                .reportedRecord(reportedRecord)
+                .reason(reason)
+                .build();
+    }
 }

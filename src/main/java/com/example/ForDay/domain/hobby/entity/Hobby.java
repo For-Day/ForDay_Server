@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.entity;
 
 import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
+import com.example.ForDay.domain.hobby.dto.request.UpdateHobbyReqDto;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -14,7 +15,15 @@ import java.util.Objects;
 
 
 @Entity
-@Table(name = "user_hobbies")
+@Table(
+        name = "user_hobbies",
+        indexes = {
+                @Index(
+                        name = "idx_hobby_user_status_created",
+                        columnList = "user_id, status, created_at DESC"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -104,12 +113,12 @@ public class Hobby extends BaseTimeEntity {
         }
     }
 
-    public void updateHobby(Long hobbyInfoId, String hobbyName, String hobbyPurpose, Integer hobbyTimeMinutes, Integer executionCount, Integer goalDays) {
-        this.hobbyInfoId = hobbyInfoId;
-        this.hobbyName = hobbyName;
-        this.hobbyPurpose = hobbyPurpose;
-        this.hobbyTimeMinutes = hobbyTimeMinutes;
-        this.executionCount = executionCount;
+    public void updateHobby(UpdateHobbyReqDto reqDto, Integer goalDays) {
+        this.hobbyInfoId = reqDto.getHobbyInfoId();
+        this.hobbyName = reqDto.getHobbyName();
+        this.hobbyPurpose = reqDto.getHobbyPurpose();
+        this.hobbyTimeMinutes = reqDto.getHobbyTimeMinutes();
+        this.executionCount = reqDto.getExecutionCount();
         this.goalDays = goalDays;
     }
 

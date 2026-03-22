@@ -1,11 +1,17 @@
 package com.example.ForDay.domain.record.dto.response;
 
+import com.example.ForDay.domain.record.dto.ReactionSummary;
+import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
+import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.global.util.TimeUtil;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -30,6 +36,35 @@ public class GetRecordDetailResDtoV2 {
     private Long prevRecordId;
     private Long nextRecordId;
 
+    public static GetRecordDetailResDtoV2 of(RecordDetailQueryDto detail,
+            boolean isRecordOwner,
+            boolean scraped,
+            Long prevId,
+            Long nextId,
+            List<ReactionSummary> summaries,
+            String profileImageUrl) {
+        return GetRecordDetailResDtoV2.builder()
+                .hobbyId(detail.hobbyId())
+                .hobbyName(detail.hobbyName())
+                .activityId(detail.activityId())
+                .activityContent(detail.activityContent())
+                .activityRecordId(detail.recordId())
+                .imageUrl(detail.imageUrl())
+                .sticker(detail.sticker())
+                .createdAt(TimeUtil.formatLocalDateTime(detail.createdAt()))
+                .memo(detail.memo())
+                .recordOwner(isRecordOwner)
+                .scraped(scraped)
+                .userInfo(UserInfoDto.of(detail, profileImageUrl))
+                .visibility(detail.visibility())
+                .newReaction(NewReactionDto.of(summaries, isRecordOwner))
+                .userReaction(UserReactionDto.of(summaries, detail.writerId()))
+                .prevRecordId(prevId)
+                .nextRecordId(nextId)
+                .build();
+    }
+
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -39,6 +74,20 @@ public class GetRecordDetailResDtoV2 {
         private boolean newGreat;
         private boolean newAmazing;
         private boolean newFighting;
+
+        public static NewReactionDto of(List<ReactionSummary> summaries, boolean isOwner) {
+            if (!isOwner) return new NewReactionDto(false, false, false, false);
+            List<RecordReactionType> unreadTypes = summaries.stream()
+                    .filter(s -> !s.readWriter())
+                    .map(ReactionSummary::type)
+                    .toList();
+            return new NewReactionDto(
+                    unreadTypes.contains(RecordReactionType.AWESOME),
+                    unreadTypes.contains(RecordReactionType.GREAT),
+                    unreadTypes.contains(RecordReactionType.AMAZING),
+                    unreadTypes.contains(RecordReactionType.FIGHTING)
+            );
+        }
     }
 
     @Data
@@ -57,6 +106,19 @@ public class GetRecordDetailResDtoV2 {
 
         @Schema(description = "Fighting 리액션 클릭 여부", example = "true")
         private boolean pressedFighting;
+
+        public static UserReactionDto of(List<ReactionSummary> summaries, String userId) {
+            List<RecordReactionType> myTypes = summaries.stream()
+                    .filter(s -> s.reactedUserId().equals(userId))
+                    .map(ReactionSummary::type)
+                    .toList();
+            return new UserReactionDto(
+                    myTypes.contains(RecordReactionType.AWESOME),
+                    myTypes.contains(RecordReactionType.GREAT),
+                    myTypes.contains(RecordReactionType.AMAZING),
+                    myTypes.contains(RecordReactionType.FIGHTING)
+            );
+        }
     }
 
     @Data
@@ -67,5 +129,13 @@ public class GetRecordDetailResDtoV2 {
         private String userId;
         private String nickname;
         private String profileImageUrl;
+
+        public static UserInfoDto of(RecordDetailQueryDto detail, String profileImageUrl) {
+            return UserInfoDto.builder()
+                    .userId(detail.writerId())
+                    .nickname(detail.writerNickname())
+                    .profileImageUrl(profileImageUrl)
+                    .build();
+        }
     }
 }

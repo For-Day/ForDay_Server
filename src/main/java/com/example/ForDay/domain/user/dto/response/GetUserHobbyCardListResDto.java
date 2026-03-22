@@ -18,6 +18,17 @@ public class GetUserHobbyCardListResDto {
     private List<HobbyCardDto> hobbyCardList;
     private boolean hasNext;
 
+    public static GetUserHobbyCardListResDto of(List<HobbyCardDto> cardList, int size) {
+        boolean hasNext = cardList.size() > size;
+        if (hasNext) cardList.remove(size);
+
+        Long lastId = cardList.isEmpty()
+                ? null
+                : cardList.get(cardList.size() - 1).getHobbyCardId();
+
+        return new GetUserHobbyCardListResDto(lastId, cardList, hasNext);
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
