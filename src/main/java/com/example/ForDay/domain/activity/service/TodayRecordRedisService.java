@@ -1,5 +1,7 @@
 package com.example.ForDay.domain.activity.service;
 
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -39,5 +41,20 @@ public class TodayRecordRedisService {
     public void deleteTodayRecordKey(String userId, Long hobbyId) {
         String key = createRecordKey(userId, hobbyId);
         redisTemplate.delete(key);
+    }
+
+    public void validateNotRecordedToday(String userId, Long hobbyId) {
+        if (isRecordedToday(userId, hobbyId)) {
+            throw new CustomException(ErrorCode.ALREADY_RECORDED_TODAY);
+        }
+    }
+
+    public void markAsRecorded(String userId, Long hobbyId) {
+        String key = createRecordKey(userId, hobbyId);
+        setDataExpire(key, "recorded");
+    }
+
+    public boolean isRecordedToday(String userId, Long hobbyId) {
+        return hasKey(createRecordKey(userId, hobbyId));
     }
 }
