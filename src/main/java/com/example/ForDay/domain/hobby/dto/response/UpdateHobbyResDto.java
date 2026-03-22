@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
+import com.example.ForDay.domain.hobby.entity.Hobby;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,4 +16,16 @@ public class UpdateHobbyResDto {
     private Integer hobbyTimeMinutes;
     private Integer executionCount;
     private Integer goalDays;
+
+    public static UpdateHobbyResDto from(Hobby hobby) {
+        return new UpdateHobbyResDto(
+                hobby.getId(),
+                hobby.getHobbyInfoId(),
+                hobby.getHobbyName(),
+                hobby.getHobbyPurpose(),
+                hobby.getHobbyTimeMinutes(),
+                hobby.getExecutionCount(),
+                hobby.getGoalDays()
+        );
+    }
 }

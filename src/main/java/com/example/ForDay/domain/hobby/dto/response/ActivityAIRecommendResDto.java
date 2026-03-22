@@ -17,4 +17,19 @@ public class ActivityAIRecommendResDto {
     private int aiCallLimit;
     private String recommendedText;
     private List<ActivityDto> activities;
+
+    public static ActivityAIRecommendResDto of(
+            int currentCount,
+            int maxLimit,
+            String summary,
+            List<ActivityDto> activities) {
+
+        return ActivityAIRecommendResDto.builder()
+                .message("AI가 취미 활동을 추천했습니다.")
+                .aiCallCount(currentCount)
+                .aiCallLimit(maxLimit)
+                .recommendedText(summary)
+                .activities(activities)
+                .build();
+    }
 }

@@ -40,4 +40,34 @@ public class GetHomeHobbyInfoResDto {
         private String content;
         private boolean aiRecommended;
     }
+
+    public static GetHomeHobbyInfoResDto of(
+            GetHomeHobbyInfoResDto baseResponse,
+            String nickname,
+            String userSummaryText,
+            boolean isAiCallRemaining,
+            int remainingCount) {
+
+        return baseResponse.toBuilder()
+                .greetingMessage("반가워요, " + nickname + "님! 👋")
+                .userSummaryText(userSummaryText)
+                .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
+                .aiCallRemaining(isAiCallRemaining)
+                .aiCallRemainingCount(remainingCount)
+                .nickname(nickname)
+                .build();
+    }
+
+    public static GetHomeHobbyInfoResDto ofDefault(String nickname) {
+        return new GetHomeHobbyInfoResDto(
+                List.of(),
+                null,
+                "반가워요, " + nickname + "님! 👋",
+                "",
+                "포데이 AI가 알맞은 취미활동을 추천해드려요",
+                false,
+                0,
+                null
+        );
+    }
 }

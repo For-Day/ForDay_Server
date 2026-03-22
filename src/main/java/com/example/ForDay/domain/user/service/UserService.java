@@ -173,20 +173,6 @@ public class UserService {
         );
     }
 
-    private User resolveTargetUser(User currentUser, String userId) {
-        if (userId == null || userId.equals(currentUser.getId())) {
-            return currentUser;
-        }
-
-        User targetUser = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        // 차단 및 탈퇴 상태 체크
-        checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
-
-        return targetUser;
-    }
-
     @Transactional(readOnly = true)
     public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -407,5 +393,19 @@ public class UserService {
         hobbyList.stream()
                 .filter(dto -> StringUtils.hasText(dto.getThumbnailImageUrl()))
                 .forEach(dto -> dto.setThumbnailImageUrl(s3Util.toCoverMainResizedUrl(dto.getThumbnailImageUrl())));
+    }
+
+    private User resolveTargetUser(User currentUser, String userId) {
+        if (userId == null || userId.equals(currentUser.getId())) {
+            return currentUser;
+        }
+
+        User targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 차단 및 탈퇴 상태 체크
+        checkBlockedAndDeletedUser(currentUser.getId(), targetUser.getId(), targetUser.isDeleted());
+
+        return targetUser;
     }
 }
