@@ -9,6 +9,8 @@ import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
+import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
 import com.example.ForDay.domain.record.dto.*;
 import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
@@ -16,10 +18,10 @@ import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.entity.ActivityRecordReport;
 import com.example.ForDay.domain.record.entity.ActivityRecordScrap;
-import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
@@ -39,6 +41,7 @@ import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -71,6 +74,8 @@ public class ActivityRecordService {
     private final TodayRecordRedisService todayRecordRedisService;
     private final RedisReactionService redisReactionService;
     private final UserRepository userRepository;
+    private final ActivityRecordReactionCountRepository recordReactionCountRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -158,7 +163,7 @@ public class ActivityRecordService {
         // 동일 유저의 동일 타입 리액션 중복 여부 체크
         validateDuplicateReaction(recordId, currentUser.getId(), type);
         // 리액션 엔티티 생성 및 저장
-        saveReaction(recordId, currentUser.getId(), type);
+        saveReactionAndUpdateReactionCount(recordId, currentUser.getId(), type);
         // 리액션 증가에 따른 랭킹 점수 업데이트 (Redis)
         updateRanking(record.getRecordId());
         // 최종 응답 반환
@@ -187,10 +192,17 @@ public class ActivityRecordService {
     @Transactional
     public CancelReactToRecordResDto cancelReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
         String userId = user.getUserId();
+
         int deletedCount = recordReactionRepository.deleteByRecordIdAndUserIdAndType(recordId, userId, type);
         if (deletedCount == 0) {
             throw new CustomException(ErrorCode.REACTION_NOT_FOUND);
         }
+
+        recordReactionCountRepository.decreaseCount(recordId, type.name());
+
+        String key = "reaction:done:" + recordId + ":" + userId;
+        redisTemplate.opsForSet().remove(key, type.name());
+
 
         // Redis 점수 차감
         redisReactionService.decrementRankingScore(recordId);
@@ -652,7 +664,7 @@ public class ActivityRecordService {
         }
     }
 
-    private void saveReaction(Long recordId, String userId, RecordReactionType type) {
+    private void saveReactionAndUpdateReactionCount(Long recordId, String userId, RecordReactionType type) {
 
         ActivityRecordReaction reaction = ActivityRecordReaction.builder()
                 .activityRecord(activityRecordRepository.getReferenceById(recordId))
@@ -662,6 +674,15 @@ public class ActivityRecordService {
                 .build();
 
         recordReactionRepository.save(reaction);
+
+        // 반응 수 증가
+        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
+        if (result == 0) {
+            // update 되는 레코드가 없다는 것은 아직 해당 기록에 반응이 없다는 것이므로 초기화 해야 한다.
+            recordReactionCountRepository.save(
+                    ActivityRecordReactionCount.init(recordId, type)
+            );
+        }
     }
 
     private void updateRanking(Long recordId) {

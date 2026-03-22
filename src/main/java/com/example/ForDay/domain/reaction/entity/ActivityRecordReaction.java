@@ -1,5 +1,6 @@
-package com.example.ForDay.domain.record.entity;
+package com.example.ForDay.domain.reaction.entity;
 
+import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
@@ -10,7 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "activity_record_reactions")
+@Table(
+        name = "activity_record_reactions",
+        indexes = {
+                @Index(name = "idx_reaction_record_type", columnList = "activity_record_id, reactionType")
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

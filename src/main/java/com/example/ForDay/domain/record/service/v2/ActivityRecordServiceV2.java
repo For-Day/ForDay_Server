@@ -1,18 +1,25 @@
 package com.example.ForDay.domain.record.service.v2;
 
+import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
+import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
+import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
-import com.example.ForDay.domain.record.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -21,6 +28,7 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +45,10 @@ public class ActivityRecordServiceV2 {
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
+    private final RedisReactionService redisReactionService;
+    private final RedisTemplate<String, String> redisTemplate;
 
+    // 위, 아래 스와이프 적용 버전
     @Transactional(readOnly = true)
     public GetRecordDetailResDtoV2 getRecordDetailV2(Long recordId, RecordSearchConditionReqDto condition, CustomUserDetails user, List<Long> hobbyIds) {
         validateCondition(condition, hobbyIds);
@@ -69,6 +80,24 @@ public class ActivityRecordServiceV2 {
         Long nextId = activityRecordRepository.findNextRecordId(recordId, detail.createdAt(), condition, currentUserId, hobbyIds);
 
         return buildGetRecordDetailResDtoV2(detail, isRecordOwner, newReaction, userReaction, scraped, prevId, nextId);
+    }
+
+    // 반응 생성 처리를 redis queue를 사용하여 처리
+    @Transactional
+    public ReactToRecordResDto reactToRecordWithRedis(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ReportActivityRecordDto record = getValidRecord(recordId);
+        validateAccess(record, currentUser);
+        validateDuplicateReactionWithRedis(recordId, currentUser.getId(), reactionType);
+
+        // DB 저장 대신 Redis Queue에 push
+        String value = recordId + ":" + currentUser.getId() + ":" + reactionType.name();
+        redisTemplate.opsForList().rightPush("reaction_queue", value);
+
+        // 랭킹 점수는 즉시 반영
+        updateRanking(recordId);
+
+        return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", reactionType, recordId);
     }
 
     private GetRecordDetailResDtoV2 buildGetRecordDetailResDtoV2(
@@ -161,5 +190,91 @@ public class ActivityRecordServiceV2 {
         }
         // 타겟유저가 탈퇴한 회원인 경우
         if (deleted) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+    }
+
+    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, String me, String target, boolean deleted) {
+        // 리스트에서 차단(BLOCK)이 하나라도 있는지 확인
+        boolean isBlocked = relations.stream()
+                .anyMatch(f -> f.getRelationStatus() == FriendRelationStatus.BLOCK);
+
+        if (isBlocked || deleted) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+    }
+
+
+    private ReportActivityRecordDto getValidRecord(Long recordId) {
+        ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+
+        if (record.isRecordDeleted()) {
+            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
+        }
+
+        return record;
+    }
+
+    private void validateAccess(ReportActivityRecordDto record, User user) {
+        String currentUserId = user.getId();
+
+        if(!Objects.equals(currentUserId, record.getWriterId())) {
+            List<FriendRelation> relations =
+                    friendRelationRepository.findAllRelationsBetween(currentUserId, record.getWriterId());
+
+            checkBlockedAndDeletedUser(
+                    relations,
+                    currentUserId,
+                    record.getWriterId(),
+                    record.isWriterDeleted()
+            );
+
+            validateRecordAuthority(
+                    relations,
+                    record.getVisibility(),
+                    record.getWriterId(),
+                    currentUserId
+            );
+        }
+    }
+
+
+    private void validateRecordAuthority(List<FriendRelation> relations, RecordVisibility visibility, String writerId, String me) {
+        if (writerId.equals(me)) return;
+
+        if (visibility == RecordVisibility.FRIEND) {
+            boolean isFollowing = relations.stream()
+                    .anyMatch(f -> f.getRequester().getId().equals(me) &&
+                            f.getTargetUser().getId().equals(writerId) &&
+                            f.getRelationStatus() == FriendRelationStatus.FOLLOW);
+
+            if (!isFollowing) throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
+        } else if (visibility == RecordVisibility.PRIVATE) {
+            throw new CustomException(ErrorCode.PRIVATE_RECORD);
+        }
+    }
+
+    private void updateRanking(Long recordId) {
+        redisReactionService.incrementRankingScore(recordId);
+    }
+
+    private void validateDuplicateReaction(Long recordId, String userId, RecordReactionType type) {
+
+        boolean exists = recordReactionRepository
+                .existsByRecordIdAndUserIdAndType(recordId, userId, type);
+
+        if (exists) {
+            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
+        }
+    }
+
+    private void validateDuplicateReactionWithRedis(Long recordId, String userId, RecordReactionType type) {
+        String key = "reaction:done:" + recordId + ":" + userId;
+
+        // Set에 추가 시도 → 이미 있으면 0 반환 (중복)
+        Boolean added = redisTemplate.opsForSet().add(key, type.name()) == 1L;
+
+        if (!added) {
+            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
+        }
     }
 }
