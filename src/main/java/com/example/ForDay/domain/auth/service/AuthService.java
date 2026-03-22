@@ -63,9 +63,8 @@ public class AuthService {
 
         LoginInternalResult result = processCommonLogin(user, SocialType.KAKAO);
 
-        return new LoginResDto(result.accessToken(), result.refreshToken(), isNewUser,
-                SocialType.KAKAO, result.onboardingCompleted(),
-                result.isNicknameSet(), result.onboardingData(), user.getNickname());}
+        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO);
+    }
 
     @Transactional
     public LoginResDto appleLogin(AppleLoginReqDto reqDto) {
@@ -93,16 +92,7 @@ public class AuthService {
 
         LoginInternalResult result = processCommonLogin(user, SocialType.APPLE);
 
-        return new LoginResDto(
-                result.accessToken(),
-                result.refreshToken(),
-                isNewUser,
-                SocialType.APPLE,
-                result.onboardingCompleted(),
-                result.isNicknameSet(),
-                result.onboardingData(),
-                user.getNickname()
-        );
+        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE);
     }
 
     @Transactional
@@ -142,10 +132,7 @@ public class AuthService {
 
         LoginInternalResult result = processCommonLogin(user, SocialType.GUEST);
 
-        return new GuestLoginResDto(result.accessToken(), result.refreshToken(), isNewUser,
-                SocialType.GUEST, user.getSocialId(),
-                result.onboardingCompleted(), result.isNicknameSet(),
-                result.onboardingData(), user.getNickname());
+        return GuestLoginResDto.of(result, user, isNewUser);
     }
 
     @Transactional
@@ -320,11 +307,9 @@ public class AuthService {
         refreshTokenService.save(socialId, refreshToken);
 
         // 온보딩 상태 조회
-        boolean isNicknameSet = hasNickname(user);
-        boolean onboardingCompleted = user.isOnboardingCompleted();
-        OnboardingDataDto dataDto = getOnboardingData(user, isNicknameSet, onboardingCompleted);
+        OnboardingDataDto dataDto = getOnboardingData(user, user.isNicknameSet(), user.isOnboardingCompleted());
 
-        return new LoginInternalResult(accessToken, refreshToken, onboardingCompleted, isNicknameSet, dataDto);
+        return new LoginInternalResult(accessToken, refreshToken, user.isOnboardingCompleted(), user.isNicknameSet(), dataDto);
     }
 
 }

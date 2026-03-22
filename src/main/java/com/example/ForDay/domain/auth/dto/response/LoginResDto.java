@@ -1,5 +1,7 @@
 package com.example.ForDay.domain.auth.dto.response;
 
+import com.example.ForDay.domain.auth.dto.LoginInternalResult;
+import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.SocialType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -32,4 +34,17 @@ public class LoginResDto {
     private OnboardingDataDto onboardingData;
 
     private String nickname;
+
+    public static LoginResDto of(LoginInternalResult result, User user, boolean isNewUser, SocialType socialType) {
+        return new LoginResDto(
+                result.accessToken(),
+                result.refreshToken(),
+                isNewUser,
+                socialType,
+                result.onboardingCompleted(),
+                result.isNicknameSet(),
+                result.onboardingData(),
+                user.getNickname()
+        );
+    }
 }
