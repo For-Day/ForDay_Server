@@ -1,10 +1,13 @@
 package com.example.ForDay.domain.record.controller.v2;
 
 import com.example.ForDay.domain.reaction.service.RecordReactionService;
+import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
+import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
+import com.example.ForDay.domain.record.service.v1.ActivityRecordService;
 import com.example.ForDay.domain.record.service.v2.ActivityRecordServiceV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -48,5 +51,12 @@ public class ActivityRecordControllerV2 {
                                                 @AuthenticationPrincipal CustomUserDetails user
     ) {
         return recordReactionService.getReactionTabScroll(recordId, type, lastReactionId, size, user);
+    }
+
+    @PostMapping("/{recordId}/reaction")
+    public ReactToRecordResDto reactToRecord(@PathVariable(name = "recordId") Long recordId,
+                                             @RequestBody ReactToRecordReqDto reqDto,
+                                             @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordServiceV2.reactToRecordWithRedis(recordId, reqDto.getReactionType(), user);
     }
 }

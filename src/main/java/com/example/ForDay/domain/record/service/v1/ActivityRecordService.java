@@ -41,6 +41,7 @@ import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -74,6 +75,7 @@ public class ActivityRecordService {
     private final RedisReactionService redisReactionService;
     private final UserRepository userRepository;
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -197,6 +199,11 @@ public class ActivityRecordService {
         }
 
         recordReactionCountRepository.decreaseCount(recordId, type.name());
+
+        String key = "reaction:done:" + recordId + ":" + userId;
+        redisTemplate.opsForSet().remove(key, type.name());
+
+
         // Redis 점수 차감
         redisReactionService.decrementRankingScore(recordId);
 
