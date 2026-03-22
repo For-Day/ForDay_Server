@@ -14,7 +14,7 @@ public class HobbyAiInsightService {
     private final AiCallCountService aiCallCountService;
     private final UserSummaryAIService aiSummaryService; // determineAiSummary 이동
 
-    @Value("${ai.call.max-limit}")
+    @Value("${ai.max-call-limit}")
     private int maxCallLimit;
 
     public AiInsightResult resolveInsight(User user, Hobby hobby) {
