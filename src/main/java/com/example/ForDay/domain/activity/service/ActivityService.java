@@ -28,6 +28,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
@@ -54,21 +55,17 @@ public class ActivityService {
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final HobbyCardRepository hobbyCardRepository;
-    private final HobbyRepository hobbyRepository;
     private final FriendRelationRepository friendRelationRepository;
     private final RestTemplate restTemplate;
     private final ActivityRecommendItemRepository recommendItemRepository;
     private final UserSummaryAIService userSummaryAIService;
+    private final HobbyUtil hobbyUtil;
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
 
     @Transactional
-    public RecordActivityResDto recordActivity(
-            Long activityId,
-            RecordActivityReqDto reqDto,
-            CustomUserDetails user
-    ) {
+    public RecordActivityResDto recordActivity(Long activityId, RecordActivityReqDto reqDto, CustomUserDetails user) {
 
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[RecordActivity] 시작 - UserId: {}, ActivityId: {}", currentUser.getId(), activityId);
@@ -222,11 +219,7 @@ public class ActivityService {
         log.info("[Activity Collect] 시작 - 사용자: {}, 취미ID: {}, 활동ID: {}",
                 currentUser.getId(), hobbyId, activityId);
 
-        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
-                .orElseThrow(() -> {
-                    log.warn("[Activity Collect] 실패 - 취미를 찾을 수 없음. 취미ID: {}, 사용자ID: {}", hobbyId, currentUser.getId());
-                    return new CustomException(ErrorCode.HOBBY_NOT_FOUND);
-                });
+        Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
 
         ActivityRecordCollectInfo originActivity = activityRepository.getCollectActivityInfo(activityId)
                 .orElseThrow(() -> {
@@ -258,8 +251,7 @@ public class ActivityService {
         log.info("[AI Recommend] 아이템 조회 시작 - HobbyId: {}, Type: {}", hobbyId, type);
 
         // 취미 조회 및 검증
-        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
 
         // 오늘 생성된 추천 아이템 조회
         List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(
