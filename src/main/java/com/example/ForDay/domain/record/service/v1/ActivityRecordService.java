@@ -91,12 +91,12 @@ public class ActivityRecordService {
         if (detail.recordDeleted()) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
-        boolean isRecordOwner = isRecordOwner(currentUserId, detail);
+        boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, detail.writerId());
         log.info("[getRecordDetail] 권한 확인 - WriterId: {}, IsOwner: {}", detail.writerId(), isRecordOwner);
 
         if (!isRecordOwner) {
             log.debug("[getRecordDetail] 비소유자 접근 - 공개 범위 검증 시작 (Visibility: {})", detail.visibility());
-            validateAccess(currentUserId, detail.writerId(), detail.writerDeleted(), detail.visibility());
+            activityRecordUtil.validateAccess(currentUserId, detail.writerId(), detail.writerDeleted(), detail.visibility());
         }
 
         List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
@@ -122,9 +122,9 @@ public class ActivityRecordService {
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
 
-        validateAccess(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted(), recordDetail.visibility());
+        activityRecordUtil.validateAccess(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted(), recordDetail.visibility());
 
-        boolean isRecordOwner = isRecordOwner(currentUserId, recordDetail);
+        boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, recordDetail.writerId());
         // 리포지토리에서 DTO(ReactionUserInfo)로 직접 조회하여 N+1 및 오버페칭 방지
         List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers = recordReactionRepository.findReactionUsersDtoByType(recordId, type, lastUserId, size, isRecordOwner);
 
@@ -142,10 +142,10 @@ public class ActivityRecordService {
         // 현재 로그인한 사용자 조회
         User currentUser = userUtil.getCurrentUser(user);
         // 기록 조회 + 삭제 여부 검증
-        ReportActivityRecordDto record = getValidRecord(recordId);
+        ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
 
         // 차단 여부, 친구 관계, 공개 범위 등 접근 권한 검증
-        validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
+        activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
 
         // 동일 유저의 동일 타입 리액션 중복 여부 체크
         validateDuplicateReaction(recordId, currentUser.getId(), type);
@@ -322,10 +322,6 @@ public class ActivityRecordService {
         return activityRecord.getCreatedAt().toLocalDate().equals(LocalDate.now());
     }
 
-    private static boolean isRecordOwner(String currentUserId, RecordDetailQueryDto recordDetail) {
-        return Objects.equals(currentUserId, recordDetail.writerId());
-    }
-
     private void saveRecentKeywordIfPresent(String userId, String keyword) {
         if (Strings.hasText(keyword)) {
             recentRedisService.createRecentKeyword(userId, keyword);
@@ -352,35 +348,6 @@ public class ActivityRecordService {
     private void verifyRecordOwner(ActivityRecord record, User user) {
         if (!Objects.equals(record.getUser(), user)) {
             throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
-        }
-    }
-
-    private List<FriendRelation> getRelations(String currentUserId, String targetUserId) {
-        return friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
-    }
-
-    private void validateRecordAuthority(List<FriendRelation> relations,
-                                         RecordVisibility visibility, String writerId, String me) {
-        if (writerId.equals(me)) return;
-
-        switch (visibility) {
-            case FRIEND -> {
-                boolean isFollowing = relations.stream()
-                        .anyMatch(f -> f.getRequester().getId().equals(me)
-                                && f.getTargetUser().getId().equals(writerId)
-                                && f.getRelationStatus() == FriendRelationStatus.FOLLOW);
-                if (!isFollowing) throw new CustomException(ErrorCode.FRIEND_ONLY_ACCESS);
-            }
-            case PRIVATE -> throw new CustomException(ErrorCode.PRIVATE_RECORD);
-            default -> {} // PUBLIC
-        }
-    }
-
-    private void checkBlockedAndDeletedUser(List<FriendRelation> relations, boolean deleted) {
-        boolean isBlocked = relations.stream()
-                .anyMatch(f -> f.getRelationStatus() == FriendRelationStatus.BLOCK);
-        if (isBlocked || deleted) {
-            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }
     }
 
@@ -426,17 +393,6 @@ public class ActivityRecordService {
         });
     }
 
-    private ReportActivityRecordDto getValidRecord(Long recordId) {
-        ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        if (record.isRecordDeleted()) {
-            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
-        }
-
-        return record;
-    }
-
     private void validateDuplicateReaction(Long recordId, String userId, RecordReactionType type) {
         if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordId, userId, type)) {
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
@@ -447,7 +403,7 @@ public class ActivityRecordService {
         ActivityRecordWithUserDto record = activityRecordRepository.getActivityRecordWithUser(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        validateAccess(user.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
+        activityRecordUtil.validateAccess(user.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
 
         return record;
     }
@@ -475,7 +431,7 @@ public class ActivityRecordService {
         ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        validateAccess(user.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
+        activityRecordUtil.validateAccess(user.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
         return record;
     }
 
@@ -501,11 +457,5 @@ public class ActivityRecordService {
                 }
             }
         });
-    }
-
-    private void validateAccess(String currentUserId, String writerId, boolean writerDeleted, RecordVisibility visibility) {
-        List<FriendRelation> relations = getRelations(currentUserId, writerId);
-        checkBlockedAndDeletedUser(relations, writerDeleted);
-        validateRecordAuthority(relations, visibility, writerId, currentUserId);
     }
 }
