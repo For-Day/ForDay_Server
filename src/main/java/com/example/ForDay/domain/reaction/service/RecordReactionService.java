@@ -11,6 +11,7 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class RecordReactionService {
-    private final ActivityRecordRepository activityRecordRepository;
+    private final ActivityRecordUtil activityRecordUtil;
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final ActivityRecordReactionCountRepository activityRecordReactionCountRepository;
     private final UserUtil userUtil;
@@ -31,7 +32,7 @@ public class RecordReactionService {
     @Transactional(readOnly = true)
     public ReactionSummaryResDto getReactionSummary(Long recordId, int size, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        ActivityRecord record = getRecord(recordId); // 조회하고자하는 기록 엔티티 조회
+        ActivityRecord record = activityRecordUtil.getRecord(recordId); // 조회하고자하는 기록 엔티티 조회
 
         // 감정 갯수 요약 조회 (무한 스크롤 상관없이 전체 조회해야함) -> 이걸 별도의 ReactionCount 테이블 만들어서 관리 그래서 반응 남길 때 lock 거는 로직 필요
         ReactionSummaryResDto.ReactionCountDto reactionCountDto = getReactionCountSummary(record.getId());
@@ -46,11 +47,9 @@ public class RecordReactionService {
     @Transactional(readOnly = true)
     public ReactionTabScrollResDto getReactionTabScroll(Long recordId, RecordReactionType type, Long lastReactionId, int size, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        ActivityRecord record = getRecord(recordId);
+        ActivityRecord record = activityRecordUtil.getRecord(recordId);
 
-        return activityRecordReactionRepository.getReactionTabScroll(
-                record.getId(), type, lastReactionId, size, currentUser.getId()
-        );
+        return activityRecordReactionRepository.getReactionTabScroll(record.getId(), type, lastReactionId, size, currentUser.getId());
     }
 
     private void processReactionProfileUrls(Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs) {
@@ -70,10 +69,5 @@ public class RecordReactionService {
         return activityRecordReactionCountRepository.findById(recordId)
                 .map(ReactionSummaryResDto::from)
                 .orElseGet(ReactionSummaryResDto::empty);
-    }
-
-    private ActivityRecord getRecord(Long recordId) {
-        return activityRecordRepository.findById(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
     }
 }
