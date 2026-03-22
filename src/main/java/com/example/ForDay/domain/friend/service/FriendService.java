@@ -35,7 +35,7 @@ public class FriendService {
         User currentUser = userUtil.getCurrentUser(userDetails);
         User targetUser = findTargetUser(reqDto.getUserId());
 
-        if (currentUser.getId().equals(targetUser.getId())) {
+        if (validateBySelf(currentUser, targetUser)) {
             throw new CustomException(ErrorCode.CANNOT_FOLLOW_SELF);
         }
 
@@ -59,7 +59,7 @@ public class FriendService {
             }
             myRelation.changeStatus(FriendRelationStatus.FOLLOW);
         } else {
-            saveRelation(currentUser, targetUser, FriendRelationStatus.FOLLOW);
+            friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
 
         return new AddFriendResDto("성공적으로 친구 맺기가 되었습니다.", targetUser.getNickname());
@@ -84,7 +84,7 @@ public class FriendService {
         User currentUser = userUtil.getCurrentUser(userDetails);
         User targetUser = findTargetUser(reqDto.getUserId());
 
-        if (currentUser.getId().equals(targetUser.getId())) {
+        if (validateBySelf(currentUser, targetUser)) {
             throw new CustomException(ErrorCode.CANNOT_BLOCK_SELF);
         }
 
@@ -100,7 +100,7 @@ public class FriendService {
             }
             myRelation.changeStatus(FriendRelationStatus.BLOCK);
         } else {
-            saveRelation(currentUser, targetUser, FriendRelationStatus.BLOCK);
+            friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.BLOCK));
         }
 
         return new BlockFriendResDto(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
@@ -133,7 +133,7 @@ public class FriendService {
         User currentUser = userUtil.getCurrentUser(userDetails);
         User targetUser = findTargetUser(reqDto.getUserId());
 
-        if (currentUser.getId().equals(targetUser.getId())) {
+        if (validateBySelf(currentUser, targetUser)) {
             throw new CustomException(ErrorCode.CANNOT_REPORT_SELF);
         }
 
@@ -152,7 +152,7 @@ public class FriendService {
             }
             myRelation.changeStatus(FriendRelationStatus.REPORT);
         } else {
-            saveRelation(currentUser, targetUser, FriendRelationStatus.REPORT);
+            friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
 
         return new ReportFriendResDto("신고가 완료되었습니다.", targetUser.getNickname(), targetUser.getId());
@@ -176,11 +176,7 @@ public class FriendService {
         }
     }
 
-    private void saveRelation(User requester, User target, FriendRelationStatus status) {
-        friendRelationRepository.save(FriendRelation.builder()
-                .requester(requester)
-                .targetUser(target)
-                .relationStatus(status)
-                .build());
+    private static boolean validateBySelf(User currentUser, User targetUser) {
+        return currentUser.getId().equals(targetUser.getId());
     }
 }

@@ -512,10 +512,7 @@ public class HobbyService {
         }
 
         // 새 이미지 유효성 검증
-        String key = s3Service.extractKeyFromFileUrl(newUrl);
-        if (!s3Service.existsByKey(key)) {
-            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-        }
+        s3Util.validateS3Image(newUrl);
 
         // 기존 이미지 삭제(afterCommit)
         registerDeleteCoverAfterCommit(oldUrl);

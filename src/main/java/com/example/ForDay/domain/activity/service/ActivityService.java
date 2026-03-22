@@ -53,9 +53,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class ActivityService {
     private static final Integer STICKER_COMPLETE_COUNT = 66;
+
     private final UserUtil userUtil;
     private final ActivityRepository activityRepository;
-    private final S3Service s3Service;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final FriendRelationRepository friendRelationRepository;
@@ -97,11 +97,7 @@ public class ActivityService {
     }
 
     @Transactional
-    public RecordActivityResDto testRecordActivity(
-            Long activityId,
-            RecordActivityReqDto reqDto,
-            CustomUserDetails user
-    ) {
+    public RecordActivityResDto testRecordActivity(Long activityId, RecordActivityReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
         Activity activity = activityRepository.findByIdAndUserIdWithHobby(activityId, currentUser.getId())
