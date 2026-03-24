@@ -28,6 +28,8 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -111,12 +113,12 @@ public class AppService {
         keysToDelete.add(originalKey);
 
         try {
-            if (originalKey.contains("activity_record")) {
+            if (originalKey.contains(ACTIVITY_RECORD)) {
                 keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toFeedThumbResizedUrl(imageUrl)));
-            } else if (originalKey.contains("profile_image")) {
+            } else if (originalKey.contains(PROFILE_IMAGE)) {
                 keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileMainResizedUrl(imageUrl)));
                 keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileListResizedUrl(imageUrl)));
-            } else if (originalKey.contains("cover_image")) {
+            } else if (originalKey.contains(COVER_IMAGE)) {
                 keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toCoverMainResizedUrl(imageUrl)));
             } else {
                 log.warn("[deleteS3Image] 삭제 실패 - 알 수 없는 이미지 경로: {}", originalKey);

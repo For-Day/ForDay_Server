@@ -26,6 +26,7 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AIService;
+import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -84,7 +85,7 @@ public class ActivityService {
         currentUser.obtainSticker(); // 해당 유저가 모은 스티커 + 1
         activityRecordRepository.save(activityRecord);
 
-        log.info("[RecordActivity] 기록 저장 성공 - RecordId: {}, 현재 스티커 수: {}",activityRecord.getId(), hobby.getCurrentStickerNum());
+        log.info("[RecordActivity] 기록 저장 성공 - RecordId: {}, 현재 스티커 수: {}", activityRecord.getId(), hobby.getCurrentStickerNum());
 
         // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (hobby.isStickerFull()) {
@@ -93,7 +94,7 @@ public class ActivityService {
         }
         todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 표시
 
-        return RecordActivityResDto.of( hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
+        return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
     }
 
     @Transactional
@@ -119,7 +120,7 @@ public class ActivityService {
             createHobbyCard(hobby, currentUser);
         }
 
-        return RecordActivityResDto.of( hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
+        return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
     }
 
     @Transactional
@@ -134,7 +135,7 @@ public class ActivityService {
         String beforeContent = activity.getContent();
         activity.updateContent(reqDto.getContent());
 
-        log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'",activityId, currentUser.getId(), beforeContent, reqDto.getContent());
+        log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'", activityId, currentUser.getId(), beforeContent, reqDto.getContent());
         return new MessageResDto("활동이 정상적으로 수정되었습니다.");
     }
 
@@ -151,7 +152,7 @@ public class ActivityService {
         activity.getHobby().validateInProgress();
         activityRepository.delete(activity);
 
-        log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}",activityId, currentUser.getId());
+        log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}", activityId, currentUser.getId());
         return new MessageResDto("활동이 삭제되었어요.");
     }
 
@@ -188,32 +189,17 @@ public class ActivityService {
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
 
         // 오늘 생성된 추천 아이템 조회
-        List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(
-                hobby.getId(),
-                LocalDate.now().atStartOfDay(),
-                LocalDate.now().atTime(LocalTime.MAX),
-                type
-        );
+        List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(hobby.getId(), LocalDate.now().atStartOfDay(), LocalDate.now().atTime(LocalTime.MAX), type);
 
         if (items.isEmpty()) {
             return new GetAiRecommendItemsResDto();
         }
 
         // 사용자 요약 문구 생성
-        String userSummaryText = determineUserSummary(currentUser, hobby);
+        String userSummaryText = AiMessageConstants.formatPreviousRecommendation(userSummaryAIService.determine(currentUser, hobby));
 
         // DTO 변환 및 반환
         return GetAiRecommendItemsResDto.of(hobby, items, userSummaryText);
-    }
-
-    private String determineUserSummary(User user, Hobby hobby) {
-        String summary = userSummaryAIService.determine(user, hobby);
-
-        if (summary.isEmpty()) {
-            return "이전에 추천 받은 활동들이에요.";
-        }
-
-        return summary + " 이전에 추천 받은 활동들이에요.";
     }
 
     private void createHobbyCard(Hobby hobby, User currentUser) {

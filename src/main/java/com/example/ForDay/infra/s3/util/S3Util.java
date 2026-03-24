@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -15,31 +17,31 @@ public class S3Util {
     private final S3Service s3Service;
 
     public String toProfileMainResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+        if (originalUrl == null || !originalUrl.contains(TEMP_DIR)) {
             return originalUrl;
         }
-        return originalUrl.replace("/temp/", "/resized/main/");
+        return originalUrl.replace(TEMP_DIR, PROFILE_MAIN_DIR);
     }
 
     public String toProfileListResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+        if (originalUrl == null || !originalUrl.contains(TEMP_DIR)) {
             return originalUrl;
         }
-        return originalUrl.replace("/temp/", "/resized/list/");
+        return originalUrl.replace(TEMP_DIR, PROFILE_LIST_DIR);
     }
 
     public String toFeedThumbResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+        if (originalUrl == null || !originalUrl.contains(TEMP_DIR)) {
             return originalUrl;
         }
-        return originalUrl.replace("/temp/", "/resized/thumb/");
+        return originalUrl.replace(TEMP_DIR, FEED_THUMB_DIR);
     }
 
     public String toCoverMainResizedUrl(String originalUrl) {
-        if (originalUrl == null || !originalUrl.contains("/temp/")) {
+        if (originalUrl == null || !originalUrl.contains(TEMP_DIR)) {
             return originalUrl;
         }
-        return originalUrl.replace("/temp/", "/resized/thumb/");
+        return originalUrl.replace(TEMP_DIR, COVER_THUMB_DIR);
     }
 
     public void validateS3Image(String imageUrl) {

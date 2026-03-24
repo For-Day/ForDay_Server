@@ -40,7 +40,6 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class ActivityRecordServiceV2 {
-    private static final String REACTION_QUEUE_KEY = "reaction_queue";
     private static final String REACTION_QUEUE_VALUE_FORMAT = "%d:%s:%s";
 
     private final ActivityRecordRepository activityRecordRepository;

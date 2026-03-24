@@ -16,10 +16,12 @@ import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.hobby.type.StickerCover;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AIService;
+import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -39,6 +41,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 
 import java.util.*;
+
+import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
 
 @Slf4j
 @Service
@@ -103,7 +107,7 @@ public class HobbyService {
 
         try {
             FastAPIRecommendResDto response = aiService.requestActivityRecommendAI(currentUser, hobby);
-            String summary = buildUserSummary(currentUser, hobby);
+            String summary = AiMessageConstants.formatHobbySummary(userSummaryAIService.determine(currentUser, hobby));
             saveRecommendItems(hobby, response);
 
             return ActivityAIRecommendResDto.of(currentCount, maxCallLimit, summary, response.getActivities());
@@ -333,8 +337,7 @@ public class HobbyService {
 
         switch (targetStatus) {
             case IN_PROGRESS -> { // 보관 -> 진행
-                long inProgressCount =
-                        hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
+                long inProgressCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
                 if (inProgressCount >= 2) {
                     log.warn("[HobbyService] 진행 중 취미 개수 초과 - userId={}, count={}", currentUser.getId(), inProgressCount);
                     throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
@@ -559,36 +562,24 @@ public class HobbyService {
         if (StringUtils.hasText(recordImageUrl)) {
             String srcKey = s3Service.extractKeyFromFileUrl(recordImageUrl);
 
-            String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
-            String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
+            String newCoverKey = srcKey.replace(TEMP_ACTIVITY_PATH, TEMP_COVER_PATH);
+            String resizedCoverKey = newCoverKey.replace(TEMP_DIR, THUMB_DIR);
 
             s3Service.copyObject(srcKey, newCoverKey);
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("action", "SET_COVER");
-            payload.put("srcKey", newCoverKey);
-            payload.put("dstKey", resizedCoverKey);
-
-            invoker.invokeSync(payload);
-
+            requestSetCover(newCoverKey, resizedCoverKey);
             return s3Service.createFileUrl(newCoverKey);
         }
 
-        return defaultCoverUrlBySticker(record.getSticker());
+        return StickerCover.getUrlBySticker(record.getSticker());
     }
 
-    /**
-     * 기본 스티커 커버 선택
-     */
-    private String defaultCoverUrlBySticker(String sticker) {
-        String s = (sticker == null) ? "" : sticker;
+    private void requestSetCover(String newCoverKey, String resizedCoverKey) throws Exception {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("action", "SET_COVER");
+        payload.put("srcKey", newCoverKey);
+        payload.put("dstKey", resizedCoverKey);
 
-        if (s.contains("smile"))
-            return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/smile.png";
-        if (s.contains("sad")) return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/sad.png";
-        if (s.contains("laugh"))
-            return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/laugh.png";
-        return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/angry.png";
+        invoker.invokeSync(payload);
     }
 
     /**
@@ -634,15 +625,6 @@ public class HobbyService {
                 throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
             }
         }
-    }
-
-    private String buildUserSummary(User user, Hobby hobby) {
-        String summary = userSummaryAIService.determine(user, hobby);
-
-        if (summary.isEmpty()) {
-            return "포데이 AI가 알맞은 취미 활동을 추천드려요";
-        }
-        return summary + " 포데이 AI가 알맞은 취미 활동을 추천드려요";
     }
 
     private void saveRecommendItems(Hobby hobby, FastAPIRecommendResDto response) {

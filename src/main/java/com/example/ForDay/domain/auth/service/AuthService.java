@@ -290,10 +290,6 @@ public class AuthService {
         return null;
     }
 
-    private static boolean hasNickname(User user) {
-        return StringUtils.hasText(user.getNickname());
-    }
-
     private String createSocialId(SocialType type, String id) {
         return type.toString().toLowerCase() + "_" + id;
     }

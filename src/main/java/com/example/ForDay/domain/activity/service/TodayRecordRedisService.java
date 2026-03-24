@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class TodayRecordRedisService {
+    public static final String RECORD_KEY_PREFIX = "record";
+    public static final String RECORD_KEY_FORMAT = RECORD_KEY_PREFIX + ":%s:%s:%s";
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -29,7 +31,7 @@ public class TodayRecordRedisService {
     // "record:2024-05-20:user1:hobby5" 형식의 키 생성
     public String createRecordKey(String userId, Long hobbyId) {
         String today = LocalDate.now().toString();
-        return "record:" + today + ":" + userId + ":" + hobbyId;
+        return buildRecordKey(today, userId, hobbyId);
     }
 
     private long secondsUntilMidnight() {
@@ -56,5 +58,9 @@ public class TodayRecordRedisService {
 
     public boolean isRecordedToday(String userId, Long hobbyId) {
         return hasKey(createRecordKey(userId, hobbyId));
+    }
+
+    public static String buildRecordKey(String today, String userId, Long hobbyId) {
+        return String.format(RECORD_KEY_FORMAT, today, userId, hobbyId);
     }
 }

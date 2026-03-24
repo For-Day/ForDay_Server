@@ -63,7 +63,6 @@ public class ActivityRecordService {
 
     private final ActivityRecordRepository activityRecordRepository;
     private final UserUtil userUtil;
-    private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final S3Service s3Service;
     private final ActivityRecordUtil activityRecordUtil;
@@ -121,7 +120,6 @@ public class ActivityRecordService {
         }
 
         String currentUserId = userUtil.getCurrentUser(user).getId();
-
         activityRecordUtil.validateAccess(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted(), recordDetail.visibility());
 
         boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, recordDetail.writerId());
