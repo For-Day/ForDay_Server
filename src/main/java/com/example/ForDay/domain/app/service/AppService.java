@@ -69,31 +69,23 @@ public class AppService {
         return reqDto.getImages().stream()
                 .map(img -> {
                     // 이미지에 대한 key 값 생성
-                    String key = s3Service.generateKey(
-                            img.getUsage(),
-                            img.getOriginalFilename()
-                    );
+                    String key = s3Service.generateKey(img.getUsage(), img.getOriginalFilename());
 
                     // key값을 사용하여 s3에 presigned url 만들어달라고 s3에 요청
-                    GeneratePresignedUrlRequest request =
-                            s3Service.createPresignedPutRequest(
-                                    s3Properties.getBucket(),
-                                    key,
-                                    img.getContentType()
-                            );
+                    GeneratePresignedUrlRequest request = s3Service.createPresignedPutRequest(
+                            s3Properties.getBucket(),
+                            key,
+                            img.getContentType()
+                    );
 
-                    String uploadUrl =
-                            amazonS3.generatePresignedUrl(request).toString();
+                    String uploadUrl = amazonS3.generatePresignedUrl(request).toString();
 
                     // 실제 접근 가능한 이미지 url
                     String fileUrl = s3Service.createFileUrl(key);
 
                     log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}, Key: {}", img.getUsage(), key);
 
-                    return new GeneratePresignedUrlResDto(
-                            uploadUrl,
-                            fileUrl,
-                            img.getOrder()
+                    return GeneratePresignedUrlResDto.of(uploadUrl, fileUrl, img.getOrder()
                     );
                 })
                 .toList();
@@ -111,7 +103,6 @@ public class AppService {
         String originalKey = s3Service.extractKeyFromFileUrl(imageUrl);
         List<String> keysToDelete = new ArrayList<>();
         keysToDelete.add(originalKey);
-
         try {
             if (originalKey.contains(ACTIVITY_RECORD)) {
                 keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toFeedThumbResizedUrl(imageUrl)));

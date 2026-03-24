@@ -10,6 +10,8 @@ public class FileStorageConstants {
     public static final String COVER_IMAGE = "cover_image";
     public static final String HOBBY_CARD = "hobby_card";
 
+    public static final String TEST_PATH = "TEST_";
+
     /**
      * 임시 저장 및 특정 용도 경로 상수
      */
