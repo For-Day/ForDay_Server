@@ -7,12 +7,18 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.OTHER_HOBBY_MANNY_ACTIVITY_SUCCESS;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class OthersActivityRecommendResDto {
     private String message;
     private List<ActivityDto> activities;
+
+    public static  OthersActivityRecommendResDto of(List<ActivityDto> activities) {
+        return new OthersActivityRecommendResDto(OTHER_HOBBY_MANNY_ACTIVITY_SUCCESS, activities);
+    }
 
     @Data
     @AllArgsConstructor

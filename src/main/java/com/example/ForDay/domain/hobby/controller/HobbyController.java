@@ -51,7 +51,7 @@ public class HobbyController implements HobbyControllerDocs {
     public AddActivityResDto addActivity(@PathVariable(value = "hobbyId") Long hobbyId,
                                          @RequestBody @Valid AddActivityReqDto reqDto,
                                          @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.addActivity(hobbyId, reqDto, user);
+        return activityService.addActivity(hobbyId, reqDto, user);
     }
 
     @Override

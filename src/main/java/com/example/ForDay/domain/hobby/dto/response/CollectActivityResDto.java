@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.COLLECT_ACTIVITY_SUCCESS;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -16,15 +18,13 @@ public class CollectActivityResDto {
     private String content;
     private String message;
 
-    private static final String SUCCESS_MESSAGE = "활동담기를 완료했어요.";
-
     public static CollectActivityResDto of(Hobby hobby, Activity activity) {
         return new CollectActivityResDto(
                 hobby.getId(),
                 hobby.getHobbyName(),
                 activity.getId(),
                 activity.getContent(),
-                SUCCESS_MESSAGE
+                COLLECT_ACTIVITY_SUCCESS
         );
     }
 }

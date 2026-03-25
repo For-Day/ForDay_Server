@@ -41,7 +41,7 @@ public class RecordReactionService {
         Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs = activityRecordReactionRepository.getReactionSummary(recordId, size, currentUser.getId());
         processReactionProfileUrls(tabs);
 
-        return new ReactionSummaryResDto(record.getId(), reactionCountDto, tabs);
+        return ReactionSummaryResDto.of(record.getId(), reactionCountDto, tabs);
     }
 
     @Transactional(readOnly = true)

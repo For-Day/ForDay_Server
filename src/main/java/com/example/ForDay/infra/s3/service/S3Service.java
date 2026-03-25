@@ -71,11 +71,7 @@ public class S3Service {
                         .withMethod(HttpMethod.PUT)
                         .withExpiration(getExpiration()); // presignedUrl 유효시간 5분 설정
 
-        request.addRequestParameter(
-                Headers.CONTENT_TYPE,
-                contentType
-        );
-
+        request.addRequestParameter(Headers.CONTENT_TYPE,contentType);
         return request;
     }
 

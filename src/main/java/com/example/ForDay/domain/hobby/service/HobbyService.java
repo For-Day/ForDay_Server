@@ -43,6 +43,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
+import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.*;
 
 @Slf4j
 @Service
@@ -65,7 +66,6 @@ public class HobbyService {
     private final OtherActivityRepository otherActivityRepository;
     private final CoverLambdaInvoker invoker;
     private final S3Util s3Util;
-    private final ActivityBulkRepository activityBulkRepository;
     private final ActivityRecommendItemRepository activityRecommendItemRepository;
     private final HobbyAiInsightService hobbyAiInsightService;
     private final AIService aiService;
@@ -95,7 +95,7 @@ public class HobbyService {
             log.info("[ActivityCreate] User onboarding marked as completed: userId={}", currentUser.getId());
         }
 
-        return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", savedHobby.getId());
+        return ActivityCreateResDto.of(savedHobby.getId());
     }
 
     @Transactional
@@ -173,33 +173,7 @@ public class HobbyService {
                 .map(OthersActivityRecommendResDto.ActivityDto::from)
                 .toList();
 
-        return new OthersActivityRecommendResDto("다른 하비들이 많이 하는 활동 목록 조회에 성공하셨습니다.", list);
-    }
-
-    @Transactional
-    public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
-        Hobby hobby = hobbyUtil.getHobby(hobbyId);
-        User currentUser = userUtil.getCurrentUser(user);
-        hobbyUtil.verifyHobbyOwner(hobby, currentUser); // 취미 소유자인지 검증
-        hobby.validateInProgress(); // 현재 진행 중인 취미인지
-
-        log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}",
-                currentUser.getId(), hobbyId, reqDto.getActivities().size());
-
-        List<Activity> activities = reqDto.getActivities().stream()
-                .map(activity -> Activity.builder()
-                        .user(currentUser)
-                        .hobby(hobby)
-                        .content(activity.getContent())
-                        .aiRecommended(activity.isAiRecommended())
-                        .build()
-                )
-                .toList();
-
-        activityBulkRepository.bulkInsertActivities(activities);
-        log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
-
-        return new AddActivityResDto("취미 활동이 정상적으로 생성되었습니다.", activities.size());
+        return OthersActivityRecommendResDto.of(list);
     }
 
     @Transactional(readOnly = true)
@@ -241,7 +215,7 @@ public class HobbyService {
 
         log.info("[GetHomeHobbyInfo] Completion - UserId: {}, Hobby: {}, AI Success: {}", currentUser.getId(), targetHobby.getHobbyName(), !aiInsight.summaryText().isEmpty());
 
-        return GetHomeHobbyInfoResDto.of(response, currentUser.getNickname(), aiInsight.summaryText(), aiInsight.isCallRemaining(), aiInsight.remainingCallCount());
+        return GetHomeHobbyInfoResDto.of(response, currentUser.getNickname(), aiInsight);
     }
 
     @Transactional(readOnly = true)
@@ -278,7 +252,7 @@ public class HobbyService {
         hobby.updateHobbyTimeMinutes(dto.getMinutes());
 
         log.info("[HobbyService] 취미 시간 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, dto.getMinutes());
-        return new MessageResDto("취미 시간이 수정되었습니다.");
+        return new MessageResDto(UPDATE_HOBBY_TIME_SUCCESS);
     }
 
 
@@ -293,7 +267,7 @@ public class HobbyService {
         hobby.updateExecutionCount(dto.getExecutionCount());
 
         log.info("[HobbyService] 취미 실행 횟수 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, dto.getExecutionCount());
-        return new MessageResDto("실행 횟수가 수정되었습니다.");
+        return new MessageResDto(UPDATE_EXECUTION_COUNT_SUCCESS);
     }
 
     @Transactional
@@ -307,18 +281,13 @@ public class HobbyService {
 
         hobby.updateGoalDays(after);
         log.info("[HobbyService] 취미 목표 기간 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, after);
-        return new MessageResDto("목표 기간 설정이 수정되었습니다.");
+        return new MessageResDto(UPDATE_GOAL_DAYS_SUCCESS);
     }
 
     // 진행중 -> 보관, 보관 -> 진행중
     @Transactional
-    public MessageResDto updateHobbyStatus(
-            Long hobbyId,
-            UpdateHobbyStatusReqDto reqDto,
-            CustomUserDetails user
-    ) {
-        log.info("[HobbyService] 취미 상태 변경 요청 - hobbyId={}, targetStatus={}",
-                hobbyId, reqDto.getHobbyStatus());
+    public MessageResDto updateHobbyStatus(Long hobbyId, UpdateHobbyStatusReqDto reqDto, CustomUserDetails user) {
+        log.info("[HobbyService] 취미 상태 변경 요청 - hobbyId={}, targetStatus={}", hobbyId, reqDto.getHobbyStatus());
 
         Hobby hobby = hobbyUtil.getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
@@ -330,9 +299,8 @@ public class HobbyService {
 
         // 동일 상태 요청
         if (currentStatus == targetStatus) {
-            log.info("[HobbyService] 취미 상태 변경 요청 무시 (동일 상태) - hobbyId={}, status={}",
-                    hobbyId, currentStatus);
-            return new MessageResDto("이미 해당 상태입니다.");
+            log.info("[HobbyService] 취미 상태 변경 요청 무시 (동일 상태) - hobbyId={}, status={}", hobbyId, currentStatus);
+            return new MessageResDto(ALREADY_HOBBY_STATUS);
         }
 
         switch (targetStatus) {
@@ -379,7 +347,7 @@ public class HobbyService {
             default -> throw new CustomException(ErrorCode.INVALID_HOBBY_EXTENSION_TYPE);
 
         }
-        return new SetHobbyExtensionResDto(hobbyId, reqDto.getType(), "취미 기간 설정이 정상적으로 처리되었습니다.");
+        return SetHobbyExtensionResDto.of(hobbyId, reqDto.getType());
     }
 
     @Transactional(readOnly = true)
@@ -413,16 +381,16 @@ public class HobbyService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        return new SetHobbyCoverImageResDto("대표사진 설정 완료!", result.hobbyId(), result.recordId(), s3Util.toCoverMainResizedUrl(result.updatedCoverUrl()));
+        return SetHobbyCoverImageResDto.of(result, s3Util.toCoverMainResizedUrl(result.updatedCoverUrl()));
     }
 
     @Transactional(readOnly = true)
     public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         if (hobbyRepository.existsByHobbyNameAndUserId(name, currentUser.getId())) {
-            return new CanCreateHobbyResDto("이미 등록한 취미입니다.", false);
+            return CanCreateHobbyResDto.canNotCreate();
         }
-        return new CanCreateHobbyResDto("등록 가능한 취미입니다.", true);
+        return CanCreateHobbyResDto.canCreate();
     }
 
     @Transactional(readOnly = true)

@@ -10,4 +10,8 @@ import lombok.NoArgsConstructor;
 public class AddFriendResDto {
     private String message;
     private String nickname;
+
+    public static AddFriendResDto of(String message, String targetUserNickname) {
+        return new AddFriendResDto(message, targetUserNickname);
+    }
 }

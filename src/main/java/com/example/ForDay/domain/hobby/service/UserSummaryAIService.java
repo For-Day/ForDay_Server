@@ -20,13 +20,17 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class UserSummaryAIService {
 
+    public static final String AI_USER_SUMMARY_PREFIX = "ai:user:summary:text";
+    public static final String AI_USER_SUMMARY_FORMAT = AI_USER_SUMMARY_PREFIX + ":%s:%s";
+    public static final String AI_SUMMARY_PATH = "/ai/summary";
+
     private final RedisTemplate<String, Object> redisTemplate;
     private static final int TTL_DAYS = 7; // 7일 유지
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
-    private final RestTemplate restTemplate;
 
+    private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
 
     /**
@@ -60,14 +64,14 @@ public class UserSummaryAIService {
      * 키 생성 전략 (날짜 제외 -> 7일간 동일 키 유지)
      */
     private String generateKey(String userSocialId, Long hobbyId) {
-        return "ai:user:summary:text:" + userSocialId + ":" + hobbyId;
+        return String.format(AI_USER_SUMMARY_FORMAT, userSocialId, hobbyId);
     }
 
     public String fetchAndSaveUserSummary(String userId, String socialId, Long hobbyId, String hobbyName) {
         try {
             ActivitySummaryRequest requestDto = ActivitySummaryRequest.of(userId, hobbyId, hobbyName);
 
-            String fastapiUrl = fastApiBaseUrl + "/ai/summary";
+            String fastapiUrl = fastApiBaseUrl + AI_SUMMARY_PATH;
 
             ActivitySummaryResponse response = restTemplate.postForObject(fastapiUrl, requestDto, ActivitySummaryResponse.class);
 

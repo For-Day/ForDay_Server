@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import static com.example.ForDay.global.common.response.message.RecordSuccessMessage.DELETE_RECORD_SUCCESS;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -17,4 +19,12 @@ public class DeleteActivityRecordResDto {
 
     @Schema(description = "S3상에 삭제해야하는 이미지 URL")
     private String deleteImageUrl;
+
+    public static DeleteActivityRecordResDto of(Long recordId, String deleteImageUrl) {
+        return new DeleteActivityRecordResDto(
+                DELETE_RECORD_SUCCESS,
+                recordId,
+                deleteImageUrl
+        );
+    }
 }

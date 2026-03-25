@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
+import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -44,16 +45,14 @@ public class GetHomeHobbyInfoResDto {
     public static GetHomeHobbyInfoResDto of(
             GetHomeHobbyInfoResDto baseResponse,
             String nickname,
-            String userSummaryText,
-            boolean isAiCallRemaining,
-            int remainingCount) {
+            AiInsightResult aiInsightResult) {
 
         return baseResponse.toBuilder()
                 .greetingMessage("반가워요, " + nickname + "님! 👋")
-                .userSummaryText(userSummaryText)
+                .userSummaryText(aiInsightResult.summaryText())
                 .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
-                .aiCallRemaining(isAiCallRemaining)
-                .aiCallRemainingCount(remainingCount)
+                .aiCallRemaining(aiInsightResult.isCallRemaining())
+                .aiCallRemainingCount(aiInsightResult.remainingCallCount())
                 .nickname(nickname)
                 .build();
     }

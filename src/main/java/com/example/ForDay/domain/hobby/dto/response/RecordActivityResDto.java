@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.RECORD_ACTIVITY_SUCCESS;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -20,8 +22,6 @@ public class RecordActivityResDto {
     private String memo;
     private boolean extensionCheckRequired; // 취미 연장 여부 확인이 필요한지
 
-    private static final String SUCCESS_MESSAGE = "오늘의 활동 기록이 정상적으로 작성되었습니다";
-
     public static RecordActivityResDto of(
             Hobby hobby,
             ActivityRecord activityRecord,
@@ -29,7 +29,7 @@ public class RecordActivityResDto {
             String sticker,
             boolean extensionCheckRequired) {
         return new RecordActivityResDto(
-                SUCCESS_MESSAGE,
+                RECORD_ACTIVITY_SUCCESS,
                 hobby.getId(),
                 activityRecord.getId(),
                 activity.getContent(),

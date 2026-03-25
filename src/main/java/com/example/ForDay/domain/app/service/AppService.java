@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
+import static com.example.ForDay.global.common.response.message.AppSuccessMessage.DELETE_S3_IMAGE_SUCCESS;
 
 @Slf4j
 @Service
@@ -135,7 +136,7 @@ public class AppService {
         }
 
         log.info("[deleteS3Image] 모든 관련 이미지 삭제 완료 - Original Key: {}", originalKey);
-        return new MessageResDto("이미지가 성공적으로 삭제되었습니다.");
+        return new MessageResDto(DELETE_S3_IMAGE_SUCCESS);
     }
 
     @Transactional(readOnly = true)

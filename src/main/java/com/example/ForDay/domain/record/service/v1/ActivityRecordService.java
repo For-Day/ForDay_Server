@@ -158,12 +158,10 @@ public class ActivityRecordService {
             // update 되는 레코드가 없다는 것은 아직 해당 기록에 반응이 없다는 것이므로 초기화 해야 한다.
             recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
         }
-
-        // 리액션 증가에 따른 랭킹 점수 업데이트 (Redis)
+        // 리액션 증가에 따른 랭킹 점수 업데이트
         redisReactionService.incrementRankingScore(record.getRecordId());
 
-        // 최종 응답 반환
-        return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", type, recordId);
+        return ReactToRecordResDto.of(type, recordId);
     }
 
     @Transactional
@@ -175,11 +173,11 @@ public class ActivityRecordService {
         RecordVisibility next = reqDto.getVisibility();
 
         if (previous == next) {
-            return new UpdateRecordVisibilityResDto("이미 설정된 공개 범위입니다.", previous, next);
+            return UpdateRecordVisibilityResDto.alreadyVisibility(previous, next);
         }
 
         activityRecord.updateVisibility(next);
-        return new UpdateRecordVisibilityResDto("공개 범위가 정상적으로 변경되었습니다.", previous, next);
+        return UpdateRecordVisibilityResDto.updateVisibility(previous, next);
     }
 
     @Transactional
@@ -200,7 +198,7 @@ public class ActivityRecordService {
         redisReactionService.decrementRankingScore(recordId);
 
         log.info("[cancelReactToRecord] 리액션 취소 완료 - RecordId: {}, UserId: {}", recordId, userId);
-        return new CancelReactToRecordResDto("리액션이 정상적으로 취소되었습니다.", type, recordId);
+        return CancelReactToRecordResDto.of(type, recordId);
     }
 
     @Transactional
@@ -242,7 +240,7 @@ public class ActivityRecordService {
         }
 
         registerDeleteImageAfterCommit(deleteImageUrl);
-        return new DeleteActivityRecordResDto("활동 기록이 삭제되었어요.", activityRecord.getId(), deleteImageUrl);
+        return DeleteActivityRecordResDto.of(activityRecord.getId(), deleteImageUrl);
     }
 
     @Transactional
@@ -255,7 +253,7 @@ public class ActivityRecordService {
         ActivityRecordScrap scrap = ActivityRecordScrap.of(activityRecordRepository.getReferenceById(recordId), currentUser);
         activityRecordScrapRepository.save(scrap);
 
-        return new AddActivityRecordScrapResDto("스크랩을 완료했어요.", recordId, true);
+        return AddActivityRecordScrapResDto.from(recordId);
     }
 
     @Transactional
@@ -265,11 +263,11 @@ public class ActivityRecordService {
         Optional<ActivityRecordScrap> scrap = activityRecordScrapRepository.findByActivityRecordIdAndUserId(recordId, currentUser.getId());
 
         if (scrap.isEmpty()) {
-            return new DeleteActivityRecordScrapResDto("스크랩이 존재하지 않거나 이미 삭제되었습니다.", recordId,false);
+            return DeleteActivityRecordScrapResDto.notExistScrap(recordId);
         }
         activityRecordScrapRepository.delete(scrap.get());
 
-        return new DeleteActivityRecordScrapResDto("스크랩 취소가 완료되었습니다.", recordId,false);
+        return DeleteActivityRecordScrapResDto.deleteScrap(recordId);
     }
 
     @Transactional

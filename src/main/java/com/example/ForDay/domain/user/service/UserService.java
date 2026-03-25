@@ -72,11 +72,11 @@ public class UserService {
 
         // 중복 검증 (DB 조회)
         if (isExistsByNickname(nickname)) {
-            return new NicknameCheckResDto(nickname, false, "이미 사용 중인 닉네임입니다.");
+            return NicknameCheckResDto.alreadyUsedNickname(nickname);
         }
 
         // 사용 가능 응답
-        return new NicknameCheckResDto(nickname, true, "사용 가능한 쿼리입니다.");
+        return NicknameCheckResDto.canUseNickname(nickname);
     }
 
     @Transactional
@@ -89,7 +89,7 @@ public class UserService {
         currentUser.changeNickname(nickname);
         userRepository.save(currentUser);
 
-        return new NicknameRegisterResDto("사용자 이름이 성공적으로 등록되었습니다.", currentUser.getNickname());
+        return NicknameRegisterResDto.from(currentUser.getNickname());
     }
 
     @Transactional(readOnly = true)

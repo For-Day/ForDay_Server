@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 public class HobbyAiInsightService {
 
     private final AiCallCountService aiCallCountService;
-    private final UserSummaryAIService aiSummaryService; // determineAiSummary 이동
+    private final UserSummaryAIService aiSummaryService;
 
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;

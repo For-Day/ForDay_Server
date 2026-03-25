@@ -26,6 +26,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.UUID;
 
+import static com.example.ForDay.global.common.response.message.AuthSuccessMessage.LOGOUT_SUCCESS;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -175,7 +177,7 @@ public class AuthService {
         refreshTokenService.save(socialId, newRefreshToken);
 
         log.info("[refresh] 토큰 재발급 완료 - SocialId: {}", socialId);
-        return new RefreshResDto(newAccessToken, newRefreshToken);
+        return RefreshResDto.of(newAccessToken, newRefreshToken);
     }
 
     @Transactional
@@ -186,17 +188,11 @@ public class AuthService {
         refreshTokenRepository.deleteById(socialId);
 
         log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", socialId);
-        return new MessageResDto("로그아웃 되었습니다.");
+        return new MessageResDto(LOGOUT_SUCCESS);
     }
 
     @Transactional
-    public TokenValidateResDto tokenValidate() {
-        log.info("[tokenValidate] 액세스 토큰 유효성 확인 성공");
-        return new TokenValidateResDto(true);
-    }
-
-    @Transactional
-    public SwitchAccountResDto switchAccount(@Valid SwitchAccountReqDto reqDto, CustomUserDetails user) {
+    public SwitchAccountResDto switchAccount(SwitchAccountReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user); // 현재 유저
 
         log.info("Switch account attempt - userId: {}, currentRole: {}, requestSocialType: {}", currentUser.getId(), currentUser.getRole(), reqDto.getSocialType());
@@ -270,7 +266,13 @@ public class AuthService {
             }
         }
 
-        return new SwitchAccountResDto(reqDto.getSocialType(), accessToken, refreshToken);
+        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken);
+    }
+
+    @Transactional
+    public TokenValidateResDto tokenValidate() {
+        log.info("[tokenValidate] 액세스 토큰 유효성 확인 성공");
+        return new TokenValidateResDto(true);
     }
 
     @Transactional
@@ -278,10 +280,8 @@ public class AuthService {
         User currentUser = userUtil.getCurrentUser(user);
         currentUser.withdraw();
         userRepository.save(currentUser);
-        return new UserWithDrawResDto("회원탈퇴 되었습니다.", currentUser.getDeletedAt());
+        return UserWithDrawResDto.of(currentUser.getDeletedAt());
     }
-
-    // 유틸 메서드
 
     private OnboardingDataDto getOnboardingData(User user, boolean isNicknameSet, boolean onboardingCompleted) {
         if(onboardingCompleted && !isNicknameSet) { // 해당 사용자가 온보딩 완료, 닉네임 설정 미완료시 온보딩 데이터 조회해서 반환
@@ -295,12 +295,10 @@ public class AuthService {
     }
 
     private LoginInternalResult processCommonLogin(User user, SocialType socialType) {
-        String socialId = user.getSocialId();
-
         // 토큰 발급 및 저장
-        String accessToken = jwtUtil.createAccessToken(socialId, user.getRole(), socialType);
-        String refreshToken = jwtUtil.createRefreshToken(socialId);
-        refreshTokenService.save(socialId, refreshToken);
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), socialType);
+        String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
+        refreshTokenService.save(user.getSocialId(), refreshToken);
 
         // 온보딩 상태 조회
         OnboardingDataDto dataDto = getOnboardingData(user, user.isNicknameSet(), user.isOnboardingCompleted());
