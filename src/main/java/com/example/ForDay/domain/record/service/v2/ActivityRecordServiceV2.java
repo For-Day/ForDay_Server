@@ -1,11 +1,5 @@
 package com.example.ForDay.domain.record.service.v2;
 
-import com.example.ForDay.domain.friend.entity.FriendRelation;
-import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
-import com.example.ForDay.domain.friend.type.FriendRelationStatus;
-import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
-import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
-import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
@@ -17,14 +11,11 @@ import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository
 import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
-import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.ActivityRecordUtil;
-import com.example.ForDay.global.util.TimeUtil;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
 
 @Slf4j
 @Service

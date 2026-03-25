@@ -28,8 +28,8 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.ActivityUtil;
-import com.example.ForDay.global.util.HobbyUtil;
+import com.example.ForDay.domain.activity.utils.ActivityUtil;
+import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
@@ -91,7 +91,7 @@ public class ActivityService {
             createHobbyCard(hobby, currentUser);
         }
         todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 표시
-        recordRedisService.evictStickerCache(hobby.getId(), currentUser.getId());
+        recordRedisService.evictRecordCache(hobby.getId(), currentUser.getId());
 
         return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
     }

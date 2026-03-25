@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
+import com.example.ForDay.domain.record.constants.CacheConstants;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
@@ -28,7 +29,7 @@ public class ActivityRecordRedisService {
         return activityRecordRepository.getStickerInfo(hobbyId, page, size, userId);
     }
 
-    public void evictStickerCache(Long hobbyId, String userId) {
+    public void evictRecordCache(Long hobbyId, String userId) {
         // 현재 활성화된 트랜잭션이 있는지 확인
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -45,7 +46,14 @@ public class ActivityRecordRedisService {
     }
 
     private void executeEvict(Long hobbyId, String userId) {
-        String pattern = "stickers::" + hobbyId + ":" + userId + ":*";
+        String stickerPattern = String.format(CacheConstants.STICKER_KEY_PATTERN, hobbyId, userId);
+        String feedPattern = String.format(CacheConstants.USER_FEED_KEY_PATTERN, userId);
+
+        deleteKeysByPattern(stickerPattern);
+        deleteKeysByPattern(feedPattern);
+    }
+
+    private void deleteKeysByPattern(String pattern) {
         Set<String> keys = redisTemplate.keys(pattern);
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);

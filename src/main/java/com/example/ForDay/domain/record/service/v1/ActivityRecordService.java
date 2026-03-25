@@ -1,11 +1,7 @@
 package com.example.ForDay.domain.record.service.v1;
 
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
-import com.example.ForDay.domain.friend.entity.FriendRelation;
-import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
-import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -35,16 +31,14 @@ import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.ActivityRecordUtil;
-import com.example.ForDay.global.util.ActivityUtil;
-import com.example.ForDay.global.util.TimeUtil;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
+import com.example.ForDay.domain.activity.utils.ActivityUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -215,7 +209,7 @@ public class ActivityRecordService {
         handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl());
         record.updateRecord(activity, reqDto);
 
-        recordRedisService.evictStickerCache(record.getHobby().getId(), currentUser.getId());
+        recordRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
 
         return UpdateActivityRecordResDto.of(activity, record);
     }
@@ -246,7 +240,7 @@ public class ActivityRecordService {
         }
 
         registerDeleteImageAfterCommit(deleteImageUrl);
-        recordRedisService.evictStickerCache(activityRecord.getHobby().getId(), currentUser.getId());
+        recordRedisService.evictRecordCache(activityRecord.getHobby().getId(), currentUser.getId());
 
         return DeleteActivityRecordResDto.of(activityRecord.getId(), deleteImageUrl);
     }
