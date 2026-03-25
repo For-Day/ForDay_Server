@@ -22,6 +22,10 @@ public class ReactionSummaryResDto {
 
     private Map<String, ReactionSliceDto> tabs;
 
+    public static  ReactionSummaryResDto of(Long recordId, ReactionCountDto reactionSummary, Map<String, ReactionSliceDto> tabs) {
+        return new ReactionSummaryResDto(recordId, reactionSummary, tabs);
+    }
+
     @Data
     @Builder
     @NoArgsConstructor

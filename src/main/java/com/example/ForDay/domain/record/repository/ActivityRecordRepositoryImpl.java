@@ -58,11 +58,14 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
             Long hobbyId,
             Integer currentPage,
             Integer size,
-            User user
+            String currentUserId
     ) {
         QActivityRecord record = QActivityRecord.activityRecord;
 
-        int offset = (currentPage - 1) * size;
+        int safePage = (currentPage == null || currentPage <= 0) ? 1 : currentPage;
+        int safeSize = (size == null || size <= 0) ? 10 : size;
+
+        int offset = (safePage - 1) * safeSize;
 
         return queryFactory
                 .select(Projections.constructor(
@@ -74,11 +77,11 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .from(record)
                 .where(
                         record.hobby.id.eq(hobbyId),
-                        record.user.eq(user)
+                        record.user.id.eq(currentUserId)
                 )
                 .orderBy(record.createdAt.asc())
                 .offset(offset)
-                .limit(size)
+                .limit(safeSize)
                 .fetch();
     }
 
@@ -340,10 +343,14 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
     private BooleanBuilder commonFilter(RecordSearchConditionReqDto cond, String currentUserId, List<Long> hobbyIds) {
         BooleanBuilder builder = new BooleanBuilder();
 
-        builder.and(record.deleted.isFalse());
+        builder.and(record.deleted.isFalse().and(record.user.deleted.isFalse()));
         builder.and(record.user.deleted.isFalse());
         builder.and(notReportedBy(currentUserId));
         builder.and(notBlockedOrReported(currentUserId));
+
+        if (cond.context() == ContextType.STORY_ALL || cond.context() == ContextType.STORY_HOBBY) {
+            builder = builder.and(record.user.role.eq(Role.USER));
+        }
 
         String targetId = (!StringUtils.hasText(cond.userId())) ? currentUserId : cond.userId();
 

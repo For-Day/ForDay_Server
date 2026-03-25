@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+import static com.example.ForDay.global.common.response.message.FriendSuccessMessage.*;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -51,7 +53,7 @@ public class FriendService {
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.FOLLOW) {
-                return new AddFriendResDto("이미 친구 맺기가 되어있습니다.", targetUser.getNickname());
+                return AddFriendResDto.of(ALREADY_FRIEND, targetUser.getNickname());
             }
             // 내가 차단/신고한 유저에게는 친구 추가 불가
             if (status == FriendRelationStatus.BLOCK || status == FriendRelationStatus.REPORT) {
@@ -62,7 +64,7 @@ public class FriendService {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
 
-        return new AddFriendResDto("성공적으로 친구 맺기가 되었습니다.", targetUser.getNickname());
+        return AddFriendResDto.of(ADD_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
     @Transactional
@@ -76,7 +78,7 @@ public class FriendService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
         friendRelationRepository.delete(myRelation);
-        return new DeleteFriendResDto("성공적으로 친구 관계를 삭제했습니다.", targetUser.getNickname());
+        return DeleteFriendResDto.of(DELETE_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
     @Transactional
@@ -96,14 +98,14 @@ public class FriendService {
 
         if (myRelation != null) {
             if (myRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-                return new BlockFriendResDto("이미 차단된 상태입니다.", targetUser.getNickname());
+                return BlockFriendResDto.of(ALREADY_BLOCKED, targetUser.getNickname());
             }
             myRelation.changeStatus(FriendRelationStatus.BLOCK);
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.BLOCK));
         }
 
-        return new BlockFriendResDto(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
+        return BlockFriendResDto.of(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
     }
 
     @Transactional(readOnly = true)
@@ -111,21 +113,12 @@ public class FriendService {
         User currentUser = userUtil.getCurrentUser(user);
         List<GetFriendListResDto.UserInfoDto> userInfoDtos = friendRelationRepository.findMyFriendList(currentUser.getId(), lastUserId, size + 1);
 
-        boolean hasNext = userInfoDtos.size() > size;
-        if (hasNext) {
-            userInfoDtos = userInfoDtos.subList(0, size);
-        }
+        List<GetFriendListResDto.UserInfoDto> updatedList = GetFriendListResDto.UserInfoDto.listOf(
+                userInfoDtos,
+                s3Util::toProfileMainResizedUrl
+        );
 
-        List<GetFriendListResDto.UserInfoDto> updatedList = userInfoDtos.stream()
-                .map(dto -> new GetFriendListResDto.UserInfoDto(
-                        dto.getUserId(),
-                        dto.getNickname(),
-                        s3Util.toProfileMainResizedUrl(dto.getProfileImageUrl())
-                ))
-                .toList();
-
-        String nextLastUserId = updatedList.isEmpty() ? null : updatedList.get(updatedList.size() - 1).getUserId();
-        return new GetFriendListResDto("친구 목록이 성공적으로 조회되었습니다.", updatedList, nextLastUserId, hasNext);
+        return GetFriendListResDto.of(FRIEND_LIST_GET_SUCCESS, updatedList, size);
     }
 
     @Transactional
@@ -146,7 +139,7 @@ public class FriendService {
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.REPORT) {
-                return new ReportFriendResDto("이미 신고된 상태입니다.", targetUser.getNickname(), targetUser.getId());
+                return ReportFriendResDto.of(ALREADY_REPORTED, targetUser);
             } else if (status == FriendRelationStatus.BLOCK) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
@@ -155,7 +148,7 @@ public class FriendService {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
 
-        return new ReportFriendResDto("신고가 완료되었습니다.", targetUser.getNickname(), targetUser.getId());
+        return ReportFriendResDto.of(REPORT_FRIEND_SUCCESS, targetUser);
     }
 
     private User findTargetUser(String userId) {

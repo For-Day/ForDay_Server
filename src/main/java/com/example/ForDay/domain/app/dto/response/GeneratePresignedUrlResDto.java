@@ -11,4 +11,12 @@ public class GeneratePresignedUrlResDto {
     private String uploadUrl; // presigned PUT url
     private String fileUrl;   // 실제 접근/저장할 URL
     private int order;
+
+    public static GeneratePresignedUrlResDto of(String uploadUrl, String fileUrl, int order) {
+        return new GeneratePresignedUrlResDto(
+                uploadUrl,
+                fileUrl,
+                order
+        );
+    }
 }

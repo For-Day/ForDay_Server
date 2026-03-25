@@ -5,8 +5,6 @@ import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
-import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordVisibility;
@@ -15,17 +13,17 @@ import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
-import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.ActivityRecordUtil;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -72,11 +70,11 @@ public class UserService {
 
         // 중복 검증 (DB 조회)
         if (isExistsByNickname(nickname)) {
-            return new NicknameCheckResDto(nickname, false, "이미 사용 중인 닉네임입니다.");
+            return NicknameCheckResDto.alreadyUsedNickname(nickname);
         }
 
         // 사용 가능 응답
-        return new NicknameCheckResDto(nickname, true, "사용 가능한 쿼리입니다.");
+        return NicknameCheckResDto.canUseNickname(nickname);
     }
 
     @Transactional
@@ -89,7 +87,7 @@ public class UserService {
         currentUser.changeNickname(nickname);
         userRepository.save(currentUser);
 
-        return new NicknameRegisterResDto("사용자 이름이 성공적으로 등록되었습니다.", currentUser.getNickname());
+        return NicknameRegisterResDto.from(currentUser.getNickname());
     }
 
     @Transactional(readOnly = true)
@@ -155,6 +153,12 @@ public class UserService {
         return GetHobbyInProgressResDto.of(targetUser, hobbyList);
     }
 
+    @Cacheable(
+            value = "userFeed",
+            key = "#user.user.id + ':' + T(java.util.Objects).hashCode(#hobbyIds) + ':' + (#lastRecordId ?: 0) + ':' + #feedSize",
+            condition = "#userId == null",
+            unless = "#result == null"
+    )
     @Transactional(readOnly = true)
     public GetUserFeedListResDto getUserFeedList(List<Long> hobbyIds, Long lastRecordId, Integer feedSize, CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -166,6 +170,7 @@ public class UserService {
         Long totalFeedCount = (lastRecordId == null)
                 ? activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetInfo.user().getId())
                 : null;
+
         // 피드 목록 조회 (Slice 페이징을 위해 feedSize + 1)
         List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(
                 hobbyIds, lastRecordId, feedSize + 1, targetInfo.user().getId(), targetInfo.visibilities(), currentUserId

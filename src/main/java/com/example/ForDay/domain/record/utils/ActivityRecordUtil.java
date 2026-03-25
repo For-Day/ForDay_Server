@@ -1,9 +1,8 @@
-package com.example.ForDay.global.util;
+package com.example.ForDay.domain.record.utils;
 
 import com.example.ForDay.domain.friend.entity.FriendRelation;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
-import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;

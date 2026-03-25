@@ -5,13 +5,10 @@ import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepos
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.common.error.exception.CustomException;
-import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.ActivityRecordUtil;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +38,7 @@ public class RecordReactionService {
         Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs = activityRecordReactionRepository.getReactionSummary(recordId, size, currentUser.getId());
         processReactionProfileUrls(tabs);
 
-        return new ReactionSummaryResDto(record.getId(), reactionCountDto, tabs);
+        return ReactionSummaryResDto.of(record.getId(), reactionCountDto, tabs);
     }
 
     @Transactional(readOnly = true)

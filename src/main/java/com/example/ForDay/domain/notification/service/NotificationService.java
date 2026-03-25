@@ -15,7 +15,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
-    private final UserUtil userUtil;
     private final NotificationRepository notificationRepository;
 
     @Transactional(readOnly = true)

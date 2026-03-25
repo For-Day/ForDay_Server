@@ -14,14 +14,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import static com.example.ForDay.global.common.constants.FileStorageConstants.TEMP_COVER_PATH;
+import static com.example.ForDay.global.common.constants.FileStorageConstants.TEMP_HOBBY_CARD_PATH;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class HobbyCardService {
 
     private static final String DEFAULT_HOBBY_IMAGE_URL = "https://your-bucket.s3.../default-hobby-image.png";
-    private static final String COVER_IMAGE_PATH = "cover_image/temp/";
-    private static final String HOBBY_CARD_IMAGE_PATH = "hobby_card/temp/";
 
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
@@ -47,7 +48,7 @@ public class HobbyCardService {
 
         try {
             String coverImageKey = s3Service.extractKeyFromFileUrl(coverImageUrl);
-            String hobbyCardImageKey = coverImageKey.replace(COVER_IMAGE_PATH, HOBBY_CARD_IMAGE_PATH);
+            String hobbyCardImageKey = coverImageKey.replace(TEMP_COVER_PATH, TEMP_HOBBY_CARD_PATH);
             s3Service.copyObject(coverImageKey, hobbyCardImageKey);
 
             String hobbyCardImageUrl = s3Service.createFileUrl(hobbyCardImageKey);

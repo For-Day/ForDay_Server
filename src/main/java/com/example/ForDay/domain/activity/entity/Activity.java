@@ -55,12 +55,12 @@ public class Activity extends BaseTimeEntity {
     @Builder.Default
     private LocalDateTime lastRecordedAt = null;
 
-    public static Activity from(User user, Hobby hobby, ActivityRecordCollectInfo info) {
+    public static Activity createActivity(User user, Hobby hobby, String content, boolean aiRecommended) {
         return Activity.builder()
                 .user(user)
                 .hobby(hobby)
-                .content(info.getContent())
-                .aiRecommended(false)
+                .content(content)
+                .aiRecommended(aiRecommended)
                 .build();
     }
 

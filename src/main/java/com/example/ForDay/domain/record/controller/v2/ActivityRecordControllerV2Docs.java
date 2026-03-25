@@ -1,0 +1,74 @@
+package com.example.ForDay.domain.record.controller.v2;
+
+import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
+import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
+import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
+import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
+import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.global.oauth.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Tag(name = "activityRecordV2", description = "활동 기록 관련 API V2")
+public interface ActivityRecordControllerV2Docs {
+
+    @Operation(
+            summary = "활동 기록 상세 조회 V2",
+            description = "활동 기록의 상세 정보와 이전/다음 기록 ID를 조회합니다. context 값에 따라 요구되는 파라미터가 달라집니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "상세 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(examples = {
+                    @ExampleObject(name = "HOBBY_ID_REQUIRED", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"HOBBY_ID_REQUIRED\", \"message\": \"특정 취미 소식 조회 시 취미 ID는 필수입니다.\"}}"),
+                    @ExampleObject(name = "ACCESS_DENIED_FOR_GUEST", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"ACCESS_DENIED_FOR_GUEST\", \"message\": \"게스트는 소식에 대한 접근 권한이 존재하지 않습니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "403", description = "권한 없음", content = @Content(examples = {
+                    @ExampleObject(name = "FRIEND_ONLY_ACCESS", value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"FRIEND_ONLY_ACCESS\", \"message\": \"이 글은 친구만 조회할 수 있습니다.\"}}"),
+                    @ExampleObject(name = "PRIVATE_RECORD", value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"PRIVATE_RECORD\", \"message\": \"이 글은 작성자만 볼 수 있습니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "기록 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACTIVITY_RECORD_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}")
+            }))
+    })
+    @GetMapping("/{recordId}")
+    GetRecordDetailResDtoV2 getRecordDetailV2(
+            @Parameter(description = "활동 기록 ID", example = "129") @PathVariable(name = "recordId") Long recordId,
+            @Valid @ModelAttribute RecordSearchConditionReqDto condition,
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Parameter(description = "취미 필터링 ID 리스트 (STORY_HOBBY, USER_FEED 시 필요)", example = "1,2,3") @RequestParam(name = "hobbyIds", required = false) List<Long> hobbyIds);
+
+    @Operation(summary = "감정별 반응 요약 및 초기 목록 조회", description = "기록에 대한 반응 수 요약과 각 탭(ALL, AWESOME 등)별 초기 사용자 목록을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(schema = @Schema(implementation = ReactionSummaryResDto.class)))
+    })
+    @GetMapping("/{recordId}/reactions/summary")
+    ReactionSummaryResDto getReactionSummary(
+            @Parameter(description = "활동 기록 ID", example = "141") @PathVariable Long recordId,
+            @Parameter(description = "각 탭별 초기 조회 갯수", example = "20") @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(summary = "반응 탭별 무한 스크롤 추가 조회", description = "특정 반응 타입에 대해 무한 스크롤로 사용자 목록을 추가 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "추가 조회 성공", content = @Content(schema = @Schema(implementation = ReactionTabScrollResDto.class)))
+    })
+    @GetMapping("/{recordId}/reactions/tab")
+    ReactionTabScrollResDto getReactionTabScroll(
+            @Parameter(description = "활동 기록 ID", example = "141") @PathVariable Long recordId,
+            @Parameter(description = "조회할 감정 유형 (미입력 시 전체)", example = "AWESOME") @RequestParam(required = false) RecordReactionType type,
+            @Parameter(description = "이전 조회에서 마지막으로 조회된 reactionId", example = "36") @RequestParam(required = false) Long lastReactionId,
+            @Parameter(description = "추가 조회할 갯수", example = "10") @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+}
