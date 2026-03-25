@@ -21,6 +21,7 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -62,6 +63,7 @@ public class ActivityService {
     private final ActivityUtil activityUtil;
     private final S3Util s3Util;
     private final ActivityBulkRepository activityBulkRepository;
+    private final ActivityRecordRedisService recordRedisService;
 
     @Transactional
     public RecordActivityResDto recordActivity(Long activityId, RecordActivityReqDto reqDto, CustomUserDetails user) {
@@ -89,6 +91,7 @@ public class ActivityService {
             createHobbyCard(hobby, currentUser);
         }
         todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 표시
+        recordRedisService.evictStickerCache(hobby.getId(), currentUser.getId());
 
         return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
     }

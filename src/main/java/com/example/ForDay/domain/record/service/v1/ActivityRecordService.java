@@ -25,6 +25,7 @@ import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepos
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
 import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
@@ -43,6 +44,7 @@ import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,6 +82,7 @@ public class ActivityRecordService {
     private final UserRepository userRepository;
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
     private final RedisTemplate<String, String> redisTemplate;
+    private final ActivityRecordRedisService recordRedisService;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -201,6 +204,7 @@ public class ActivityRecordService {
         return CancelReactToRecordResDto.of(type, recordId);
     }
 
+
     @Transactional
     public UpdateActivityRecordResDto updateActivityRecord(Long recordId, UpdateActivityRecordReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -210,6 +214,8 @@ public class ActivityRecordService {
 
         handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl());
         record.updateRecord(activity, reqDto);
+
+        recordRedisService.evictStickerCache(record.getHobby().getId(), currentUser.getId());
 
         return UpdateActivityRecordResDto.of(activity, record);
     }
@@ -240,6 +246,8 @@ public class ActivityRecordService {
         }
 
         registerDeleteImageAfterCommit(deleteImageUrl);
+        recordRedisService.evictStickerCache(activityRecord.getHobby().getId(), currentUser.getId());
+
         return DeleteActivityRecordResDto.of(activityRecord.getId(), deleteImageUrl);
     }
 

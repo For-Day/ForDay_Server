@@ -1,9 +1,7 @@
 package com.example.ForDay.domain.hobby.service;
 
-import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.entity.OtherActivity;
-import com.example.ForDay.domain.activity.repository.ActivityBulkRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
@@ -19,6 +17,7 @@ import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.type.StickerCover;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AIService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
@@ -70,6 +69,7 @@ public class HobbyService {
     private final HobbyAiInsightService hobbyAiInsightService;
     private final AIService aiService;
     private final HobbyUtil hobbyUtil;
+    private final ActivityRecordRedisService activityRecordRedisService;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails userDetails) {
@@ -361,8 +361,8 @@ public class HobbyService {
         // 해당 취미에 대한 기록이 있는지 여부
         boolean recordedToday = todayRecordRedisService.hasKey(todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId()));
 
+        List<GetStickerInfoResDto.StickerDto> stickers =  activityRecordRedisService.getCachedStickers(hobby.getId(), page, size, currentUser.getId());
         StickerContext context = StickerContext.of(hobby, recordedToday, page, size);
-        List<GetStickerInfoResDto.StickerDto> stickers =  activityRecordRepository.getStickerInfo(hobby.getId(), context.getCurrentPage(), context.getSize(), currentUser);
 
         return GetStickerInfoResDto.of(hobby, context, stickers);
     }

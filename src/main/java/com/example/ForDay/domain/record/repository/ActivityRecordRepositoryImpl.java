@@ -58,7 +58,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
             Long hobbyId,
             Integer currentPage,
             Integer size,
-            User user
+            String currentUserId
     ) {
         QActivityRecord record = QActivityRecord.activityRecord;
 
@@ -74,7 +74,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                 .from(record)
                 .where(
                         record.hobby.id.eq(hobbyId),
-                        record.user.eq(user)
+                        record.user.id.eq(currentUserId)
                 )
                 .orderBy(record.createdAt.asc())
                 .offset(offset)
