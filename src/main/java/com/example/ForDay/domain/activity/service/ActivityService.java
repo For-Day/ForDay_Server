@@ -64,6 +64,7 @@ public class ActivityService {
     private final S3Util s3Util;
     private final ActivityBulkRepository activityBulkRepository;
     private final ActivityRecordRedisService recordRedisService;
+    private final ActivityRedisService activityRedisService;
 
     @Transactional
     public RecordActivityResDto recordActivity(Long activityId, RecordActivityReqDto reqDto, CustomUserDetails user) {
@@ -130,12 +131,14 @@ public class ActivityService {
         Activity activity = activityUtil.getActivityByUserId(activityId, currentUser.getId());
 
         // 진행 중인 취미가 아니면 활동 수정 불가
-        activity.getHobby().validateInProgress();
+        Hobby hobby = activity.getHobby();
+        hobby.validateInProgress();
 
         String beforeContent = activity.getContent();
         activity.updateContent(reqDto.getContent());
 
         log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'", activityId, currentUser.getId(), beforeContent, reqDto.getContent());
+        activityRedisService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
         return new MessageResDto(ACTIVITY_UPDATE_SUCCESS);
     }
 
@@ -149,10 +152,12 @@ public class ActivityService {
         activity.validateDeletable();
 
         // 진행 중인 취미가 아니면 활동 삭제 불가
-        activity.getHobby().validateInProgress();
+        Hobby hobby = activity.getHobby();
+        hobby.validateInProgress();
         activityRepository.delete(activity);
 
         log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}", activityId, currentUser.getId());
+        activityRedisService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
         return new MessageResDto(ACTIVITY_DELETE_SUCCESS);
     }
 
@@ -217,6 +222,7 @@ public class ActivityService {
 
         activityBulkRepository.bulkInsertActivities(activities);
         log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
+        activityRedisService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
 
         return AddActivityResDto.of(activities.size());
     }

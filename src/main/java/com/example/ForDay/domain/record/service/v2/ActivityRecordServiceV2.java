@@ -12,6 +12,7 @@ import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -44,6 +45,9 @@ public class ActivityRecordServiceV2 {
     // 위, 아래 스와이프 적용 버전
     @Transactional(readOnly = true)
     public GetRecordDetailResDtoV2 getRecordDetailV2(Long recordId, RecordSearchConditionReqDto condition, CustomUserDetails user, List<Long> hobbyIds) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        validateAccess(condition, currentUser);
         validateCondition(condition, hobbyIds);
 
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
@@ -51,7 +55,6 @@ public class ActivityRecordServiceV2 {
 
         if (detail.recordDeleted()) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
 
-        User currentUser = userUtil.getCurrentUser(user);
         boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUser.getId(), detail.writerId());
 
         if (!isRecordOwner) {
@@ -105,5 +108,17 @@ public class ActivityRecordServiceV2 {
         if (!added) {
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
+    }
+
+    private static void validateAccess(RecordSearchConditionReqDto condition, User currentUser) {
+        if(currentUser.getRole().equals(Role.GUEST)) {
+            if (isStoryContext(condition)) {
+                throw new CustomException(ErrorCode.ACCESS_DENIED_FOR_GUEST);
+            }
+        }
+    }
+
+    private static boolean isStoryContext(RecordSearchConditionReqDto condition) {
+        return condition.context() == ContextType.STORY_ALL || condition.context() == ContextType.STORY_HOBBY;
     }
 }

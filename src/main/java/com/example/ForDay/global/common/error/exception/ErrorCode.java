@@ -70,6 +70,7 @@ public enum ErrorCode {
     DUPLICATE_SCRAP(HttpStatus.BAD_REQUEST, "해당 기록에는 이미 스크랩을 하셨습니다."),
     ALREADY_RECORD_REPORTED(HttpStatus.CONFLICT, "해당 기록에 이미 신고하였습니다."),
     ALREADY_DELETED_RECORD(HttpStatus.BAD_REQUEST,"이미 삭제된 기록입니다."),
+    ACCESS_DENIED_FOR_GUEST(HttpStatus.BAD_REQUEST, "게스트는 소식에 대한 접근 권한이 존재하지 않습니다." ),
 
     // s3 관련
     S3_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요."),
@@ -87,7 +88,8 @@ public enum ErrorCode {
     KEYWORD_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 검색어입니다."),
 
     // 앱 버전 관련
-    PLATFORM_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 플랫폼에 대한 버전 정보가 존재하지 않습니다.");
+    PLATFORM_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 플랫폼에 대한 버전 정보가 존재하지 않습니다."),
+   ;
 
     private final HttpStatus status;
     private final String message;

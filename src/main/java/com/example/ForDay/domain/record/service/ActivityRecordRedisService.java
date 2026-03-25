@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
-import com.example.ForDay.domain.record.constants.CacheConstants;
+import com.example.ForDay.global.common.constants.CacheConstants;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
