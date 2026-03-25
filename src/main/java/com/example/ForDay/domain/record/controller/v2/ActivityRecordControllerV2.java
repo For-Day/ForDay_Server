@@ -21,10 +21,11 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v2/records")
-public class ActivityRecordControllerV2 {
+public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Docs{
     private final ActivityRecordServiceV2 activityRecordServiceV2;
     private final RecordReactionService recordReactionService;
 
+    @Override
     @GetMapping("/{recordId}")
     public GetRecordDetailResDtoV2 getRecordDetailV2(@PathVariable(name = "recordId") Long recordId,
                                                      @Valid @ModelAttribute RecordSearchConditionReqDto condition,
@@ -34,6 +35,7 @@ public class ActivityRecordControllerV2 {
     }
 
     // 기록에 반응한 유저 목록 조회 (최초 조회 -> 전체 + 감정별 목록 한번에 조회)
+    @Override
     @GetMapping("/{recordId}/reactions/summary")
     public ReactionSummaryResDto getReactionSummary(@PathVariable Long recordId,
                                                     @RequestParam(defaultValue = "20") int size,
@@ -43,6 +45,7 @@ public class ActivityRecordControllerV2 {
     }
 
     // 무한 스크롤 (탭별 조회)
+    @Override
     @GetMapping("/{recordId}/reactions")
     public ReactionTabScrollResDto getReactionTabScroll(@PathVariable Long recordId,
                                                 @RequestParam(required = false) RecordReactionType type,

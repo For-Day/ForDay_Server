@@ -23,7 +23,10 @@ import java.util.List;
 @Tag(name = "activityRecordV2", description = "활동 기록 관련 API V2")
 public interface ActivityRecordControllerV2Docs {
 
-    @Operation(summary = "활동 기록 상세 조회 V2", description = "활동 기록의 상세 정보와 이전/다음 기록 ID를 조회합니다.")
+    @Operation(
+            summary = "활동 기록 상세 조회 V2",
+            description = "활동 기록의 상세 정보와 이전/다음 기록 ID를 조회합니다. context 값에 따라 요구되는 파라미터가 달라집니다."
+    )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "상세 조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(examples = {
