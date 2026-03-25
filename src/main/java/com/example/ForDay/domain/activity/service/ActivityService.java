@@ -118,6 +118,7 @@ public class ActivityService {
         if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
             createHobbyCard(hobby, currentUser);
         }
+        recordRedisService.evictRecordCache(hobby.getId(), currentUser.getId());
 
         return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
     }

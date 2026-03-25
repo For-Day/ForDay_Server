@@ -57,8 +57,10 @@ public class StickerContext {
     }
 
     private static int resolvePage(Integer page, int totalSlotCount, int size) {
-        if (page != null) return page;
-        return calculateCurrentPage(totalSlotCount, size);
+        if (page == null || page <= 0) {
+            return calculateCurrentPage(totalSlotCount, size);
+        }
+        return page.intValue();
     }
 
     private static void validatePage(int currentPage, int totalPage) {

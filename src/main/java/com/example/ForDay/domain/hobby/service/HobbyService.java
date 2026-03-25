@@ -361,8 +361,8 @@ public class HobbyService {
         // 해당 취미에 대한 기록이 있는지 여부
         boolean recordedToday = todayRecordRedisService.hasKey(todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId()));
 
-        List<GetStickerInfoResDto.StickerDto> stickers =  activityRecordRedisService.getCachedStickers(hobby.getId(), page, size, currentUser.getId());
         StickerContext context = StickerContext.of(hobby, recordedToday, page, size);
+        List<GetStickerInfoResDto.StickerDto> stickers =  activityRecordRedisService.getCachedStickers(hobby.getId(), context.getCurrentPage(), context.getSize(), currentUser.getId());
 
         return GetStickerInfoResDto.of(hobby, context, stickers);
     }
