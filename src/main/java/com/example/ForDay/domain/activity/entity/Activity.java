@@ -1,7 +1,10 @@
 package com.example.ForDay.domain.activity.entity;
 
+import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -10,7 +13,15 @@ import org.hibernate.annotations.DynamicUpdate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_activities")
+@Table(
+        name = "user_activities",
+        indexes = {
+                @Index(
+                        name = "idx_ua_hobby_perfect_sort",
+                        columnList = "user_hobby_id, created_at DESC, last_recorded_at DESC, collected_sticker_num DESC, content ASC"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -44,6 +55,15 @@ public class Activity extends BaseTimeEntity {
     @Builder.Default
     private LocalDateTime lastRecordedAt = null;
 
+    public static Activity createActivity(User user, Hobby hobby, String content, boolean aiRecommended) {
+        return Activity.builder()
+                .user(user)
+                .hobby(hobby)
+                .content(content)
+                .aiRecommended(aiRecommended)
+                .build();
+    }
+
     public void record() {
         this.collectedStickerNum++;
         this.lastRecordedAt = LocalDateTime.now();
@@ -54,8 +74,14 @@ public class Activity extends BaseTimeEntity {
         this.content = content;
     }
 
+    public void validateDeletable() {
+        if (collectedStickerNum != 0) {
+            throw new CustomException(ErrorCode.ACTIVITY_NOT_DELETABLE);
+        }
+    }
+
     public boolean isDeletable() {
-        return collectedStickerNum == 0; // 해당 활동에 대한 활동 기록이 없으면 삭제 가능
+        return collectedStickerNum == 0;
     }
 
     public void deleteRecord() {

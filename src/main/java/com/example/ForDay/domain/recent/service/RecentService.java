@@ -30,7 +30,7 @@ public class RecentService {
     public DeleteAllRecentKeywordResDto deleteAllRecentKeyword(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         recentRedisService.deleteAllRecentKeywords(currentUser.getId());
-        return new DeleteAllRecentKeywordResDto("전체 검색어가 삭제되었습니다.");
+        return DeleteAllRecentKeywordResDto.of();
     }
 
     @Transactional
@@ -43,6 +43,6 @@ public class RecentService {
         }
 
         Long deletedId = recentRedisService.deleteRecentKeyword(currentUserId, recentId);
-        return new DeleteRecentKeywordResDto("개별 검색어가 삭제되었습니다.", deletedId);
+        return DeleteRecentKeywordResDto.of(deletedId);
     }
 }

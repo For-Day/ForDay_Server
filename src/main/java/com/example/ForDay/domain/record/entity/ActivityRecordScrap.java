@@ -27,4 +27,11 @@ public class ActivityRecordScrap extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    public static ActivityRecordScrap of(ActivityRecord activityRecord, User user) {
+        return ActivityRecordScrap.builder()
+                .activityRecord(activityRecord)
+                .user(user)
+                .build();
+    }
 }

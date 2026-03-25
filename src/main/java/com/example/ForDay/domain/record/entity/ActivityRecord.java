@@ -1,6 +1,9 @@
 package com.example.ForDay.domain.record.entity;
 
 import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
@@ -15,7 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "activity_records")
+@Table(
+        name = "activity_records",
+        indexes = {
+                @Index(
+                        name = "idx_ar_user_hobby_created",
+                        columnList = "user_hobby_id, user_id, created_at DESC"
+                )
+        })
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -69,12 +79,12 @@ public class ActivityRecord extends BaseTimeEntity {
         this.visibility = newVisibility;
     }
 
-    public void updateRecord(Activity activity, String sticker, String memo, RecordVisibility visibility, String imageUrl) {
+    public void updateRecord(Activity activity, UpdateActivityRecordReqDto reqDto) {
         this.activity = activity;
-        this.sticker = sticker;
-        this.memo = memo;
-        this.visibility = visibility;
-        this.imageUrl = imageUrl;
+        this.sticker = reqDto.getSticker();
+        this.memo = reqDto.getMemo();
+        this.visibility = reqDto.getVisibility();
+        this.imageUrl = reqDto.getImageUrl();
     }
 
     public void deleteRecord() {
@@ -82,5 +92,17 @@ public class ActivityRecord extends BaseTimeEntity {
         this.memo = null;
         this.imageUrl = null;
         this.deleted = true;
+    }
+
+    public static ActivityRecord of(Hobby hobby, Activity activity, User user, RecordActivityReqDto dto) {
+        return ActivityRecord.builder()
+                .hobby(hobby)
+                .activity(activity)
+                .user(user)
+                .sticker(dto.getSticker())
+                .memo(dto.getMemo())
+                .visibility(dto.getVisibility())
+                .imageUrl(dto.getImageUrl())
+                .build();
     }
 }

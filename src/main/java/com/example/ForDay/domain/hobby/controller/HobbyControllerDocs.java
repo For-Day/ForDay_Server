@@ -1245,14 +1245,14 @@ public interface HobbyControllerDocs {
     @Operation(
             summary = "취미 수정",
             description = """
-                온보딩 완료 & 닉네임 미완료 상태에서만 취미 정보를 수정합니다.
-
-                ✔ 허용 상태
-                - 온보딩 완료
-                - 닉네임 미설정
-
-                ❌ 그 외 상태에서는 예외가 발생합니다.
-                """
+                    온보딩 완료 & 닉네임 미완료 상태에서만 취미 정보를 수정합니다.
+                    
+                    ✔ 허용 상태
+                    - 온보딩 완료
+                    - 닉네임 미설정
+                    
+                    ❌ 그 외 상태에서는 예외가 발생합니다.
+                    """
     )
     @ApiResponses({
             @ApiResponse(
@@ -1270,15 +1270,15 @@ public interface HobbyControllerDocs {
                                     name = "INVALID_HOBBY_STATUS",
                                     summary = "온보딩/닉네임 상태 오류",
                                     value = """
-                        {
-                          "status": 400,
-                          "success": false,
-                          "data": {
-                            "errorClassName": "INVALID_HOBBY_STATUS",
-                            "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
-                          }
-                        }
-                        """
+                                            {
+                                              "status": 400,
+                                              "success": false,
+                                              "data": {
+                                                "errorClassName": "INVALID_HOBBY_STATUS",
+                                                "message": "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."
+                                              }
+                                            }
+                                            """
                             )
                     )
             ),
@@ -1291,15 +1291,15 @@ public interface HobbyControllerDocs {
                                     name = "HOBBY_NOT_FOUND",
                                     summary = "취미 ID 없음",
                                     value = """
-                        {
-                          "status": 404,
-                          "success": false,
-                          "data": {
-                            "errorClassName": "HOBBY_NOT_FOUND",
-                            "message": "존재하지 않는 취미입니다."
-                          }
-                        }
-                        """
+                                            {
+                                              "status": 404,
+                                              "success": false,
+                                              "data": {
+                                                "errorClassName": "HOBBY_NOT_FOUND",
+                                                "message": "존재하지 않는 취미입니다."
+                                              }
+                                            }
+                                            """
                             )
                     )
             )
@@ -1323,4 +1323,32 @@ public interface HobbyControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+    @Operation(
+            summary = "취미 칩 목록 조회",
+            description = "사용자의 취미 목록을 조회하고, 각 취미의 오늘 기록 여부(todayRecorded)를 반환합니다. " +
+                    "todayRecorded가 true이면 오늘 이미 기록된 상태입니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GetHobbyListByChipResDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자 또는 취미를 찾을 수 없음"
+            )
+    })
+    GetHobbyListByChipResDto getHobbyListByChip(
+            @Parameter(
+                    description = "조회할 취미 상태 (ALL, IN_PROGRESS, ARCHIVED)",
+                    example = "IN_PROGRESS"
+            )
+            @RequestParam(value = "status") HobbyStatus status,
+
+            @AuthenticationPrincipal CustomUserDetails user
+    );
 }

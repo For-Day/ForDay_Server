@@ -16,6 +16,18 @@ public class GetUserFeedListResDto {
     private List<FeedDto> feedList;
     private boolean hasNext;
 
+    public static GetUserFeedListResDto of(
+            List<FeedDto> feedList, Long totalFeedCount, int feedSize) {
+        boolean hasNext = feedList.size() > feedSize;
+        if (hasNext) feedList.remove(feedSize);
+
+        Long lastId = feedList.isEmpty()
+                ? null
+                : feedList.get(feedList.size() - 1).getRecordId();
+
+        return new GetUserFeedListResDto(totalFeedCount, lastId, feedList, hasNext);
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor

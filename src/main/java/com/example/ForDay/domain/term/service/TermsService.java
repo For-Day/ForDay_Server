@@ -38,32 +38,16 @@ public class TermsService {
                 ));
 
         List<ServiceTermsResponseDto.SectionDto> sectionDtos = groupedBySection.entrySet().stream()
-                .map(entry -> {
-                    List<TermsArticle> articles = entry.getValue();
-                    return ServiceTermsResponseDto.SectionDto.builder()
-                            .sectionNo(entry.getKey())
-                            .sectionTitle(articles.get(0).getSectionTitle())
-                            .articles(articles.stream().map(this::convertToServiceArticleDto).toList())
-                            .build();
-                }).toList();
+                .map(entry -> ServiceTermsResponseDto.SectionDto.of(
+                        entry.getKey(),
+                        entry.getValue().get(0).getSectionTitle(),
+                        entry.getValue().stream().map(ServiceTermsResponseDto.ArticleDto::from).toList()
+                )).toList();
 
         ServiceContactInfo serviceContactInfo = serviceContactInfoRepository.findFirstByOrderByInfoIdAsc()
                 .orElseThrow(() -> new RuntimeException("서비스 연락처 정보를 찾을 수 없습니다."));
 
-        return ServiceTermsResponseDto.builder()
-                .title(document.getTitle())
-                .version(document.getVersion())
-                .sections(sectionDtos)
-                .serviceInfo(ServiceTermsResponseDto.ServiceInfoDto.builder()
-                        .title("부칙")
-                        .description("본 약관은 [2026-02-07]부터 시행됩니다.")
-                        .serviceName(serviceContactInfo.getServiceName())
-                        .companyName(serviceContactInfo.getCompanyName())
-                        .email(serviceContactInfo.getEmail())
-                        .representative(serviceContactInfo.getRepresentative())
-                        .contactNumber(serviceContactInfo.getContactNumber())
-                        .build())
-                .build();
+        return ServiceTermsResponseDto.of(document, sectionDtos, serviceContactInfo);
     }
 
     public PrivacyTermsResponseDto getPrivacyTerms(DocumentType type) {
@@ -78,64 +62,17 @@ public class TermsService {
                 ));
 
         List<PrivacyTermsResponseDto.SectionDto> sectionDtos = groupedBySection.entrySet().stream()
-                .map(entry -> {
-                    List<TermsArticle> articles = entry.getValue();
-                    return PrivacyTermsResponseDto.SectionDto.builder()
-                            .sectionNo(entry.getKey())
-                            .sectionTitle(articles.get(0).getSectionTitle())
-                            .articles(articles.stream().map(this::convertToPrivacyArticleDto).toList())
-                            .build();
-                }).toList();
+                .map(entry -> PrivacyTermsResponseDto.SectionDto.of(
+                        entry.getKey(),
+                        entry.getValue().get(0).getSectionTitle(),
+                        entry.getValue().stream()
+                                .map(PrivacyTermsResponseDto.ArticleDto::from) // Static Factory Method 활용
+                                .toList()
+                )).toList();
 
         ServiceContactInfo serviceContactInfo = serviceContactInfoRepository.findFirstByOrderByInfoIdAsc()
                 .orElseThrow(() -> new RuntimeException("서비스 연락처 정보를 찾을 수 없습니다."));
 
-        return PrivacyTermsResponseDto.builder()
-                .title(document.getTitle())
-                .description(document.getContent())
-                .version(document.getVersion())
-                .sections(sectionDtos)
-                .serviceInfo(PrivacyTermsResponseDto.ServiceInfoDto.builder()
-                        .serviceName(serviceContactInfo.getServiceName())
-                        .companyName(serviceContactInfo.getCompanyName())
-                        .email(serviceContactInfo.getEmail())
-                        .representative(serviceContactInfo.getRepresentative())
-                        .contactNumber(serviceContactInfo.getContactNumber())
-                        .build())
-                .build();
-    }
-
-    // =========================
-    // ✅ 변환 메서드 분리
-    // =========================
-
-    private ServiceTermsResponseDto.ArticleDto convertToServiceArticleDto(TermsArticle article) {
-        return ServiceTermsResponseDto.ArticleDto.builder()
-                .articleId(article.getArticleId())
-                .clauseNo(article.getClauseNo())
-                .content(article.getContent())
-                .items(article.getItems().stream()
-                        .map(i -> ServiceTermsResponseDto.ItemDto.builder()
-                                .itemId(i.getItemId())
-                                .itemNo(i.getItemNo())
-                                .content(i.getItemContent())
-                                .build())
-                        .toList())
-                .build();
-    }
-
-    private PrivacyTermsResponseDto.ArticleDto convertToPrivacyArticleDto(TermsArticle article) {
-        return PrivacyTermsResponseDto.ArticleDto.builder()
-                .articleId(article.getArticleId())
-                .clauseNo(article.getClauseNo())
-                .content(article.getContent())
-                .items(article.getItems().stream()
-                        .map(i -> PrivacyTermsResponseDto.ItemDto.builder()
-                                .itemId(i.getItemId())
-                                .itemNo(i.getItemNo())
-                                .content(i.getItemContent())
-                                .build())
-                        .toList())
-                .build();
+        return PrivacyTermsResponseDto.of(document, sectionDtos, serviceContactInfo);
     }
 }

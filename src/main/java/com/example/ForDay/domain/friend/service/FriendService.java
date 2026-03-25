@@ -14,14 +14,14 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+
+import static com.example.ForDay.global.common.response.message.FriendSuccessMessage.*;
 
 @Slf4j
 @Service
@@ -33,243 +33,143 @@ public class FriendService {
     private final S3Util s3Util;
 
     @Transactional
-    public AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        User targetUser = userRepository.findById(reqDto.getUserId())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    public AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails userDetails) {
+        User currentUser = userUtil.getCurrentUser(userDetails);
+        User targetUser = findTargetUser(reqDto.getUserId());
 
-        // 유저가 탈퇴한 경우
-        if (targetUser.isDeleted()) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        String currentUserId = currentUser.getId();
-        String targetUserId = targetUser.getId();
-
-        log.info("[addFriend] 친구 추가 시도: {} -> {}", currentUserId, targetUserId);
-
-        // 자기 자신 체크
-        if (currentUserId.equals(targetUserId)) {
+        if (validateBySelf(currentUser, targetUser)) {
             throw new CustomException(ErrorCode.CANNOT_FOLLOW_SELF);
         }
 
-        // (내->상대) + (상대->나) 관계를 한 번에 조회
-        List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUserId, targetUserId);
+        // 양방향 관계 조회 및 할당
+        List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUser.getId(), targetUser.getId());
+        FriendRelation myRelation = findInRelations(relations, currentUser.getId());
+        FriendRelation targetRelation = findInRelations(relations, targetUser.getId());
 
-        FriendRelation myRelation = null;       // current -> target
-        FriendRelation targetRelation = null;   // target -> current
+        // 상대가 나를 차단했는지 확인
+        validateNotBlockedByTarget(targetRelation);
 
-        for (FriendRelation fr : relations) {
-            if (fr.getRequester().getId().equals(currentUserId)) {
-                myRelation = fr;
-            } else if (fr.getRequester().getId().equals(targetUserId)) {
-                targetRelation = fr;
-            }
-        }
-
-        // 상대방이 나를 차단했는지 확인 (상대->나)
-        if (targetRelation != null && targetRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-            log.info("[addFriend] 상대방이 나를 차단함. 요청 거부: {}", targetUserId);
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        // 내가 맺은 관계 확인 (내->상대)
+        // 내 관계 처리
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
-
             if (status == FriendRelationStatus.FOLLOW) {
-                log.info("[addFriend] 이미 친구 상태임: {} -> {}", currentUserId, targetUserId);
-                return new AddFriendResDto("이미 친구 맺기가 되어있습니다.", targetUser.getNickname());
+                return AddFriendResDto.of(ALREADY_FRIEND, targetUser.getNickname());
             }
-
+            // 내가 차단/신고한 유저에게는 친구 추가 불가
             if (status == FriendRelationStatus.BLOCK || status == FriendRelationStatus.REPORT) {
-                log.warn("[addFriend] 본인이 차단하거나 신고한 유저에게 친구 요청 시도: {}", targetUserId);
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
-
             myRelation.changeStatus(FriendRelationStatus.FOLLOW);
-            log.info("[addFriend] 상태 변경 완료 -> FOLLOW: {} -> {}", currentUserId, targetUserId);
-
-            return new AddFriendResDto("성공적으로 친구 맺기가 되었습니다.", targetUser.getNickname());
+        } else {
+            friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
 
-        // 관계가 없으면 신규 생성
-        friendRelationRepository.save(FriendRelation.builder()
-                .requester(currentUser)
-                .targetUser(targetUser)
-                .relationStatus(FriendRelationStatus.FOLLOW)
-                .build());
-
-        log.info("[addFriend] 친구 추가 성공: {} -> {}", currentUserId, targetUser.getNickname());
-        return new AddFriendResDto("성공적으로 친구 맺기가 되었습니다.", targetUser.getNickname());
+        return AddFriendResDto.of(ADD_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
     @Transactional
-    public DeleteFriendResDto deleteFriend(String friendId, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-
-        User targetUser = userRepository.findById(friendId)
-                .filter(u -> !u.isDeleted())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    public DeleteFriendResDto deleteFriend(String friendId, CustomUserDetails userDetails) {
+        User currentUser = userUtil.getCurrentUser(userDetails);
+        User targetUser = findTargetUser(friendId);
 
         FriendRelation myRelation = friendRelationRepository
                 .findByRequesterIdAndTargetUserId(currentUser.getId(), targetUser.getId())
+                .filter(r -> r.getRelationStatus() == FriendRelationStatus.FOLLOW)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
-        if (myRelation.getRelationStatus() != FriendRelationStatus.FOLLOW) {
-            throw new CustomException(ErrorCode.FRIEND_NOT_FOUND);
-        }
-
         friendRelationRepository.delete(myRelation);
-
-        return new DeleteFriendResDto("성공적으로 친구 관계를 삭제했습니다.", targetUser.getNickname());
+        return DeleteFriendResDto.of(DELETE_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
     @Transactional
-    public BlockFriendResDto blockFriend(BlockFriendReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    public BlockFriendResDto blockFriend(BlockFriendReqDto reqDto, CustomUserDetails userDetails) {
+        User currentUser = userUtil.getCurrentUser(userDetails);
+        User targetUser = findTargetUser(reqDto.getUserId());
 
-        User targetUser = userRepository.findById(reqDto.getUserId())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        if (targetUser.isDeleted()) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        String currentUserId = currentUser.getId();
-        String targetUserId = targetUser.getId();
-
-        log.info("[blockFriend] 차단 프로세스 시작: {} -> {}", currentUserId, targetUserId);
-
-        if (currentUserId.equals(targetUserId)) {
+        if (validateBySelf(currentUser, targetUser)) {
             throw new CustomException(ErrorCode.CANNOT_BLOCK_SELF);
         }
 
-        // (내->상대) + (상대->나) 관계를 한 번에 조회
-        List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUserId, targetUserId);
+        List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUser.getId(), targetUser.getId());
+        FriendRelation myRelation = findInRelations(relations, currentUser.getId());
+        FriendRelation targetRelation = findInRelations(relations, targetUser.getId());
 
-        FriendRelation myRelation = null;       // current -> target
-        FriendRelation targetRelation = null;   // target -> current
+        validateNotBlockedByTarget(targetRelation);
 
-        for (FriendRelation fr : relations) {
-            if (fr.getRequester().getId().equals(currentUserId)) {
-                myRelation = fr;
-            } else if (fr.getRequester().getId().equals(targetUserId)) {
-                targetRelation = fr;
-            }
-        }
-
-        // 상대방이 나를 차단했는지 확인 (상대->나)
-        if (targetRelation != null && targetRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        // 내 차단 처리 (내->상대)
         if (myRelation != null) {
             if (myRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-                log.info("[blockFriend] 이미 차단된 상태임: {}", targetUserId);
-                return new BlockFriendResDto("이미 차단된 상태입니다.", targetUser.getNickname());
+                return BlockFriendResDto.of(ALREADY_BLOCKED, targetUser.getNickname());
             }
-
             myRelation.changeStatus(FriendRelationStatus.BLOCK);
-            log.info("[blockFriend] 상태 변경 완료 -> BLOCK: {}", targetUserId);
         } else {
-            friendRelationRepository.save(FriendRelation.builder()
-                    .requester(currentUser)
-                    .targetUser(targetUser)
-                    .relationStatus(FriendRelationStatus.BLOCK)
-                    .build());
-            log.info("[blockFriend] 신규 BLOCK 관계 생성 완료: {}", targetUserId);
+            friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.BLOCK));
         }
 
-        return new BlockFriendResDto(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
+        return BlockFriendResDto.of(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
     }
 
     @Transactional(readOnly = true)
     public GetFriendListResDto getFriendList(CustomUserDetails user, String lastUserId, Integer size) {
         User currentUser = userUtil.getCurrentUser(user);
-        log.info("[getFriendList] 친구 목록 조회 시작 - User: {}, lastUserId: {}, size: {}",
-                currentUser.getId(), lastUserId, size);
+        List<GetFriendListResDto.UserInfoDto> userInfoDtos = friendRelationRepository.findMyFriendList(currentUser.getId(), lastUserId, size + 1);
 
-        List<GetFriendListResDto.UserInfoDto> userInfoDtos = friendRelationRepository.findMyFriendList(currentUser.getId(), lastUserId, size);
+        List<GetFriendListResDto.UserInfoDto> updatedList = GetFriendListResDto.UserInfoDto.listOf(
+                userInfoDtos,
+                s3Util::toProfileMainResizedUrl
+        );
 
-        boolean hasNext = false;
-        if (userInfoDtos.size() > size) {
-            hasNext = true;
-            userInfoDtos.remove(size.intValue());
-        }
-
-        String nextLastUserId = userInfoDtos.isEmpty() ? null :
-                userInfoDtos.get(userInfoDtos.size() - 1).getUserId();
-
-        List<GetFriendListResDto.UserInfoDto> updatedList = userInfoDtos.stream()
-                .map(dto -> new GetFriendListResDto.UserInfoDto(
-                        dto.getUserId(),
-                        dto.getNickname(),
-                        s3Util.toProfileMainResizedUrl(dto.getProfileImageUrl()) // 여기서 변환 처리
-                ))
-                .toList();
-
-        log.info("[getFriendList] 조회 완료 - 반환 데이터 개수: {}개, 다음 페이지 존재여부: {}",
-                userInfoDtos.size(), (userInfoDtos.size() >= size));
-
-        return new GetFriendListResDto("친구 목록이 성공적으로 조회되었습니다.", updatedList, nextLastUserId, hasNext);
+        return GetFriendListResDto.of(FRIEND_LIST_GET_SUCCESS, updatedList, size);
     }
 
     @Transactional
-    public ReportFriendResDto reportFriend(ReportFriendReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    public ReportFriendResDto reportFriend(ReportFriendReqDto reqDto, CustomUserDetails userDetails) {
+        User currentUser = userUtil.getCurrentUser(userDetails);
+        User targetUser = findTargetUser(reqDto.getUserId());
 
-        User targetUser = userRepository.findById(reqDto.getUserId())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        if (targetUser.isDeleted()) { // 탈퇴한 유저
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        String currentUserId = currentUser.getId();
-        String targetUserId = targetUser.getId();
-
-        // 자기자신을 신고할 때
-        if (currentUserId.equals(targetUserId)) {
+        if (validateBySelf(currentUser, targetUser)) {
             throw new CustomException(ErrorCode.CANNOT_REPORT_SELF);
         }
 
-        // (내->상대) + (상대->나) 관계를 한 번에 조회
-        List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUserId, targetUserId);
+        List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUser.getId(), targetUser.getId());
+        FriendRelation myRelation = findInRelations(relations, currentUser.getId());
+        FriendRelation targetRelation = findInRelations(relations, targetUser.getId());
 
-        FriendRelation myRelation = null;       // current -> target
-        FriendRelation targetRelation = null;   // target -> current
+        validateNotBlockedByTarget(targetRelation);
 
-        for (FriendRelation fr : relations) {
-            if (fr.getRequester().getId().equals(currentUserId)) {
-                myRelation = fr;
-            } else if (fr.getRequester().getId().equals(targetUserId)) {
-                targetRelation = fr;
-            }
-        }
-
-        // 상대방이 나를 차단했는지 확인 (상대->나 관계)
-        if (targetRelation != null && targetRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
-
-        // 내 신고(관계) 처리 (내->상대 관계)
         if (myRelation != null) {
-            if (myRelation.getRelationStatus() == FriendRelationStatus.REPORT) {
-                return new ReportFriendResDto("이미 신고된 상태입니다.", targetUser.getNickname(), targetUser.getId());
-            } else if (myRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
+            FriendRelationStatus status = myRelation.getRelationStatus();
+            if (status == FriendRelationStatus.REPORT) {
+                return ReportFriendResDto.of(ALREADY_REPORTED, targetUser);
+            } else if (status == FriendRelationStatus.BLOCK) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
             myRelation.changeStatus(FriendRelationStatus.REPORT);
         } else {
-            friendRelationRepository.save(FriendRelation.builder()
-                    .requester(currentUser)
-                    .targetUser(targetUser)
-                    .relationStatus(FriendRelationStatus.REPORT)
-                    .build());
+            friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
 
-        return new ReportFriendResDto("신고가 완료되었습니다.", targetUser.getNickname(), targetUser.getId());
+        return ReportFriendResDto.of(REPORT_FRIEND_SUCCESS, targetUser);
+    }
+
+    private User findTargetUser(String userId) {
+        return userRepository.findById(userId)
+                .filter(u -> !u.isDeleted())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private FriendRelation findInRelations(List<FriendRelation> relations, String userId) {
+        return relations.stream()
+                .filter(r -> r.getRequester().getId().equals(userId))
+                .findFirst().orElse(null);
+    }
+
+    private void validateNotBlockedByTarget(FriendRelation targetRelation) {
+        if (targetRelation != null && targetRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+    }
+
+    private static boolean validateBySelf(User currentUser, User targetUser) {
+        return currentUser.getId().equals(targetUser.getId());
     }
 }

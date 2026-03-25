@@ -3,9 +3,6 @@ package com.example.ForDay.domain.activity.controller;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
 import com.example.ForDay.domain.activity.type.AIItemType;
-import com.example.ForDay.domain.hobby.dto.request.*;
-import com.example.ForDay.domain.hobby.dto.response.*;
-import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.global.common.error.ErrorResponse;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -19,7 +16,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Activity", description = "활동 관련 API")
 public interface ActivityControllerDocs {

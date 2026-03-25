@@ -17,4 +17,8 @@ public class RefreshResDto {
 
     @Schema(description = "Refresh Token (재발급 시 사용)", example = "eyJhbGciOiJIUzI1...")
     private String refreshToken;
+
+    public static RefreshResDto of(String accessToken, String refreshToken) {
+        return new RefreshResDto(accessToken, refreshToken);
+    }
 }

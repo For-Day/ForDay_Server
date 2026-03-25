@@ -15,4 +15,12 @@ public class CanCreateHobbyResDto {
 
     @Schema(description = "생성 가능 여부 (true: 가능, false: 중복)", example = "false")
     private boolean availability;
+
+    public static CanCreateHobbyResDto canCreate() {
+        return new CanCreateHobbyResDto("등록 가능한 취미입니다.", true);
+    }
+
+    public static CanCreateHobbyResDto canNotCreate() {
+        return new CanCreateHobbyResDto("이미 등록한 취미입니다.", false);
+    }
 }

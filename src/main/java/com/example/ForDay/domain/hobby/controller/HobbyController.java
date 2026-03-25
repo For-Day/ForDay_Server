@@ -51,7 +51,7 @@ public class HobbyController implements HobbyControllerDocs {
     public AddActivityResDto addActivity(@PathVariable(value = "hobbyId") Long hobbyId,
                                          @RequestBody @Valid AddActivityReqDto reqDto,
                                          @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.addActivity(hobbyId, reqDto, user);
+        return activityService.addActivity(hobbyId, reqDto, user);
     }
 
     @Override
@@ -187,5 +187,12 @@ public class HobbyController implements HobbyControllerDocs {
                                          @RequestBody @Valid UpdateHobbyReqDto reqDto,
                                          @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.updateHobby(hobbyId, reqDto, user);
+    }
+
+    @Override
+    @GetMapping("/chips")
+    public GetHobbyListByChipResDto getHobbyListByChip(@RequestParam(value = "status")  HobbyStatus status,
+                                                       @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.getHobbyListByChip(status, user);
     }
 }

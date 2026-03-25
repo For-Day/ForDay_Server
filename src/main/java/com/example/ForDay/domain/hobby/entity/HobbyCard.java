@@ -29,4 +29,13 @@ public class HobbyCard extends BaseTimeEntity {
     private String content;
 
     private String imageUrl;
+
+    public static HobbyCard of(User user, Hobby hobby, String content, String imageUrl) {
+        return HobbyCard.builder()
+                .user(user)
+                .hobby(hobby)
+                .content(content)
+                .imageUrl(imageUrl)
+                .build();
+    }
 }

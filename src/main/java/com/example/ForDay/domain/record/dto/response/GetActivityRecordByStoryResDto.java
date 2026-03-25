@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.dto.response;
 
 import com.example.ForDay.domain.hobby.dto.response.GetHobbyStoryTabsResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.infra.s3.util.S3Util;
 import com.querydsl.core.annotations.QueryProjection;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,6 +19,21 @@ public class GetActivityRecordByStoryResDto {
     private List<RecordDto> recordList;
     private boolean hasNext;
 
+    public static GetActivityRecordByStoryResDto of(
+            List<StoryTabInfo> tabInfos,
+            List<RecordDto> recordDtos,
+            int size) {
+        boolean hasNext = recordDtos.size() > size;
+        if (hasNext) recordDtos.remove(size);
+
+        Long lastId = recordDtos.isEmpty()
+                ? null
+                : recordDtos.get(recordDtos.size() - 1).getRecordId();
+
+        return new GetActivityRecordByStoryResDto(tabInfos, lastId, recordDtos, hasNext);
+    }
+
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -31,6 +47,17 @@ public class GetActivityRecordByStoryResDto {
         private boolean pressedAweSome;
         private String hobbyName;
         private boolean recordAuthor;
+
+        public void convertImageUrls(S3Util s3Util) {
+            if (this.thumbnailUrl != null) {
+                this.thumbnailUrl = s3Util.toFeedThumbResizedUrl(this.thumbnailUrl);
+            }
+            if (this.userInfo != null && this.userInfo.getProfileImageUrl() != null) {
+                this.userInfo.setProfileImageUrl(
+                        s3Util.toProfileListResizedUrl(this.userInfo.getProfileImageUrl())
+                );
+            }
+        }
     }
 
     @Data
