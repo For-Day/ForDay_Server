@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.hibernate.validator.constraints.URL;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 
@@ -125,5 +126,18 @@ public class User extends BaseTimeEntity {
         }
 
         this.profileImageUrl = null;
+    }
+
+    public boolean isNicknameSet() {
+        return StringUtils.hasText(this.nickname);
+    }
+
+    public static User createOauth(String socialId, String email, SocialType socialType) {
+        return User.builder()
+                .role(Role.USER)
+                .email(email)
+                .socialType(socialType)
+                .socialId(socialId)
+                .build();
     }
 }

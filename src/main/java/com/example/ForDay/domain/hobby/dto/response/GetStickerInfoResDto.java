@@ -1,5 +1,7 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
+import com.example.ForDay.domain.hobby.dto.StickerContext;
+import com.example.ForDay.domain.hobby.entity.Hobby;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,6 +22,24 @@ public class GetStickerInfoResDto {
     private boolean hasPrevious;
     private boolean hasNext;
     private List<StickerDto> stickers;
+
+    public static GetStickerInfoResDto of(
+            Hobby hobby,
+            StickerContext ctx,
+            List<StickerDto> stickers) {
+        return new GetStickerInfoResDto(
+                hobby.getId(),
+                ctx.isDurationSet(),
+                ctx.isRecordedToday(),
+                ctx.getCurrentPage(),
+                ctx.getTotalPage(),
+                ctx.getSize(),
+                ctx.getTotalStickerNum(),
+                ctx.getCurrentPage() > 1,      // hasPrevious
+                ctx.getCurrentPage() < ctx.getTotalPage(), // hasNext
+                stickers
+        );
+    }
 
     @Data
     @NoArgsConstructor

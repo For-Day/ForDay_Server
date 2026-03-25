@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.user.dto.response;
 
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.HobbyInfoImageIcon;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -15,6 +16,18 @@ public class GetHobbyInProgressResDto {
     private int inProgressHobbyCount;
     private int hobbyCardCount;
     private List<HobbyDto> hobbyList;
+
+    public static GetHobbyInProgressResDto of(User user, List<HobbyDto> hobbyList) {
+        int inProgressCount = (int) hobbyList.stream()
+                .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
+                .count();
+
+        return new GetHobbyInProgressResDto(
+                inProgressCount,
+                user.getHobbyCardCount(),
+                hobbyList
+        );
+    }
 
     @Data
     @AllArgsConstructor

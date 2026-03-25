@@ -1,31 +1,36 @@
 package com.example.ForDay.domain.hobby.service;
 
-import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.entity.OtherActivity;
-import com.example.ForDay.domain.activity.repository.ActivityBulkRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
+import com.example.ForDay.domain.activity.service.ActivityRedisService;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
+import com.example.ForDay.domain.hobby.dto.AiInsightResult;
+import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
+import com.example.ForDay.domain.hobby.dto.StickerContext;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.hobby.type.StickerCover;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.domain.user.repository.UserRepository;
+import com.example.ForDay.global.ai.service.AIService;
+import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,11 +39,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
+
+import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
+import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.*;
 
 @Slf4j
 @Service
@@ -50,148 +55,67 @@ public class HobbyService {
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;
 
-    @Value("${fastapi.url}")
-    private String fastApiBaseUrl;
-
     private final HobbyRepository hobbyRepository;
     private final UserUtil userUtil;
     private final ActivityRepository activityRepository;
     private final AiCallCountService aiCallCountService;
-    private final RestTemplate restTemplate;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final UserSummaryAIService userSummaryAIService;
     private final S3Service s3Service;
     private final OtherActivityRepository otherActivityRepository;
     private final CoverLambdaInvoker invoker;
-    private final UserRepository userRepository;
     private final S3Util s3Util;
-    private final ActivityBulkRepository activityBulkRepository;
     private final ActivityRecommendItemRepository activityRecommendItemRepository;
+    private final HobbyAiInsightService hobbyAiInsightService;
+    private final AIService aiService;
+    private final HobbyUtil hobbyUtil;
+    private final ActivityRecordRedisService activityRecordRedisService;
+    private final ActivityRedisService activityRedisService;
 
     @Transactional
-    public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user) {
-        log.info("[ActivityCreate] 요청 시작 - userId={}, hobbyCardId={}",
-                user.getUsername(), reqDto.getHobbyInfoId());
+    public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails userDetails) {
+        User currentUser = userUtil.getCurrentUser(userDetails);
+        log.info("[ActivityCreate] Start - userId={}, hobbyId={}, hobbyName={}", currentUser.getId(), reqDto.getHobbyInfoId(), reqDto.getHobbyName());
 
-        User currentUser = userUtil.getCurrentUser(user);
-
-        boolean isNicknameSet = StringUtils.hasText(currentUser.getNickname()); // 닉네임 설정 여부
-        boolean onboardingCompleted = currentUser.isOnboardingCompleted(); // 온보딩 완료 여부
-
-        if (onboardingCompleted && !isNicknameSet) {
-            // 온보딩은 완료 닉네임은 미설정시 (같은 취미에 대한 중복 요청이 있을 것임)
+        // 온보딩 및 닉네임 상태 검증
+        if (currentUser.isOnboardingCompleted() && !currentUser.isNicknameSet()) {
             throw new CustomException(ErrorCode.DUPLICATE_HOBBY_REQUEST);
         }
 
-        // 이미 진행 중인 취미가 두개인지 검사
-        long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
-        if (hobbyCount >= 2) {
-            throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
-        }
+        // 진행 중인 취미 개수 제한 검증
+        validateMaxInProgressHobbies(currentUser);
 
-        // 중복 취미 생성 체크
-        if (reqDto.getHobbyInfoId() != null && reqDto.getHobbyInfoId() >= 1) {
-            if (hobbyRepository.existsByHobbyInfoIdAndUserId(reqDto.getHobbyInfoId(), currentUser.getId())) {
-                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
-            }
-        }
-        if (StringUtils.hasText(reqDto.getHobbyName())) {
-            if (hobbyRepository.existsByHobbyNameAndUserId(reqDto.getHobbyName(), currentUser.getId())) {
-                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
-            }
-        }
+        // 취미 중복 여부 검증
+        validateDuplicateHobby(reqDto, currentUser);
+        // 취미 엔티티 생성 및 저장
+        Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, reqDto, DEFAULT_GOAL_DAYS));
 
-        Hobby hobby = Hobby.builder()
-                .user(currentUser)
-                .hobbyInfoId(reqDto.getHobbyInfoId())
-                .hobbyName(reqDto.getHobbyName())
-                .hobbyPurpose(reqDto.getHobbyPurpose())
-                .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
-                .executionCount(reqDto.getExecutionCount())
-                .goalDays(reqDto.getIsDurationSet() ? DEFAULT_GOAL_DAYS : null)
-                .status(HobbyStatus.IN_PROGRESS)
-                .build();
-
-        hobbyRepository.save(hobby);
-        log.info("[ActivityCreate] Hobby 생성 완료 - hobbyId={}, userId={}",
-                hobby.getId(), currentUser.getId());
-
-        // 온보딩이 완료되지 않은 경우에만 완료로 전환되도록 설정
+        // 온보딩 상태 업데이트
         if (!currentUser.isOnboardingCompleted()) {
-            log.info("[Before Update] onboarding status: {}", currentUser.isOnboardingCompleted());
             currentUser.completeOnboarding();
-            userRepository.save(currentUser);
+            log.info("[ActivityCreate] User onboarding marked as completed: userId={}", currentUser.getId());
         }
 
-        return new ActivityCreateResDto("취미가 성공적으로 생성되었습니다.", hobby.getId());
+        return ActivityCreateResDto.of(savedHobby.getId());
     }
 
     @Transactional
     public ActivityAIRecommendResDto activityAiRecommend(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        String userId = currentUser.getId();
+        Hobby hobby = validateHobbyAccess(hobbyId, currentUser);
 
-        Hobby hobby = getHobby(hobbyId);
-        verifyHobbyOwner(hobby, currentUser); // hobby의 소유자인지 검증
-        checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지 확인
-
-        // 오늘 ai 호출 횟수 조회
-        String socialId = currentUser.getSocialId();
-        int currentCount = aiCallCountService.increaseAndGet(socialId, hobbyId);
-        log.info("[AI-RECOMMEND][CALL] user={} calling AI model", userId);
-
-        // FastAPI 요청 객체 생성
-        FastAPIRecommendReqDto requestDto = FastAPIRecommendReqDto.builder()
-                .userId(userId)
-                .userHobbyId(hobbyId.intValue())
-                .hobbyName(hobby.getHobbyName())
-                .hobbyPurpose(hobby.getHobbyPurpose())
-                .hobbyTimeMinutes(hobby.getHobbyTimeMinutes())
-                .executionCount(hobby.getExecutionCount())
-                .goalDays(hobby.getGoalDays() != null ? hobby.getGoalDays() : 0)
-                .build();
-
-        // FastAPI 호출
-        String url = fastApiBaseUrl + "/ai/activities/recommend";
+        int currentCount = aiCallCountService.increaseAndGet(currentUser.getSocialId(), hobbyId);
 
         try {
-             FastAPIRecommendResDto response = restTemplate.postForObject(url, requestDto, FastAPIRecommendResDto.class);
+            FastAPIRecommendResDto response = aiService.requestActivityRecommendAI(currentUser, hobby);
+            String summary = AiMessageConstants.formatHobbySummary(userSummaryAIService.determine(currentUser, hobby));
+            saveRecommendItems(hobby, response);
 
-            if (response == null || response.getActivities().isEmpty()) {
-                throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
-            }
-
-            String userSummaryText = "";
-            long recordCount = activityRecordRepository.countByUserIdAndHobbyId(currentUser.getId(), hobbyId);
-
-            if(recordCount >=5) {
-                // 기존에 사용자 요약 문구가 존재하는지 redis에 조회
-                if(userSummaryAIService.hasSummary(socialId, hobbyId)) {
-                    userSummaryText = userSummaryAIService.getSummary(socialId, hobby.getId());
-                } else {
-                    // fast api에 요청
-                    userSummaryText = userSummaryAIService.fetchAndSaveUserSummary(userId, socialId, hobbyId, hobby.getHobbyName());
-                }
-
-            }
-            userSummaryText += " 포데이 AI가 알맞은 취미 활동을 추천드려요";
-
-            // 추천 받은 활동 리스트 저장
-            List<ActivityRecommendItem> items = response.getActivities().stream()
-                    .map(item -> ActivityRecommendItem.builder()
-                            .hobby(hobby)
-                            .content(item.getContent())
-                            .description(item.getDescription())
-                            .build())
-                    .toList();
-
-            activityRecommendItemRepository.saveAll(items);
-            return new ActivityAIRecommendResDto("AI가 취미 활동을 추천했습니다.", currentCount, maxCallLimit, userSummaryText, response.getActivities());
-
+            return ActivityAIRecommendResDto.of(currentCount, maxCallLimit, summary, response.getActivities());
         } catch (Exception e) {
-            aiCallCountService.decrease(socialId, hobbyId);
-            log.error("[AI-RECOMMEND][ERROR] FastAPI 호출 실패: {}", e.getMessage());
+            aiCallCountService.decrease(currentUser.getSocialId(), hobbyId);
+            log.error("[AI-RECOMMEND][ERROR] {}", e.getMessage());
             throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
         }
     }
@@ -200,17 +124,17 @@ public class HobbyService {
     public ActivityAIRecommendResDto testActivityAiRecommend(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        Hobby hobby = getHobby(hobbyId);
-        verifyHobbyOwner(hobby, currentUser); // hobby의 소유자인지 검증
-        checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지 확인
+        Hobby hobby = hobbyUtil.getHobby(hobbyId);
+        hobbyUtil.verifyHobbyOwner(hobby, currentUser); // hobby의 소유자인지 검증
+        hobby.validateInProgress(); // 현재 진행 중인 취미인지 확인
 
         List<ActivityDto> activityDtos = new ArrayList<>();
         activityDtos.add(ActivityDto
                 .builder()
-                        .activityId(1L)
-                        .topic("가벼운 덤벨 운동")
-                        .content("덤벨로 양팔 10회 들어보기")
-                        .description("부담 없이 가벼운 덤벨을 사용해 운동할 수 있어요.")
+                .activityId(1L)
+                .topic("가벼운 덤벨 운동")
+                .content("덤벨로 양팔 10회 들어보기")
+                .description("부담 없이 가벼운 덤벨을 사용해 운동할 수 있어요.")
                 .build());
 
         activityDtos.add(ActivityDto
@@ -243,49 +167,16 @@ public class HobbyService {
     public OthersActivityRecommendResDto othersActivityRecommendV1(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
 
-        Long hobbyInfoId = hobby.getHobbyInfoId();
-
-        List<OtherActivity> activities = otherActivityRepository.findRandomThreeByHobbyInfoId(hobbyInfoId);
+        List<OtherActivity> activities = otherActivityRepository.findRandomThreeByHobbyInfoId(hobby.getHobbyInfoId());
 
         List<OthersActivityRecommendResDto.ActivityDto> list = activities.stream()
                 .map(OthersActivityRecommendResDto.ActivityDto::from)
                 .toList();
 
-        return new OthersActivityRecommendResDto("다른 하비들이 많이 하는 활동 목록 조회에 성공하셨습니다.", list);
+        return OthersActivityRecommendResDto.of(list);
     }
-
-    @Transactional
-    public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
-        Hobby hobby = getHobby(hobbyId);
-        User currentUser = userUtil.getCurrentUser(user);
-        verifyHobbyOwner(hobby, currentUser); // 취미 소유자인지 검증
-        checkHobbyInProgressStatus(hobby); // 현재 진행 중인 취미인지
-
-        log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}",
-                currentUser.getId(), hobbyId, reqDto.getActivities().size());
-
-        List<Activity> activities = reqDto.getActivities().stream()
-                .map(activity -> Activity.builder()
-                        .user(currentUser)
-                        .hobby(hobby)
-                        .content(activity.getContent())
-                        .aiRecommended(activity.isAiRecommended())
-                        .build()
-                )
-                .toList();
-
-        activityBulkRepository.bulkInsertActivities(activities);
-        log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
-
-        return new AddActivityResDto(
-                "취미 활동이 정상적으로 생성되었습니다.",
-                activities.size()
-        );
-    }
-
 
     @Transactional(readOnly = true)
     public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, CustomUserDetails user, Integer size) {
@@ -296,83 +187,35 @@ public class HobbyService {
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
 
-        GetHobbyActivitiesResDto response = activityRepository.getHobbyActivities(hobbyId, size);
-
-        log.info("[GetHobbyActivities] 조회 완료 - 활동 개수: {}", response.getActivities().size());
-        return response;
+        return activityRedisService.getHobbyActivitiesCached(hobbyId, currentUser.getId(), size);
     }
 
     @Transactional(readOnly = true)
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        log.info("[GetHomeHobbyInfo] 대시보드 조회 - UserId: {}, TargetHobbyId: {}",
+        log.info("[GetHomeHobbyInfo] Dashboard inquiry - UserId: {}, TargetHobbyId: {}",
                 currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
 
-        Hobby targetHobby = (hobbyId != null)
-                ? getHobby(hobbyId)
-                : getLatestInProgressHobby(currentUser);
+        // 대상 취미 결정
+        Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : getLatestInProgressHobby(currentUser);
 
-        if(targetHobby == null) {
-            log.info("[GetHomeHobbyInfo] 진행 중인 취미 없음 - 기본 대시보드 반환. UserId: {}", currentUser.getId());
-            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false, 0, null);
+        // 취미가 없는 경우 기본 응답 반환
+        if (targetHobby == null) {
+            return GetHomeHobbyInfoResDto.ofDefault(currentUser.getNickname());
         }
 
+        // DB에서 대시보드 기초 정보 조회
         GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfo(targetHobby.getId(), currentUser);
-
         if (response == null) {
-            log.warn("[GetHomeHobbyInfo] 취미 정보 조회 실패(DB 데이터 불일치 가능성) - HobbyId: {}", targetHobby.getId());
-            return new GetHomeHobbyInfoResDto(List.of(), null, "반가워요, " + currentUser.getNickname() + "님! 👋", "", "포데이 AI가 알맞은 취미활동을 추천해드려요", false, 0, null);
-        }
-        // AI 관련 로직 처리
-        String socialId = currentUser.getSocialId();
-        String userSummaryText = "";
-        boolean isAiCallRemaining = true;
-
-        // 호출 가능 횟수 체크
-        int currentCount = aiCallCountService.getCurrentCount(socialId, targetHobby.getId());
-        if (currentCount >= 3) {
-            log.info("[GetHomeHobbyInfo] AI 호출 횟수 초과 (현재: {}회) - SocialId: {}", currentCount, socialId);
-            isAiCallRemaining = false;
+            log.warn("[GetHomeHobbyInfo] Failed to fetch hobby data - HobbyId: {}", targetHobby.getId());
+            return GetHomeHobbyInfoResDto.ofDefault(currentUser.getNickname());
         }
 
-        // 요약 문구 처리 (기록 5개 이상일 때)
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        long recordCount = activityRecordRepository.countByUserIdAndHobbyIdAndCreatedAtAfterAndDeletedFalse(
-                currentUser.getId(),
-                targetHobby.getId(),
-                sevenDaysAgo
-        );
+        AiInsightResult aiInsight = hobbyAiInsightService.resolveInsight(currentUser, targetHobby);
 
-        log.info("[GetHomeHobbyInfo] 최근 7일 기록 개수: {}개 - HobbyId: {}", recordCount, targetHobby.getId());
+        log.info("[GetHomeHobbyInfo] Completion - UserId: {}, Hobby: {}, AI Success: {}", currentUser.getId(), targetHobby.getHobbyName(), !aiInsight.summaryText().isEmpty());
 
-        if (recordCount >= 5) {
-            if (userSummaryAIService.hasSummary(socialId, targetHobby.getId())) {
-                userSummaryText = userSummaryAIService.getSummary(socialId, targetHobby.getId());
-                log.info("[GetHomeHobbyInfo] 캐시된 AI 요약 불러오기 성공");
-            } else {
-                log.info("[GetHomeHobbyInfo] 새로운 AI 요약 생성 요청 - User: {}, Hobby: {}", currentUser.getId(), targetHobby.getHobbyName());
-                try {
-                    userSummaryText = userSummaryAIService.fetchAndSaveUserSummary(currentUser.getId(), socialId, targetHobby.getId(), targetHobby.getHobbyName());
-                } catch (Exception e) {
-                    log.error("AI 요약 생성 중 오류 발생: {}", e.getMessage());
-                    userSummaryText = "";
-                }
-            }
-        } else {
-            log.info("[GetHomeHobbyInfo] 기록 부족으로 AI 요약 생략 (필요: 5개, 현재: {}개)", recordCount);
-        }
-
-        log.info("[GetHomeHobbyInfo] 대시보드 조회 완료 - UserId: {}, Hobby: {}, AI연동여부: {}",
-                currentUser.getId(), targetHobby.getHobbyName(), !userSummaryText.isEmpty());
-
-        return response.toBuilder()
-                .greetingMessage("반가워요, " + currentUser.getNickname() + "님! 👋")
-                .userSummaryText(userSummaryText)
-                .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
-                .aiCallRemaining(isAiCallRemaining)
-                .aiCallRemainingCount(maxCallLimit - aiCallCountService.getCurrentCount(socialId, targetHobby.getId()))
-                .nickname(currentUser.getNickname())
-                .build();
+        return GetHomeHobbyInfoResDto.of(response, currentUser.getNickname(), aiInsight);
     }
 
     @Transactional(readOnly = true)
@@ -393,7 +236,6 @@ public class HobbyService {
         }
 
         GetActivityListResDto result = activityRepository.getActivityList(hobbyId, currentUser.getId());
-
         log.info("[HobbyService] 활동 목록 조회 완료 - activityCount={}", result.getActivities().size());
         return result;
     }
@@ -404,19 +246,13 @@ public class HobbyService {
         log.info("[HobbyService] 취미 시간 수정 요청 - hobbyId={}, minutes={}",
                 hobbyId, dto.getMinutes());
 
-        Hobby hobby = checkHobbyUpdateable(hobbyId, user);
+        Hobby hobby = hobbyUtil.checkHobbyUpdateable(hobbyId, user);
 
         Integer before = hobby.getHobbyTimeMinutes();
         hobby.updateHobbyTimeMinutes(dto.getMinutes());
 
-        log.info("[HobbyService] 취미 시간 수정 완료 - hobbyId={}, userId={}, before={}, after={}",
-                hobbyId,
-                hobby.getUser().getId(),
-                before,
-                dto.getMinutes()
-        );
-
-        return new MessageResDto("취미 시간이 수정되었습니다.");
+        log.info("[HobbyService] 취미 시간 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, dto.getMinutes());
+        return new MessageResDto(UPDATE_HOBBY_TIME_SUCCESS);
     }
 
 
@@ -425,19 +261,13 @@ public class HobbyService {
         log.info("[HobbyService] 취미 실행 횟수 수정 요청 - hobbyId={}, executionCount={}",
                 hobbyId, dto.getExecutionCount());
 
-        Hobby hobby = checkHobbyUpdateable(hobbyId, user);
+        Hobby hobby = hobbyUtil.checkHobbyUpdateable(hobbyId, user);
 
         Integer before = hobby.getExecutionCount();
         hobby.updateExecutionCount(dto.getExecutionCount());
 
-        log.info("[HobbyService] 취미 실행 횟수 수정 완료 - hobbyId={}, userId={}, before={}, after={}",
-                hobbyId,
-                hobby.getUser().getId(),
-                before,
-                dto.getExecutionCount()
-        );
-
-        return new MessageResDto("실행 횟수가 수정되었습니다.");
+        log.info("[HobbyService] 취미 실행 횟수 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, dto.getExecutionCount());
+        return new MessageResDto(UPDATE_EXECUTION_COUNT_SUCCESS);
     }
 
     @Transactional
@@ -445,115 +275,61 @@ public class HobbyService {
         log.info("[HobbyService] 취미 목표 기간 수정 요청 - hobbyId={}, isDurationSet={}",
                 hobbyId, dto.getIsDurationSet());
 
-        Hobby hobby = checkHobbyUpdateable(hobbyId, user);
-
+        Hobby hobby = hobbyUtil.checkHobbyUpdateable(hobbyId, user);
         Integer before = hobby.getGoalDays();
         Integer after = dto.getIsDurationSet() ? 66 : null;
 
         hobby.updateGoalDays(after);
-
-        log.info("[HobbyService] 취미 목표 기간 수정 완료 - hobbyId={}, userId={}, before={}, after={}",
-                hobbyId,
-                hobby.getUser().getId(),
-                before,
-                after
-        );
-
-        return new MessageResDto("목표 기간 설정이 수정되었습니다.");
+        log.info("[HobbyService] 취미 목표 기간 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, after);
+        return new MessageResDto(UPDATE_GOAL_DAYS_SUCCESS);
     }
-
 
     // 진행중 -> 보관, 보관 -> 진행중
     @Transactional
-    public MessageResDto updateHobbyStatus(
-            Long hobbyId,
-            UpdateHobbyStatusReqDto reqDto,
-            CustomUserDetails user
-    ) {
-        log.info("[HobbyService] 취미 상태 변경 요청 - hobbyId={}, targetStatus={}",
-                hobbyId, reqDto.getHobbyStatus());
+    public MessageResDto updateHobbyStatus(Long hobbyId, UpdateHobbyStatusReqDto reqDto, CustomUserDetails user) {
+        log.info("[HobbyService] 취미 상태 변경 요청 - hobbyId={}, targetStatus={}", hobbyId, reqDto.getHobbyStatus());
 
-        Hobby hobby = getHobby(hobbyId);
+        Hobby hobby = hobbyUtil.getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
 
-        verifyHobbyOwner(hobby, currentUser);
+        hobbyUtil.verifyHobbyOwner(hobby, currentUser);
 
         HobbyStatus currentStatus = hobby.getStatus(); // 현재 상태
         HobbyStatus targetStatus = reqDto.getHobbyStatus(); // 바꾸려는 상태
 
         // 동일 상태 요청
         if (currentStatus == targetStatus) {
-            log.info("[HobbyService] 취미 상태 변경 요청 무시 (동일 상태) - hobbyId={}, status={}",
-                    hobbyId, currentStatus);
-            return new MessageResDto("이미 해당 상태입니다.");
+            log.info("[HobbyService] 취미 상태 변경 요청 무시 (동일 상태) - hobbyId={}, status={}", hobbyId, currentStatus);
+            return new MessageResDto(ALREADY_HOBBY_STATUS);
         }
 
         switch (targetStatus) {
             case IN_PROGRESS -> { // 보관 -> 진행
-                long inProgressCount =
-                        hobbyRepository.countByStatusAndUser(
-                                HobbyStatus.IN_PROGRESS,
-                                currentUser // 현재 유저의 진행 중인 취미가 이미 2개이면 꺼낼 수 없다.
-                        );
-
+                long inProgressCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
                 if (inProgressCount >= 2) {
-                    log.warn("[HobbyService] 진행 중 취미 개수 초과 - userId={}, count={}",
-                            currentUser.getId(), inProgressCount);
+                    log.warn("[HobbyService] 진행 중 취미 개수 초과 - userId={}, count={}", currentUser.getId(), inProgressCount);
                     throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
                 }
 
                 hobby.updateHobbyStatus(HobbyStatus.IN_PROGRESS);
-
                 return new MessageResDto(hobby.getHobbyName() + "취미를 꺼냈어요.");
             }
-
             case ARCHIVED -> {
-                    hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
-                    return new MessageResDto(hobby.getHobbyName() + "취미가 보관되었어요.");
+                hobby.updateHobbyStatus(HobbyStatus.ARCHIVED);
+                return new MessageResDto(hobby.getHobbyName() + "취미가 보관되었어요.");
             }
-
             default -> {
-                log.warn("[HobbyService] 잘못된 취미 상태 요청 - hobbyId={}, status={}",
-                        hobbyId, targetStatus);
+                log.warn("[HobbyService] 잘못된 취미 상태 요청 - hobbyId={}, status={}", hobbyId, targetStatus);
                 throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
             }
         }
     }
 
-    private Hobby getHobby(Long hobbyId) {
-        return hobbyRepository.findById(hobbyId).orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
-    }
-
-    private void verifyHobbyOwner(Hobby hobby, User currentUser) {
-        if (!hobby.getUser().getId().equals(currentUser.getId())) {
-            throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
-        }
-    }
-
-
-    private Hobby checkHobbyUpdateable(Long hobbyId, CustomUserDetails user) {
-        Hobby hobby = getHobby(hobbyId);
-        User currentUser = userUtil.getCurrentUser(user);
-
-        verifyHobbyOwner(hobby, currentUser);
-
-        if (!hobby.isUpdatable()) {
-            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
-        }
-        return hobby;
-    }
-
-    private void checkHobbyInProgressStatus(Hobby hobby) {
-        if (!hobby.getStatus().equals(HobbyStatus.IN_PROGRESS)) {
-            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
-        }
-    }
-
     @Transactional
     public SetHobbyExtensionResDto setHobbyExtension(Long hobbyId, SetHobbyExtensionReqDto reqDto, CustomUserDetails user) {
-        Hobby hobby = getHobby(hobbyId);
+        Hobby hobby = hobbyUtil.getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
-        verifyHobbyOwner(hobby, currentUser);    // 원래 기간 설정이 안된 취미의 경우
+        hobbyUtil.verifyHobbyOwner(hobby, currentUser);    // 원래 기간 설정이 안된 취미의 경우
 
         // 기간 미설정 취미
         if (hobby.getGoalDays() == null) {
@@ -561,7 +337,7 @@ public class HobbyService {
         }
 
         // 스티커 미완성
-        if(hobby.getCurrentStickerNum() < STICKER_COMPLETE_COUNT) {
+        if (hobby.getCurrentStickerNum() < STICKER_COMPLETE_COUNT) {
             throw new CustomException(ErrorCode.HOBBY_STICKER_NOT_ENOUGH);
         }
 
@@ -571,108 +347,24 @@ public class HobbyService {
             default -> throw new CustomException(ErrorCode.INVALID_HOBBY_EXTENSION_TYPE);
 
         }
-
-        return new SetHobbyExtensionResDto(hobbyId, reqDto.getType(), "취미 기간 설정이 정상적으로 처리되었습니다.");
+        return SetHobbyExtensionResDto.of(hobbyId, reqDto.getType());
     }
 
     @Transactional(readOnly = true)
-    public GetStickerInfoResDto getStickerInfo(
-            Long hobbyId,
-            Integer page,
-            Integer size,
-            CustomUserDetails user
-    ) {
+    public GetStickerInfoResDto getStickerInfo(Long hobbyId, Integer page, Integer size, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        log.info("getStickerInfo 호출: hobbyId={}, page={}, size={}, userId={}", hobbyId, page, size, currentUser.getId());
 
-        // hobby 조회
-        Hobby hobby = (hobbyId != null)
-                ? hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_HOBBY_OWNER))
-                : getLatestInProgressHobby(currentUser);
-        log.debug("조회된 hobby: {}", hobby);
+        // 현재 스티커판 조회 대상이 되는 취미
+        Hobby hobby = resolveHobby(hobbyId, currentUser);
+        validateHobbyAccess(hobby.getId(), currentUser);
 
-        // 진행 중 취미 자체가 없는 경우
-        if (hobby == null) {
-            log.warn("진행 중인 취미가 없음, empty 응답 반환");
-            return null;
-        }
+        // 해당 취미에 대한 기록이 있는지 여부
+        boolean recordedToday = todayRecordRedisService.hasKey(todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId()));
 
-        // 권한 + 상태 체크
-        verifyHobbyOwner(hobby, currentUser);
-        checkHobbyInProgressStatus(hobby);
+        StickerContext context = StickerContext.of(hobby, recordedToday, page, size);
+        List<GetStickerInfoResDto.StickerDto> stickers =  activityRecordRedisService.getCachedStickers(hobby.getId(), context.getCurrentPage(), context.getSize(), currentUser.getId());
 
-        // 기간 설정 여부
-        boolean durationSet = hobby.getGoalDays() != null;
-        log.debug("durationSet={}", durationSet);
-
-        // 오늘 기록 여부 (Redis)
-        boolean recordedToday =
-                todayRecordRedisService.hasKey(
-                        todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId())
-                );
-        log.debug("recordedToday={}", recordedToday);
-
-        // 전체 스티커 개수 (빈칸 포함)
-        int totalStickerNum = hobby.getCurrentStickerNum();
-        int totalSlotCount = totalStickerNum;
-        if(!recordedToday) totalSlotCount++; // 오늘 기록한게 없으면 빈칸도 포함
-        log.debug("totalStickerNum={}, totalSlotCount={}", totalStickerNum, totalSlotCount);
-
-        // 현재 조회하고자 하는 페이지
-        int currentPage = (page == null)
-                ? calculateCurrentPage(totalSlotCount, size)
-                : page;
-        log.debug("currentPage={}", currentPage);
-
-        // 전체 페이지
-        int totalPage = ((totalSlotCount - 1) / size) + 1;
-        log.debug("totalPage={}", totalPage);
-
-        if(currentPage <= 0 || currentPage > totalPage) {
-            log.error("유효하지 않은 페이지 요청: currentPage={}, totalPage={}", currentPage, totalPage);
-            throw new CustomException(ErrorCode.INVALID_PAGE_REQUEST);
-        }
-
-        // DB에서 실제 스티커 조회 (빈칸 제외)
-        List<GetStickerInfoResDto.StickerDto> stickerDto =
-                activityRecordRepository.getStickerInfo(
-                        hobby.getId(),
-                        currentPage,
-                        size,
-                        currentUser
-                );
-        log.debug("조회된 스티커 개수={}", stickerDto.size());
-
-        GetStickerInfoResDto result = new GetStickerInfoResDto(
-                hobby.getId(),
-                durationSet,
-                recordedToday,
-                currentPage,
-                totalPage,
-                size,
-                totalStickerNum,
-                currentPage > 1,
-                currentPage < totalPage,
-                stickerDto
-        );
-
-        log.info("getStickerInfo 결과: {}", result);
-        return result;
-    }
-
-    private int calculateCurrentPage(int totalSlotCount, int size) {
-        if (totalSlotCount <= 0) return 1;
-        return ((totalSlotCount - 1) / size) + 1; // total = 10개 -> 1페이지, total = 29 (28+1) -> 2페이지
-    }
-
-    private Hobby getLatestInProgressHobby(User user) {
-        return hobbyRepository
-                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
-                        user.getId(),
-                        HobbyStatus.IN_PROGRESS
-                )
-                .orElse(null);
+        return GetStickerInfoResDto.of(hobby, context, stickers);
     }
 
     @Transactional
@@ -689,12 +381,82 @@ public class HobbyService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        return new SetHobbyCoverImageResDto(
-                "대표사진 설정 완료!",
-                result.hobbyId(),
-                result.recordId(),
-                s3Util.toCoverMainResizedUrl(result.updatedCoverUrl())
-        );
+        return SetHobbyCoverImageResDto.of(result, s3Util.toCoverMainResizedUrl(result.updatedCoverUrl()));
+    }
+
+    @Transactional(readOnly = true)
+    public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        if (hobbyRepository.existsByHobbyNameAndUserId(name, currentUser.getId())) {
+            return CanCreateHobbyResDto.canNotCreate();
+        }
+        return CanCreateHobbyResDto.canCreate();
+    }
+
+    @Transactional(readOnly = true)
+    public ReCheckHobbyInfoResDto reCheckHobbyInfo(CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        List<ReCheckHobbyInfoResDto.HobbyInfoDto> hobbyInfoDtos = hobbyRepository.reCheckHobbyInfo(currentUser.getId());
+        return new ReCheckHobbyInfoResDto(hobbyInfoDtos);
+    }
+
+    @Transactional
+    public UpdateHobbyResDto updateHobby(Long hobbyId, UpdateHobbyReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        boolean isNicknameSet = StringUtils.hasText(currentUser.getNickname());
+        boolean onboardingCompleted = currentUser.isOnboardingCompleted();
+
+        if (!(onboardingCompleted && !isNicknameSet)) {
+            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+        }
+
+        Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
+
+        hobby.updateHobby(reqDto, reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null);
+
+        return UpdateHobbyResDto.from(hobby);
+    }
+
+    @Transactional(readOnly = true)
+    public GetHobbyListByChipResDto getHobbyListByChip(HobbyStatus status, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        // 취미 조회
+        List<Hobby> hobbies = getHobbiesByStatus(currentUser.getId(), status);
+
+        // DTO 변환 (오늘 기록 여부 포함)
+        List<GetHobbyListByChipResDto.HobbyInfoByChip> hobbyInfos =
+                hobbies.stream()
+                        .map(hobby -> toHobbyInfo(currentUser.getId(), hobby))
+                        .toList();
+        return new GetHobbyListByChipResDto(hobbyInfos);
+    }
+
+    private List<Hobby> getHobbiesByStatus(String userId, HobbyStatus status) {
+        if (status == HobbyStatus.ALL) {
+            return hobbyRepository.findAllByUserIdOrderByIdDesc(userId);
+        }
+        return hobbyRepository.findAllByUserIdAndStatusOrderByIdDesc(userId, status);
+    }
+
+    private GetHobbyListByChipResDto.HobbyInfoByChip toHobbyInfo(String userId, Hobby hobby) {
+        boolean todayRecorded = isTodayRecorded(userId, hobby.getId());
+
+        return GetHobbyListByChipResDto.HobbyInfoByChip.of(hobby, todayRecorded);
+    }
+
+    private boolean isTodayRecorded(String userId, Long hobbyId) {
+        String key = todayRecordRedisService.createRecordKey(userId, hobbyId);
+        return todayRecordRedisService.hasKey(key);
+    }
+
+    private Hobby getLatestInProgressHobby(User user) {
+        return hobbyRepository
+                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
+                        user.getId(),
+                        HobbyStatus.IN_PROGRESS
+                )
+                .orElse(null);
     }
 
     private boolean isDirectUploadCase(SetHobbyCoverImageReqDto reqDto) {
@@ -709,22 +471,19 @@ public class HobbyService {
      * Case 1: 직접 업로드된 이미지 URL로 설정
      */
     private CoverChangeResult handleDirectUpload(SetHobbyCoverImageReqDto reqDto, User currentUser) {
-        Hobby hobby = getHobby(reqDto.getHobbyId());
-        verifyHobbyOwner(hobby, currentUser);
+        Hobby hobby = hobbyUtil.getHobby(reqDto.getHobbyId());
+        hobbyUtil.verifyHobbyOwner(hobby, currentUser);
 
         String newUrl = reqDto.getCoverImageUrl();
         String oldUrl = hobby.getCoverImageUrl();
 
         // 동일 이미지면 바로 응답
         if (Objects.equals(oldUrl, newUrl)) {
-            return new CoverChangeResult(hobby.getId(), null, oldUrl, true);
+            return CoverChangeResult.unchanged(hobby.getId(), oldUrl);
         }
 
         // 새 이미지 유효성 검증
-        String key = s3Service.extractKeyFromFileUrl(newUrl);
-        if (!s3Service.existsByKey(key)) {
-            throw new CustomException(ErrorCode.S3_IMAGE_NOT_FOUND);
-        }
+        s3Util.validateS3Image(newUrl);
 
         // 기존 이미지 삭제(afterCommit)
         registerDeleteCoverAfterCommit(oldUrl);
@@ -732,7 +491,7 @@ public class HobbyService {
         // DB 업데이트
         hobby.updateCoverImage(newUrl);
 
-        return new CoverChangeResult(hobby.getId(), null, newUrl, false);
+        return CoverChangeResult.changed(hobby.getId(), newUrl);
     }
 
     /**
@@ -758,7 +517,7 @@ public class HobbyService {
         // DB 업데이트
         hobby.updateCoverImage(newCoverUrl);
 
-        return new CoverChangeResult(hobby.getId(), reqDto.getRecordId(), newCoverUrl, false);
+        return CoverChangeResult.changed(hobby.getId(), newCoverUrl);
     }
 
     /**
@@ -771,34 +530,24 @@ public class HobbyService {
         if (StringUtils.hasText(recordImageUrl)) {
             String srcKey = s3Service.extractKeyFromFileUrl(recordImageUrl);
 
-            String newCoverKey = srcKey.replace("activity_record/temp/", "cover_image/temp/");
-            String resizedCoverKey = newCoverKey.replace("/temp/", "/resized/thumb/");
+            String newCoverKey = srcKey.replace(TEMP_ACTIVITY_PATH, TEMP_COVER_PATH);
+            String resizedCoverKey = newCoverKey.replace(TEMP_DIR, THUMB_DIR);
 
             s3Service.copyObject(srcKey, newCoverKey);
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("action", "SET_COVER");
-            payload.put("srcKey", newCoverKey);
-            payload.put("dstKey", resizedCoverKey);
-
-            invoker.invokeSync(payload);
-
+            requestSetCover(newCoverKey, resizedCoverKey);
             return s3Service.createFileUrl(newCoverKey);
         }
 
-        return defaultCoverUrlBySticker(record.getSticker());
+        return StickerCover.getUrlBySticker(record.getSticker());
     }
 
-    /**
-     * 기본 스티커 커버 선택 로직을 “규칙”으로 분리
-     */
-    private String defaultCoverUrlBySticker(String sticker) {
-        String s = (sticker == null) ? "" : sticker;
+    private void requestSetCover(String newCoverKey, String resizedCoverKey) throws Exception {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("action", "SET_COVER");
+        payload.put("srcKey", newCoverKey);
+        payload.put("dstKey", resizedCoverKey);
 
-        if (s.contains("smile")) return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/smile.png";
-        if (s.contains("sad"))   return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/sad.png";
-        if (s.contains("laugh")) return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/laugh.png";
-        return "https://forday-s3-bucket.s3.ap-northeast-2.amazonaws.com/default_cover/angry.png";
+        invoker.invokeSync(payload);
     }
 
     /**
@@ -824,45 +573,51 @@ public class HobbyService {
         });
     }
 
-    /**
-     * 결과 묶음 (가독성 위해 record 사용)
-     */
-    private record CoverChangeResult(Long hobbyId, Long recordId, String updatedCoverUrl, boolean unchanged) {}
-
-
-    @Transactional(readOnly = true)
-    public CanCreateHobbyResDto canCreateHobby(String name, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        if(hobbyRepository.existsByHobbyNameAndUserId(name, currentUser.getId())) {
-            return new CanCreateHobbyResDto("이미 등록한 취미입니다.", false);
+    private void validateMaxInProgressHobbies(User user) {
+        long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, user);
+        if (hobbyCount >= 2) {
+            throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
         }
-        return new CanCreateHobbyResDto("등록 가능한 취미입니다.", true);
     }
 
-    @Transactional(readOnly = true)
-    public ReCheckHobbyInfoResDto reCheckHobbyInfo(CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-        List<ReCheckHobbyInfoResDto.HobbyInfoDto> hobbyInfoDtos = hobbyRepository.reCheckHobbyInfo(currentUser.getId());
-
-        return new ReCheckHobbyInfoResDto(hobbyInfoDtos);
+    private void validateDuplicateHobby(ActivityCreateReqDto reqDto, User user) {
+        // ID 기반 중복 체크
+        if (reqDto.getHobbyInfoId() != null && reqDto.getHobbyInfoId() >= 1) {
+            if (hobbyRepository.existsByHobbyInfoIdAndUserId(reqDto.getHobbyInfoId(), user.getId())) {
+                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
+            }
+        }
+        // 이름 기반 중복 체크
+        if (StringUtils.hasText(reqDto.getHobbyName())) {
+            if (hobbyRepository.existsByHobbyNameAndUserId(reqDto.getHobbyName(), user.getId())) {
+                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
+            }
+        }
     }
 
-    @Transactional
-    public UpdateHobbyResDto updateHobby(Long hobbyId, UpdateHobbyReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
+    private void saveRecommendItems(Hobby hobby, FastAPIRecommendResDto response) {
+        List<ActivityRecommendItem> items = response.getActivities().stream()
+                .map(item -> ActivityRecommendItem.builder()
+                        .hobby(hobby)
+                        .content(item.getContent())
+                        .description(item.getDescription())
+                        .build())
+                .toList();
 
-        boolean isNicknameSet = StringUtils.hasText(currentUser.getNickname());
-        boolean onboardingCompleted = currentUser.isOnboardingCompleted();
+        activityRecommendItemRepository.saveAll(items);
+    }
 
-        if (!(onboardingCompleted && !isNicknameSet)) {
-            throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
+    private Hobby resolveHobby(Long hobbyId, User user) {
+        if (hobbyId != null) {
+            return hobbyRepository.findByIdAndUserId(hobbyId, user.getId()).orElseThrow(() -> new CustomException(ErrorCode.NOT_HOBBY_OWNER));
         }
+        return getLatestInProgressHobby(user);
+    }
 
-        Hobby hobby = hobbyRepository.findByIdAndUserId(hobbyId, currentUser.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
-
-        hobby.updateHobby(reqDto.getHobbyInfoId(), reqDto.getHobbyName(), reqDto.getHobbyPurpose(), reqDto.getHobbyTimeMinutes(), reqDto.getExecutionCount(), reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null);
-
-        return new UpdateHobbyResDto(hobby.getId(), hobby.getHobbyInfoId(), hobby.getHobbyName(), hobby.getHobbyPurpose(), hobby.getHobbyTimeMinutes(), hobby.getExecutionCount(), hobby.getGoalDays());
+    private Hobby validateHobbyAccess(Long hobbyId, User user) {
+        Hobby hobby = hobbyUtil.getHobby(hobbyId);
+        hobbyUtil.verifyHobbyOwner(hobby, user);
+        hobby.validateInProgress();
+        return hobby;
     }
 }

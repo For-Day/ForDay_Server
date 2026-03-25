@@ -24,7 +24,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
     QActivity activity = QActivity.activity;
 
     @Override
-    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, Integer size) { // Hobby 객체 대신 ID만 받음
+    public GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, Integer size) {
 
         JPAQuery<GetHobbyActivitiesResDto.ActivityDto> query = queryFactory
                 .select(Projections.constructor(

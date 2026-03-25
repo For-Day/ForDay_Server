@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 public class AiCallCountService {
 
     private static final int DAILY_LIMIT = 3;
+    public static final String AI_ACTIVITY_RECOMMEND_PREFIX = "ai:activity:recommend";
+    public static final String AI_ACTIVITY_RECOMMEND_FORMAT = AI_ACTIVITY_RECOMMEND_PREFIX + ":%s:%s:%s";
 
     private final RedisTemplate<String, Integer> redisTemplate;
 
@@ -59,7 +61,7 @@ public class AiCallCountService {
 
     private String generateKey(String userId, Long hobbyId) {
         String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "ai:activity:recommend:" + userId + ":" + hobbyId + ":" + today;
+        return String.format(AI_ACTIVITY_RECOMMEND_FORMAT, userId, hobbyId, today);
     }
 
     private long secondsUntilMidnight() {

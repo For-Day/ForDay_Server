@@ -16,6 +16,18 @@ public class GetUserScrapListResDto {
     private List<ScrapDto> scrapList;
     private boolean hasNext;
 
+    public static GetUserScrapListResDto of(
+            List<ScrapDto> scrapDtos, long totalCount, int size) {
+        boolean hasNext = scrapDtos.size() > size;
+        if (hasNext) scrapDtos.remove(size);
+
+        Long lastId = scrapDtos.isEmpty()
+                ? null
+                : scrapDtos.get(scrapDtos.size() - 1).getScrapId();
+
+        return new GetUserScrapListResDto(totalCount, lastId, scrapDtos, hasNext);
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

@@ -15,10 +15,14 @@ import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static com.example.ForDay.global.common.constants.FileStorageConstants.TEMP_DIR;
+import static com.example.ForDay.global.common.constants.FileStorageConstants.TEST_PATH;
+
 @Service
 @RequiredArgsConstructor
 public class S3Service {
 
+    public static final String S3_BASE_URL = "https://%s.s3.%s.amazonaws.com/%s";
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
 
@@ -28,17 +32,17 @@ public class S3Service {
         String baseName = originalFilename.substring(0, originalFilename.lastIndexOf("."));
 
         String usageName = usage.name();
-        boolean isTest = usageName.startsWith("TEST_");
+        boolean isTest = usageName.startsWith(TEST_PATH);
 
         // TEST_ 제거
         String baseUsage = isTest
-                ? usageName.substring("TEST_".length())
+                ? usageName.substring(TEST_PATH.length())
                 : usageName;
 
         String folderPath =
-                (isTest ? "test/" : "")
+                (isTest ? TEST_PATH.toLowerCase() : "")
                         + baseUsage.toLowerCase()
-                        + "/temp/";
+                        + TEMP_DIR;
 
         return folderPath
                 + UUID.randomUUID()
@@ -67,11 +71,7 @@ public class S3Service {
                         .withMethod(HttpMethod.PUT)
                         .withExpiration(getExpiration()); // presignedUrl 유효시간 5분 설정
 
-        request.addRequestParameter(
-                Headers.CONTENT_TYPE,
-                contentType
-        );
-
+        request.addRequestParameter(Headers.CONTENT_TYPE,contentType);
         return request;
     }
 
@@ -81,7 +81,7 @@ public class S3Service {
 
     public String createFileUrl(String key) {
         return String.format(
-                "https://%s.s3.%s.amazonaws.com/%s",
+                S3_BASE_URL,
                 s3Properties.getBucket(),
                 s3Properties.getRegion(),
                 key

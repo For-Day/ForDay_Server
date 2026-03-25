@@ -2,6 +2,9 @@ package com.example.ForDay.domain.hobby.service;
 
 import com.example.ForDay.domain.hobby.dto.request.ActivitySummaryRequest;
 import com.example.ForDay.domain.hobby.dto.response.ActivitySummaryResponse;
+import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +12,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -16,12 +20,18 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class UserSummaryAIService {
 
+    public static final String AI_USER_SUMMARY_PREFIX = "ai:user:summary:text";
+    public static final String AI_USER_SUMMARY_FORMAT = AI_USER_SUMMARY_PREFIX + ":%s:%s";
+    public static final String AI_SUMMARY_PATH = "/ai/summary";
+
     private final RedisTemplate<String, Object> redisTemplate;
     private static final int TTL_DAYS = 7; // 7일 유지
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
+
     private final RestTemplate restTemplate;
+    private final ActivityRecordRepository activityRecordRepository;
 
     /**
      * 저장된 요약문이 있는지 확인
@@ -54,32 +64,19 @@ public class UserSummaryAIService {
      * 키 생성 전략 (날짜 제외 -> 7일간 동일 키 유지)
      */
     private String generateKey(String userSocialId, Long hobbyId) {
-        return "ai:user:summary:text:" + userSocialId + ":" + hobbyId;
+        return String.format(AI_USER_SUMMARY_FORMAT, userSocialId, hobbyId);
     }
 
     public String fetchAndSaveUserSummary(String userId, String socialId, Long hobbyId, String hobbyName) {
         try {
-            // 1. 요청 DTO 구성
-            ActivitySummaryRequest requestDto = ActivitySummaryRequest.builder()
-                    .userId(userId)
-                    .userHobbyId(hobbyId)
-                    .hobbyName(hobbyName)
-                    .build();
+            ActivitySummaryRequest requestDto = ActivitySummaryRequest.of(userId, hobbyId, hobbyName);
 
-            String fastapiUrl = fastApiBaseUrl + "/ai/summary";
+            String fastapiUrl = fastApiBaseUrl + AI_SUMMARY_PATH;
 
-            // 2. FastAPI 호출 및 DTO 응답 받기
-            ActivitySummaryResponse response = restTemplate.postForObject(
-                    fastapiUrl,
-                    requestDto,
-                    ActivitySummaryResponse.class
-            );
+            ActivitySummaryResponse response = restTemplate.postForObject(fastapiUrl, requestDto, ActivitySummaryResponse.class);
 
-            // 3. 결과 처리
             if (response != null && response.getSummary() != null) {
                 String summary = response.getSummary();
-
-                // Redis에 7일간 저장
                 saveSummary(socialId, hobbyId, summary);
                 return summary;
             }
@@ -87,8 +84,31 @@ public class UserSummaryAIService {
             log.error("FastAPI 요약 요청 실패 | socialId: {}, hobbyId: {}, error: {}",
                     socialId, hobbyId, e.getMessage());
         }
-
-        // 예외 발생 시 기본 가이드 문구 반환
         return "";
+    }
+
+    public String determine(User user, Hobby hobby) {
+        // 최근 7일간 기록 개수 확인
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        long recordCount = activityRecordRepository.countByUserIdAndHobbyIdAndCreatedAtAfterAndDeletedFalse(
+                user.getId(), hobby.getId(), sevenDaysAgo
+        );
+
+        if (recordCount < 5) {
+            log.info("[GetHomeHobbyInfo] Insufficient records for AI summary (Count: {})", recordCount);
+            return "";
+        }
+
+        // 캐시된 요약 확인 또는 신규 생성
+        if (hasSummary(user.getSocialId(), hobby.getId())) {
+            return getSummary(user.getSocialId(), hobby.getId());
+        }
+
+        try {
+            return fetchAndSaveUserSummary(user.getId(), user.getSocialId(), hobby.getId(), hobby.getHobbyName());
+        } catch (Exception e) {
+            log.error("Error creating AI summary: {}", e.getMessage());
+            return "";
+        }
     }
 }

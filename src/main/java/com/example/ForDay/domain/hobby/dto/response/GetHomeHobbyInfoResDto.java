@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
+import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,5 +40,33 @@ public class GetHomeHobbyInfoResDto {
         private Long activityId;
         private String content;
         private boolean aiRecommended;
+    }
+
+    public static GetHomeHobbyInfoResDto of(
+            GetHomeHobbyInfoResDto baseResponse,
+            String nickname,
+            AiInsightResult aiInsightResult) {
+
+        return baseResponse.toBuilder()
+                .greetingMessage("반가워요, " + nickname + "님! 👋")
+                .userSummaryText(aiInsightResult.summaryText())
+                .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
+                .aiCallRemaining(aiInsightResult.isCallRemaining())
+                .aiCallRemainingCount(aiInsightResult.remainingCallCount())
+                .nickname(nickname)
+                .build();
+    }
+
+    public static GetHomeHobbyInfoResDto ofDefault(String nickname) {
+        return new GetHomeHobbyInfoResDto(
+                List.of(),
+                null,
+                "반가워요, " + nickname + "님! 👋",
+                "",
+                "포데이 AI가 알맞은 취미활동을 추천해드려요",
+                false,
+                0,
+                null
+        );
     }
 }
