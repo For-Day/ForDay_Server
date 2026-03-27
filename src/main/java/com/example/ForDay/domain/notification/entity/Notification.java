@@ -24,7 +24,7 @@ public class Notification extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "receiver_id", nullable = false)
-    private User receiver;
+    private User receiver; // 알림 받는 사람
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id")
@@ -38,18 +38,21 @@ public class Notification extends BaseTimeEntity {
     private String message;
 
     @Column(nullable = false)
-    private boolean isRead = false;
+    private boolean isRead;
 
-    protected Notification(User receiver, User sender, NotificationType type, String message) {
+    private String imageUrl;
+
+    protected Notification(User receiver, User sender, NotificationType type, String message, String imageUrl) {
         this.receiver = receiver;
         this.sender = sender;
         this.type = type;
         this.message = message;
         this.isRead = false;
+        this.imageUrl = imageUrl;
     }
 
-    public static Notification create(User receiver, User sender, NotificationType type, String message) {
-        return new Notification(receiver, sender, type, message);
+    public static Notification create(User receiver, User sender, NotificationType type, String message, String imageUrl) {
+        return new Notification(receiver, sender, type, message, imageUrl);
     }
 
     public void markAsRead() {

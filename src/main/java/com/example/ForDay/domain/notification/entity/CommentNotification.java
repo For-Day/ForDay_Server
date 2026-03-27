@@ -17,14 +17,14 @@ public class CommentNotification extends Notification {
     private Long commentId;
     private String commentContent;
 
-    private CommentNotification(User receiver, User sender, NotificationType type, String message, Long recordId, Long commentId, String commentContent) {
-        super(receiver, sender, type, message);
+    private CommentNotification(User receiver, User sender, NotificationType type, String message, Long recordId, Long commentId, String commentContent, String imageUrl) {
+        super(receiver, sender, type, message, imageUrl);
         this.recordId = recordId;
         this.commentId = commentId;
         this.commentContent = commentContent;
     }
 
-    public static CommentNotification create(User receiver, User sender, NotificationType type, String message, Long recordId, Long commentId, String commentContent) {
-        return new CommentNotification(receiver, sender, type, message, recordId, commentId, commentContent);
+    public static CommentNotification create(User receiver, User sender, NotificationType type, String message, Long recordId, Long commentId, String commentContent, String imageUrl) {
+        return new CommentNotification(receiver, sender, type, message, recordId, commentId, commentContent, imageUrl);
     }
 }
