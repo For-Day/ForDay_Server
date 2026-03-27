@@ -18,6 +18,12 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Create firebase.json
+        run: |
+          cat << 'EOF' > ./src/main/resources/firebase/forday-2ae94-firebase-adminsdk-fbsvc-a074ad2c40.json
+          ${{ secrets.FIREBASE_JSON }}
+          EOF
+
       - name: Create application.yml
         run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
 
