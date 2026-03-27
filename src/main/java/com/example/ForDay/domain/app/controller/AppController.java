@@ -43,4 +43,11 @@ public class AppController {
     ) {
         return appService.getPolicy(platform, appVersion, build);
     }
+
+    @PatchMapping("/fcm-token")
+    public UpdateFcmTokenResDto updateFcmToken(@RequestBody UpdateFcmTokenReqDto reqDto,
+                                               @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return fcmTokenService.updateFcmToken(userUtil.getCurrentUser(user), reqDto.getDeviceId(), reqDto.getFcmToken());
+    }
 }
