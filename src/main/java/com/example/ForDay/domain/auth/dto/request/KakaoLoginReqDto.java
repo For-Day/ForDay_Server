@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.auth.dto.request;
 
+import com.example.ForDay.global.firebase.type.DeviceType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -17,4 +18,8 @@ public class KakaoLoginReqDto {
     )
     @NotBlank(message = "카카오 액세스 토큰은 필수 값입니다.")
     private String kakaoAccessToken;
+
+    private String fcmToken;
+    private String deviceId;
+    private DeviceType deviceType;
 }

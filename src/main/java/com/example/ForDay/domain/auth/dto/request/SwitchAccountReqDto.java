@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.auth.dto.request;
 
 import com.example.ForDay.domain.user.type.SocialType;
+import com.example.ForDay.global.firebase.type.DeviceType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -17,4 +18,8 @@ public class SwitchAccountReqDto {
 
     @NotBlank(message = "소셜 인가 코드(socialCode)는 비어 있을 수 없습니다.")
     private String socialCode;
+
+    private String fcmToken;
+    private String deviceId;
+    private DeviceType deviceType;
 }
