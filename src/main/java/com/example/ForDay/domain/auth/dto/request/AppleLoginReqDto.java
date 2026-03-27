@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.auth.dto.request;
 
+import com.example.ForDay.global.firebase.type.DeviceType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -14,4 +15,8 @@ public class AppleLoginReqDto {
 
     @NotBlank(message = "Apple authorization code는 필수입니다.")
     private String code;
+
+    private String fcmToken;
+    private String deviceId;
+    private DeviceType deviceType;
 }

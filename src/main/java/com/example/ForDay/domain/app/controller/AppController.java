@@ -2,14 +2,20 @@ package com.example.ForDay.domain.app.controller;
 
 import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
+import com.example.ForDay.domain.app.dto.request.UpdateFcmTokenReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
 import com.example.ForDay.domain.app.dto.response.GeneratePresignedUrlResDto;
+import com.example.ForDay.domain.app.dto.response.UpdateFcmTokenResDto;
 import com.example.ForDay.domain.app.dto.response.VersionPolicyResDto;
 import com.example.ForDay.domain.app.service.AppService;
 import com.example.ForDay.domain.app.type.Platform;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.firebase.service.FcmTokenService;
+import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.UserUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +25,8 @@ import java.util.List;
 @RequestMapping("/app")
 public class AppController {
     private final AppService appService;
+    private final FcmTokenService fcmTokenService;
+    private final UserUtil userUtil;
 
     @GetMapping("/metadata")
     public AppMetaDataResDto getMetaData() {
@@ -42,5 +50,12 @@ public class AppController {
             @RequestParam int build
     ) {
         return appService.getPolicy(platform, appVersion, build);
+    }
+
+    @PatchMapping("/fcm-token")
+    public UpdateFcmTokenResDto updateFcmToken(@RequestBody UpdateFcmTokenReqDto reqDto,
+                                               @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        return fcmTokenService.updateFcmToken(userUtil.getCurrentUser(user), reqDto.getDeviceId(), reqDto.getFcmToken());
     }
 }

@@ -1,8 +1,10 @@
 package com.example.ForDay.domain.record.type;
 
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 @AllArgsConstructor
+@Getter
 public enum RecordReactionType {
     AWESOME("멋져요"),
     GREAT("짱이야"),

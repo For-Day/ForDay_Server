@@ -13,6 +13,7 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
 import com.example.ForDay.global.util.UserUtil;
@@ -42,6 +43,7 @@ public class AuthService {
     private final AppleService appleService;
     private final HobbyRepository hobbyRepository;
     private final UserUtil userUtil;
+    private final FcmTokenService fcmTokenService;
 
     @Transactional
     public LoginResDto kakaoLogin(KakaoLoginReqDto reqDto) {
@@ -63,6 +65,7 @@ public class AuthService {
 
         log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
+        fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.KAKAO);
 
         return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO);
@@ -92,6 +95,7 @@ public class AuthService {
 
         log.info("[LOGIN] Apple login success userId={}", user.getId());
 
+        fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.APPLE);
 
         return LoginResDto.of(result, user, isNewUser, SocialType.APPLE);
@@ -266,6 +270,7 @@ public class AuthService {
             }
         }
 
+        fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken);
     }
 
