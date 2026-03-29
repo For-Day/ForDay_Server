@@ -14,12 +14,14 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class GetActivityRecordByStoryResDto {
+    private boolean unReadNotificationExists;
     private List<StoryTabInfo> tabInfo;
     private Long lastRecordId;
     private List<RecordDto> recordList;
     private boolean hasNext;
 
     public static GetActivityRecordByStoryResDto of(
+            boolean unReadNotificationExists,
             List<StoryTabInfo> tabInfos,
             List<RecordDto> recordDtos,
             int size) {
@@ -30,7 +32,7 @@ public class GetActivityRecordByStoryResDto {
                 ? null
                 : recordDtos.get(recordDtos.size() - 1).getRecordId();
 
-        return new GetActivityRecordByStoryResDto(tabInfos, lastId, recordDtos, hasNext);
+        return new GetActivityRecordByStoryResDto(unReadNotificationExists, tabInfos, lastId, recordDtos, hasNext);
     }
 
 

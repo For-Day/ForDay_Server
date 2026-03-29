@@ -320,7 +320,7 @@ public class ActivityRecordService {
 
         recordDtos.forEach(dto -> dto.convertImageUrls(s3Util));
 
-        return GetActivityRecordByStoryResDto.of(tabInfos, recordDtos, size);
+        return GetActivityRecordByStoryResDto.of(notificationService.unreadNotificationExists(currentUser), tabInfos, recordDtos, size);
     }
 
     private static boolean isToday(ActivityRecord activityRecord) {
