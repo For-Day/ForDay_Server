@@ -146,4 +146,8 @@ public class NotificationService {
             notificationRepository.findById(notificationId).ifPresent(Notification::markAsRead);
         }
     }
+
+    public boolean unreadNotificationExists(User user) {
+        return notificationRepository.existsByReceiverIdAndIsReadFalse(user.getId());
+    }
 }
