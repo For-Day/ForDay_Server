@@ -46,7 +46,8 @@ public interface ActivityRecordControllerV2Docs {
             @Parameter(description = "활동 기록 ID", example = "129") @PathVariable(name = "recordId") Long recordId,
             @Valid @ModelAttribute RecordSearchConditionReqDto condition,
             @AuthenticationPrincipal CustomUserDetails user,
-            @Parameter(description = "취미 필터링 ID 리스트 (STORY_HOBBY, USER_FEED 시 필요)", example = "1,2,3") @RequestParam(name = "hobbyIds", required = false) List<Long> hobbyIds);
+            @Parameter(description = "취미 필터링 ID 리스트 (STORY_HOBBY, USER_FEED 시 필요)", example = "1,2,3") @RequestParam(name = "hobbyIds", required = false) List<Long> hobbyIds,
+            @Parameter(description = "알림 목록 또는 푸시 알림 내역을 통해서 기록 조회시 해당 알림을 읽음 처리 하기 위한 파라미터입니다.", example = "12") @RequestParam(name = "notificationId", required = false) Long notificationId);
 
     @Operation(summary = "감정별 반응 요약 및 초기 목록 조회", description = "기록에 대한 반응 수 요약과 각 탭(ALL, AWESOME 등)별 초기 사용자 목록을 조회합니다.")
     @ApiResponses(value = {

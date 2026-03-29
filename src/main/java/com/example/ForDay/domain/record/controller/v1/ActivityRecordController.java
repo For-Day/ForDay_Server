@@ -23,8 +23,9 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     @Override
     @GetMapping("/{recordId}")
     public GetRecordDetailResDto getRecordDetail(@PathVariable(name = "recordId") Long recordId,
-                                                 @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.getRecordDetail(recordId, user);
+                                                 @AuthenticationPrincipal CustomUserDetails user,
+                                                 @RequestParam(name = "notificationId", required = false) Long notificationId) {
+        return activityRecordService.getRecordDetail(recordId, user, notificationId);
     }
 
     @Override

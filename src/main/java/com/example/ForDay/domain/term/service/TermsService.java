@@ -13,6 +13,7 @@ import com.example.ForDay.domain.term.repository.TermsDocumentRepository;
 import com.example.ForDay.domain.term.repository.UserTermsConsentRepository;
 import com.example.ForDay.domain.term.type.DocumentType;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.firebase.entity.FcmToken;
@@ -40,6 +41,7 @@ public class TermsService {
     private final UserUtil userUtil;
     private final UserTermsConsentRepository userTermsConsentRepository;
     private final FcmTokenService fcmTokenService;
+    private final UserRepository userRepository;
 
     public ServiceTermsResponseDto getServiceTerms(DocumentType type) {
         TermsDocument document = termsRepository.findLatestDocumentByType(type);
@@ -105,6 +107,7 @@ public class TermsService {
             setUserRecordPushEnabled(currentUser.getId());
         }
         currentUser.completeTermsConsent();
+        userRepository.save(currentUser);
 
         return RegisterTermsConsentResDto.of();
     }
