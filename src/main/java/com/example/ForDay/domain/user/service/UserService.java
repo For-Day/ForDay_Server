@@ -5,6 +5,7 @@ import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordVisibility;
@@ -54,6 +55,7 @@ public class UserService {
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
     private final ActivityRecordUtil activityRecordUtil;
+    private final NotificationService notificationService;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -108,7 +110,8 @@ public class UserService {
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util);
+        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId != null && notificationService.unreadNotificationExists(targetUser)
+        );
     }
 
     @Transactional

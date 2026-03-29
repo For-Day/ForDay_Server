@@ -21,11 +21,14 @@ public class UserInfoResDto {
     @Schema(description = "총 수집한 스티커 개수", example = "42")
     private Integer totalCollectedStickerCount;
 
-    public static UserInfoResDto of(User user, int totalStickerCount, S3Util s3Util) {
+    private boolean unReadNotificationExists;
+
+    public static UserInfoResDto of(User user, int totalStickerCount, S3Util s3Util, boolean unReadNotificationExists) {
         return new UserInfoResDto(
                 s3Util.toProfileMainResizedUrl(user.getProfileImageUrl()),
                 user.getNickname(),
-                totalStickerCount
+                totalStickerCount,
+                unReadNotificationExists
         );
     }
 }
