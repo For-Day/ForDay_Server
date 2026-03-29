@@ -6,6 +6,7 @@ import com.example.ForDay.domain.notification.dto.response.GetNotificationListRe
 import com.example.ForDay.domain.notification.dto.response.GetPushNotificationToggleResDto;
 import com.example.ForDay.domain.notification.dto.response.SendPushMessageResDto;
 import com.example.ForDay.domain.notification.dto.response.UpdatePushNotificationToggleResDto;
+import com.example.ForDay.domain.notification.entity.Notification;
 import com.example.ForDay.domain.notification.entity.ReactionNotification;
 import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.type.NotificationFilterType;
@@ -22,6 +23,7 @@ import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -48,7 +51,8 @@ public class NotificationService {
     @Transactional
     public UpdatePushNotificationToggleResDto updatePushNotificationToggle(UpdatePushNotificationToggleReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(currentUser.getId(), reqDto.getDeviceId()).orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
+        FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(currentUser.getId(), reqDto.getDeviceId())
+                .orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
 
         switch (reqDto.getToggleType()) {
             case APP -> {
@@ -134,5 +138,12 @@ public class NotificationService {
         );
 
         return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
+    }
+
+    public void markAsReadIfUnread(Long notificationId) {
+        log.info("읽음 표시 시작");
+        if(notificationId != null) {
+            notificationRepository.findById(notificationId).ifPresent(Notification::markAsRead);
+        }
     }
 }

@@ -5,6 +5,9 @@ import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.notification.entity.Notification;
+import com.example.ForDay.domain.notification.repository.NotificationRepository;
+import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
@@ -77,10 +80,11 @@ public class ActivityRecordService {
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordRedisService recordRedisService;
+    private final NotificationService notificationService;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
-    public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
+    public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user, Long notificationId) {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
@@ -103,6 +107,9 @@ public class ActivityRecordService {
                 recordId, detail.writerId(), summaries.size(), scraped);
 
         String profileImageUrl = s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl());
+
+        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
+
         return GetRecordDetailResDto.of(detail, isRecordOwner, scraped, GetRecordDetailResDto.NewReactionDto.of(summaries, isRecordOwner), GetRecordDetailResDto.UserReactionDto.of(summaries, currentUserId), profileImageUrl);
     }
 

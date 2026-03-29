@@ -37,6 +37,8 @@ public class GuestLoginResDto {
 
     private String nickname;
 
+    private boolean termsConsentCompleted;
+
     public static GuestLoginResDto of(LoginInternalResult result, User user, boolean isNewUser) {
         return new GuestLoginResDto(
                 result.accessToken(),
@@ -47,7 +49,8 @@ public class GuestLoginResDto {
                 result.onboardingCompleted(),
                 result.isNicknameSet(),
                 result.onboardingData(),
-                user.getNickname()
+                user.getNickname(),
+                user.isTermsConsentCompleted()
         );
     }
 }

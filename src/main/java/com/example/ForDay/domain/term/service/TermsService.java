@@ -2,12 +2,25 @@ package com.example.ForDay.domain.term.service;
 
 import com.example.ForDay.domain.app.entity.ServiceContactInfo;
 import com.example.ForDay.domain.app.repository.ServiceContactInfoRepository;
+import com.example.ForDay.domain.term.dto.request.RegisterTermsConsentReqDto;
 import com.example.ForDay.domain.term.dto.response.PrivacyTermsResponseDto;
+import com.example.ForDay.domain.term.dto.response.RegisterTermsConsentResDto;
 import com.example.ForDay.domain.term.dto.response.ServiceTermsResponseDto;
 import com.example.ForDay.domain.term.entity.TermsArticle;
 import com.example.ForDay.domain.term.entity.TermsDocument;
+import com.example.ForDay.domain.term.entity.UserTermsConsent;
 import com.example.ForDay.domain.term.repository.TermsDocumentRepository;
+import com.example.ForDay.domain.term.repository.UserTermsConsentRepository;
 import com.example.ForDay.domain.term.type.DocumentType;
+import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.firebase.entity.FcmToken;
+import com.example.ForDay.global.firebase.service.FcmTokenService;
+import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.UserUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +38,10 @@ public class TermsService {
 
     private final TermsDocumentRepository termsRepository;
     private final ServiceContactInfoRepository serviceContactInfoRepository;
+    private final UserUtil userUtil;
+    private final UserTermsConsentRepository userTermsConsentRepository;
+    private final FcmTokenService fcmTokenService;
+    private final UserRepository userRepository;
 
     public ServiceTermsResponseDto getServiceTerms(DocumentType type) {
         TermsDocument document = termsRepository.findLatestDocumentByType(type);
@@ -74,5 +91,34 @@ public class TermsService {
                 .orElseThrow(() -> new RuntimeException("서비스 연락처 정보를 찾을 수 없습니다."));
 
         return PrivacyTermsResponseDto.of(document, sectionDtos, serviceContactInfo);
+    }
+
+    @Transactional
+    public RegisterTermsConsentResDto registerTermsConsent(RegisterTermsConsentReqDto reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        if(existsTermsConsent(currentUser)) {
+            throw new CustomException(ErrorCode.TERMS_CONSENT_ALREADY_EXISTS);
+        }
+
+        userTermsConsentRepository.save(UserTermsConsent.create(reqDto, currentUser.getId()));
+
+        if(reqDto.isRecordPushConsent()) {
+            setUserRecordPushEnabled(currentUser.getId());
+        }
+        currentUser.completeTermsConsent();
+        userRepository.save(currentUser);
+
+        return RegisterTermsConsentResDto.of();
+    }
+
+    private void setUserRecordPushEnabled(String userId) {
+        List<FcmToken> fcmTokenList = fcmTokenService.findUserFcmToken(userId);
+
+        fcmTokenList.forEach(fcmToken -> fcmToken.updateRecordPushEnabled(true));
+    }
+
+    private boolean existsTermsConsent(User currentUser) {
+        return userTermsConsentRepository.existsByUserId(currentUser.getId());
     }
 }
