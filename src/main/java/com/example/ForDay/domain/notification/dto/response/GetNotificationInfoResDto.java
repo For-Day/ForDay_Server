@@ -17,6 +17,8 @@ public class GetNotificationInfoResDto {
     private ReactionAlramDto reactionAlram;
     private CommentAlramDto commentAlram;
     private boolean read;
+    private String senderProfileUrl;
+    private String createdAt;
 
     // 알람의 종류가 RECORD 일 때
     @Data

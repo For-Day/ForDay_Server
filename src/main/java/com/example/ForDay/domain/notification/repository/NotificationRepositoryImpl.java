@@ -9,6 +9,7 @@ import com.example.ForDay.domain.notification.entity.ReactionNotification;
 import com.example.ForDay.domain.notification.type.NotificationFilterType;
 import com.example.ForDay.domain.notification.type.NotificationType;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.util.TimeUtil;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +66,8 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         dto.setType(n.getType());
         dto.setImageUrl(n.getSender() != null ? n.getSender().getProfileImageUrl() : null);
         dto.setRead(n.isRead());
+        dto.setSenderProfileUrl(n.getSender().getProfileImageUrl());
+        dto.setCreatedAt(TimeUtil.formatTimeAgo(n.getCreatedAt()));
 
         if (n instanceof ReactionNotification reaction) {
             dto.setReactionAlram(new GetNotificationInfoResDto.ReactionAlramDto(
