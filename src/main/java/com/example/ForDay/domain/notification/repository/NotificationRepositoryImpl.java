@@ -60,26 +60,12 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
     }
 
     private GetNotificationInfoResDto convertToInfoDto(Notification n) {
-        GetNotificationInfoResDto dto = new GetNotificationInfoResDto();
-        dto.setNotificationId(n.getId());
-        dto.setMessage(n.getMessage());
-        dto.setType(n.getType());
-        dto.setImageUrl(n.getSender() != null ? n.getSender().getProfileImageUrl() : null);
-        dto.setRead(n.isRead());
-        dto.setSenderProfileUrl(n.getSender().getProfileImageUrl());
-        dto.setCreatedAt(TimeUtil.formatTimeAgo(n.getCreatedAt()));
+        GetNotificationInfoResDto dto = GetNotificationInfoResDto.from(n);
 
         if (n instanceof ReactionNotification reaction) {
-            dto.setReactionAlram(new GetNotificationInfoResDto.ReactionAlramDto(
-                    reaction.getReactionType(),
-                    reaction.getRecordId()
-            ));
+            dto.setReactionAlram(GetNotificationInfoResDto.ReactionAlramDto.from(reaction));
         } else if (n instanceof CommentNotification comment) {
-            dto.setCommentAlram(new GetNotificationInfoResDto.CommentAlramDto(
-                    comment.getRecordId(),
-                    comment.getCommentId(),
-                    comment.getCommentContent()
-            ));
+            dto.setCommentAlram(GetNotificationInfoResDto.CommentAlramDto.from(comment));
         }
 
         return dto;
