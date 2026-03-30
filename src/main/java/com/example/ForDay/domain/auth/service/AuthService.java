@@ -13,6 +13,7 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.UUID;
 
 import static com.example.ForDay.global.common.response.message.AuthSuccessMessage.LOGOUT_SUCCESS;
@@ -186,12 +188,12 @@ public class AuthService {
 
     @Transactional
     public MessageResDto logout(CustomUserDetails user) {
-        String socialId = user.getUsername();
-        log.info("[logout] 로그아웃 요청 - SocialId: {}", socialId);
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("[logout] 로그아웃 요청 - SocialId: {}", currentUser.getSocialId());
 
-        refreshTokenRepository.deleteById(socialId);
+        refreshTokenRepository.deleteById(currentUser.getSocialId());
 
-        log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", socialId);
+        log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", currentUser.getSocialId());
         return new MessageResDto(LOGOUT_SUCCESS);
     }
 
@@ -285,6 +287,8 @@ public class AuthService {
         User currentUser = userUtil.getCurrentUser(user);
         currentUser.withdraw();
         userRepository.save(currentUser);
+        fcmTokenService.deleteUserFcmToken(fcmTokenService.findUserFcmToken(currentUser.getId()));
+
         return UserWithDrawResDto.of(currentUser.getDeletedAt());
     }
 
