@@ -67,7 +67,7 @@ public class GetNotificationInfoResDto {
                 .type(n.getType())
                 .imageUrl(n.getImageUrl())
                 .read(n.isRead())
-                .senderProfileUrl(n.getSender().getProfileImageUrl())
+                .senderProfileUrl(n.getSender() != null ? n.getSender().getProfileImageUrl() : null)
                 .createdAt(TimeUtil.formatTimeAgo(n.getCreatedAt()))
                 .build();
     }

@@ -34,8 +34,7 @@ public class NotificationController {
     }
 
     @GetMapping("/toggle")
-    public GetPushNotificationToggleResDto getPushNotificationToggle(@RequestParam(name = "deviceId") String deviceId,
-                                                                     @AuthenticationPrincipal CustomUserDetails user) {
-        return notificationService.getPushNotificationToggle(deviceId, user);
+    public GetPushNotificationToggleResDto getPushNotificationToggle(@AuthenticationPrincipal CustomUserDetails user) {
+        return notificationService.getPushNotificationToggle(user);
     }
 }
