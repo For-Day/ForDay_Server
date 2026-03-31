@@ -23,7 +23,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/app")
-public class AppController {
+public class AppController implements AppControllerDocs{
     private final AppService appService;
     private final FcmTokenService fcmTokenService;
     private final UserUtil userUtil;
