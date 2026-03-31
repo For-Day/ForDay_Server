@@ -15,8 +15,6 @@ import com.example.ForDay.domain.notification.utils.NotificationMessageGenerator
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
-import com.example.ForDay.global.common.error.exception.CustomException;
-import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -47,11 +45,12 @@ public class NotificationService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, User user) {
-        if(!user.isRecordPushEnabled()) {
+    public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        if(!currentUser.isRecordPushEnabled()) {
             return GetNotificationListResDto.notPushEnabled();
         }
-        return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, user);
+        return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, currentUser);
     }
 
     @Transactional

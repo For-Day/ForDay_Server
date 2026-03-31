@@ -25,7 +25,7 @@ public class NotificationController implements NotificationControllerDocs{
                                                          @RequestParam(name = "pageSize", defaultValue = "20") Integer pageSize,
                                                          @AuthenticationPrincipal CustomUserDetails user) {
 
-        return notificationService.getNotificationList(filterType, lastNotificationId, pageSize, user.getUser());
+        return notificationService.getNotificationList(filterType, lastNotificationId, pageSize, user);
     }
 
     @Override
