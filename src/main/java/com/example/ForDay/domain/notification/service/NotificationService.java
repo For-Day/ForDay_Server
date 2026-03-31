@@ -61,20 +61,20 @@ public class NotificationService {
         switch (reqDto.getToggleType()) {
             case APP -> {
                 if (isSameStatus(currentUser.isAppPushEnabled(), reqDto.isActive())) {
-                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
+                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.isActive(), reqDto.getToggleType());
                 }
                 currentUser.updateAppPushEnabled(reqDto.isActive());
             }
             case RECORD -> {
                 if (isSameStatus(currentUser.isRecordPushEnabled(), reqDto.isActive())) {
-                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
+                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.isActive(), reqDto.getToggleType());
                 }
                 currentUser.updateRecordPushEnabled(reqDto.isActive());
             }
         }
         userRepository.save(currentUser);
 
-        return UpdatePushNotificationToggleResDto.of(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
+        return UpdatePushNotificationToggleResDto.of(reqDto.isActive(), reqDto.getToggleType());
     }
 
     public void processReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {

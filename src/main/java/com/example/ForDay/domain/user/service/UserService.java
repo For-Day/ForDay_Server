@@ -110,7 +110,7 @@ public class UserService {
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId != null && notificationService.unreadNotificationExists(targetUser)
+        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId == null ?  notificationService.unreadNotificationExists(targetUser) : false
         );
     }
 

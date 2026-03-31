@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UpdatePushNotificationToggleReqDto {
-    private String deviceId;
     private boolean active;
     private ToggleType toggleType;
 }
