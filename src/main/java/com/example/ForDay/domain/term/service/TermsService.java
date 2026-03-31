@@ -104,7 +104,7 @@ public class TermsService {
         userTermsConsentRepository.save(UserTermsConsent.create(reqDto, currentUser.getId()));
 
         if(reqDto.isRecordPushConsent()) {
-            setUserRecordPushEnabled(currentUser.getId());
+            setUserRecordPushEnabled(currentUser);
         }
         currentUser.completeTermsConsent();
         userRepository.save(currentUser);
@@ -112,10 +112,8 @@ public class TermsService {
         return RegisterTermsConsentResDto.of();
     }
 
-    private void setUserRecordPushEnabled(String userId) {
-        List<FcmToken> fcmTokenList = fcmTokenService.findUserFcmToken(userId);
-
-        fcmTokenList.forEach(fcmToken -> fcmToken.updateRecordPushEnabled(true));
+    private void setUserRecordPushEnabled(User user) {
+        user.updateRecordPushEnabled(true);
     }
 
     private boolean existsTermsConsent(User currentUser) {

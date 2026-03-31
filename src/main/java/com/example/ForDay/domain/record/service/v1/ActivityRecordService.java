@@ -81,6 +81,7 @@ public class ActivityRecordService {
     private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordRedisService recordRedisService;
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -213,7 +214,7 @@ public class ActivityRecordService {
         ActivityRecord record = activityRecordUtil.getRecordByUserId(recordId, currentUser);
         Activity activity = activityUtil.getActivityByUserId(reqDto.getActivityId(), currentUser.getId());
 
-        handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl());
+        handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl(), record.getId());
         record.updateRecord(activity, reqDto);
 
         recordRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
@@ -242,6 +243,7 @@ public class ActivityRecordService {
             activityRecord.getHobby().deleteRecord();
             todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), activityRecord.getHobby().getId());
             activityRecordRepository.delete(activityRecord);
+            notificationRepository.updateImageUrlByRecordId(activityRecord.getId(), null);
         } else {
             activityRecord.deleteRecord();
         }
@@ -320,7 +322,7 @@ public class ActivityRecordService {
 
         recordDtos.forEach(dto -> dto.convertImageUrls(s3Util));
 
-        return GetActivityRecordByStoryResDto.of(tabInfos, recordDtos, size);
+        return GetActivityRecordByStoryResDto.of(notificationService.unreadNotificationExists(currentUser), tabInfos, recordDtos, size);
     }
 
     private static boolean isToday(ActivityRecord activityRecord) {
@@ -356,7 +358,7 @@ public class ActivityRecordService {
         }
     }
 
-    private void handleImageUpdate(String oldImageUrl, String newImageUrl) {
+    private void handleImageUpdate(String oldImageUrl, String newImageUrl, Long recordId) {
         if (!isImageChanged(oldImageUrl, newImageUrl)) {
             return;
         }
@@ -366,6 +368,8 @@ public class ActivityRecordService {
         if (hasOldImage(oldImageUrl)) {
             registerImageDeletionAfterCommit(oldImageUrl);
         }
+
+        notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
     }
 
     private boolean isImageChanged(String oldUrl, String newUrl) {

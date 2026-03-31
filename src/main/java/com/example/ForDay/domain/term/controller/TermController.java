@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/terms")
 @RequiredArgsConstructor
-public class TermController {
+public class TermController implements TermControllerDocs{
     private final TermsService termsService;
 
     @GetMapping("/service")
@@ -28,6 +28,7 @@ public class TermController {
         return termsService.getPrivacyTerms(DocumentType.PRIVACY);
     }
 
+    @Override
     @PostMapping("/consent")
     public RegisterTermsConsentResDto registerTermsConsent(@RequestBody @Valid RegisterTermsConsentReqDto reqDto,
                                                            @AuthenticationPrincipal CustomUserDetails user) {

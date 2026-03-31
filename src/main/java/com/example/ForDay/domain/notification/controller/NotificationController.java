@@ -15,9 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/notifications")
-public class NotificationController {
+public class NotificationController implements NotificationControllerDocs{
     private final NotificationService notificationService;
 
+    @Override
     @GetMapping
     public GetNotificationListResDto getNotificationList(@RequestParam(name = "filterType", required = false) NotificationFilterType filterType,
                                                          @RequestParam(name = "lastNotificationId", required = false) Long lastNotificationId,
@@ -27,15 +28,16 @@ public class NotificationController {
         return notificationService.getNotificationList(filterType, lastNotificationId, pageSize, user.getUser());
     }
 
+    @Override
     @PatchMapping("/toggle")
     public UpdatePushNotificationToggleResDto updatePushNotificationToggle(@RequestBody @Valid UpdatePushNotificationToggleReqDto reqDto,
                                                                            @AuthenticationPrincipal CustomUserDetails user) {
         return notificationService.updatePushNotificationToggle(reqDto, user);
     }
 
+    @Override
     @GetMapping("/toggle")
-    public GetPushNotificationToggleResDto getPushNotificationToggle(@RequestParam(name = "deviceId") String deviceId,
-                                                                     @AuthenticationPrincipal CustomUserDetails user) {
-        return notificationService.getPushNotificationToggle(deviceId, user);
+    public GetPushNotificationToggleResDto getPushNotificationToggle(@AuthenticationPrincipal CustomUserDetails user) {
+        return notificationService.getPushNotificationToggle(user);
     }
 }

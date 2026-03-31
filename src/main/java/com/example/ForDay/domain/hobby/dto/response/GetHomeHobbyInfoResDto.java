@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class GetHomeHobbyInfoResDto {
+    private boolean unReadNotificationExists;
     private List<InProgressHobbyDto> inProgressHobbies;
     private ActivityPreviewDto activityPreview;
 
@@ -43,11 +44,13 @@ public class GetHomeHobbyInfoResDto {
     }
 
     public static GetHomeHobbyInfoResDto of(
+            boolean unReadNotificationExists,
             GetHomeHobbyInfoResDto baseResponse,
             String nickname,
             AiInsightResult aiInsightResult) {
 
         return baseResponse.toBuilder()
+                .unReadNotificationExists(unReadNotificationExists)
                 .greetingMessage("반가워요, " + nickname + "님! 👋")
                 .userSummaryText(aiInsightResult.summaryText())
                 .recommendMessage("포데이 AI가 알맞은 취미활동을 추천해드려요")
@@ -59,6 +62,7 @@ public class GetHomeHobbyInfoResDto {
 
     public static GetHomeHobbyInfoResDto ofDefault(String nickname) {
         return new GetHomeHobbyInfoResDto(
+                false,
                 List.of(),
                 null,
                 "반가워요, " + nickname + "님! 👋",

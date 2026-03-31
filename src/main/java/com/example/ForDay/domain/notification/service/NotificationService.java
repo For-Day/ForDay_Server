@@ -14,6 +14,7 @@ import com.example.ForDay.domain.notification.type.NotificationType;
 import com.example.ForDay.domain.notification.utils.NotificationMessageGenerator;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.firebase.entity.FcmToken;
@@ -29,6 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,34 +44,37 @@ public class NotificationService {
     private final RabbitTemplate rabbitTemplate;
     private final ApplicationEventPublisher eventPublisher;
     private final UserUtil userUtil;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, User user) {
+        if(!user.isRecordPushEnabled()) {
+            return GetNotificationListResDto.notPushEnabled();
+        }
         return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, user);
     }
 
     @Transactional
     public UpdatePushNotificationToggleResDto updatePushNotificationToggle(UpdatePushNotificationToggleReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(currentUser.getId(), reqDto.getDeviceId())
-                .orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
 
         switch (reqDto.getToggleType()) {
             case APP -> {
-                if (isSameStatus(fcmToken.isAppPushEnabled(), reqDto.isActive())) {
-                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
+                if (isSameStatus(currentUser.isAppPushEnabled(), reqDto.isActive())) {
+                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.isActive(), reqDto.getToggleType());
                 }
-                fcmToken.updateAppPushEnabled(reqDto.isActive());
+                currentUser.updateAppPushEnabled(reqDto.isActive());
             }
             case RECORD -> {
-                if (isSameStatus(fcmToken.isRecordPushEnabled(), reqDto.isActive())) {
-                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
+                if (isSameStatus(currentUser.isRecordPushEnabled(), reqDto.isActive())) {
+                    return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.isActive(), reqDto.getToggleType());
                 }
-                fcmToken.updateRecordPushEnabled(reqDto.isActive());
+                currentUser.updateRecordPushEnabled(reqDto.isActive());
             }
         }
+        userRepository.save(currentUser);
 
-        return UpdatePushNotificationToggleResDto.of(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
+        return UpdatePushNotificationToggleResDto.of(reqDto.isActive(), reqDto.getToggleType());
     }
 
     public void processReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
@@ -95,7 +100,11 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<String> findActiveRecordDeviceToken(User targetUser) {
-        List<FcmToken> fcmTokenList = fcmTokenRepository.findAllByUserIdAndIsRecordPushEnabledTrue(targetUser.getId());
+        if (!targetUser.isRecordPushEnabled()) {
+            return Collections.emptyList();
+        }
+
+        List<FcmToken> fcmTokenList = fcmTokenRepository.findByUserId(targetUser.getId());
 
         return fcmTokenList.stream()
                 .map(FcmToken::getFcmToken)
@@ -103,11 +112,9 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public GetPushNotificationToggleResDto getPushNotificationToggle(String deviceId, CustomUserDetails user) {
+    public GetPushNotificationToggleResDto getPushNotificationToggle(CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(currentUser.getId(), deviceId).orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
-
-        return GetPushNotificationToggleResDto.of(fcmToken.isAppPushEnabled(), fcmToken.isRecordPushEnabled());
+        return GetPushNotificationToggleResDto.of(currentUser.isAppPushEnabled(), currentUser.isRecordPushEnabled());
     }
 
     private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {
@@ -145,5 +152,9 @@ public class NotificationService {
         if(notificationId != null) {
             notificationRepository.findById(notificationId).ifPresent(Notification::markAsRead);
         }
+    }
+
+    public boolean unreadNotificationExists(User user) {
+        return notificationRepository.existsByReceiverIdAndIsReadFalse(user.getId());
     }
 }

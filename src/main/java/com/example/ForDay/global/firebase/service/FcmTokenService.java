@@ -29,7 +29,7 @@ public class FcmTokenService {
     private final FcmTokenRepository fcmTokenRepository;
 
     public String sendNotificationByToken(FcmNotificationReqDto reqDto) {
-        if(existsFcmToken(reqDto.getFcmToken())) {
+        if (existsFcmToken(reqDto.getFcmToken())) {
             Notification notification = Notification.builder()
                     .setTitle(reqDto.getTitle())
                     .setBody(reqDto.getBody())
@@ -64,7 +64,7 @@ public class FcmTokenService {
                 .ifPresentOrElse(
                         // 이미 해당 기기에 토큰이 존재하는 경우 -> 토큰 갱신
                         token -> {
-                            if(!isSameToken(fcmToken, token)) {
+                            if (!isSameToken(fcmToken, token)) {
                                 token.updateToken(fcmToken);
                             }
                         },
@@ -79,14 +79,12 @@ public class FcmTokenService {
         FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(user.getId(), deviceId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
 
-        if(!isSameToken(newFcmToken, fcmToken)) {
+        if (!isSameToken(newFcmToken, fcmToken)) {
             fcmToken.updateToken(newFcmToken);
         }
 
         return UpdateFcmTokenResDto.of(deviceId, newFcmToken);
     }
-
-
 
     private static boolean isSameToken(String fcmToken, FcmToken token) {
         return Objects.equals(token.getFcmToken(), fcmToken);
@@ -98,5 +96,11 @@ public class FcmTokenService {
 
     public List<FcmToken> findUserFcmToken(String userId) {
         return fcmTokenRepository.findByUserId(userId);
+    }
+
+    public void deleteUserFcmToken(List<FcmToken> userFcmToken) {
+        if (userFcmToken != null && !userFcmToken.isEmpty()) {
+            fcmTokenRepository.deleteAll(userFcmToken);
+        }
     }
 }
