@@ -53,6 +53,7 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         Long nextCursorId = content.isEmpty() ? null : content.get(content.size() - 1).getId();
 
         return new GetNotificationListResDto(
+                GetNotificationListResDto.PushInfo.pushEnabled(),
                 infoList,
                 hasNext,
                 nextCursorId != null ? String.valueOf(nextCursorId) : null

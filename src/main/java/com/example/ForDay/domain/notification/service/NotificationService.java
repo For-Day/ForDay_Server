@@ -45,27 +45,28 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, User user) {
+        if(!user.isRecordPushEnabled()) {
+            return GetNotificationListResDto.notPushEnabled();
+        }
         return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, user);
     }
 
     @Transactional
     public UpdatePushNotificationToggleResDto updatePushNotificationToggle(UpdatePushNotificationToggleReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(currentUser.getId(), reqDto.getDeviceId())
-                .orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
 
         switch (reqDto.getToggleType()) {
             case APP -> {
-                if (isSameStatus(fcmToken.isAppPushEnabled(), reqDto.isActive())) {
+                if (isSameStatus(currentUser.isAppPushEnabled(), reqDto.isActive())) {
                     return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
                 }
-                fcmToken.updateAppPushEnabled(reqDto.isActive());
+                currentUser.updateAppPushEnabled(reqDto.isActive());
             }
             case RECORD -> {
-                if (isSameStatus(fcmToken.isRecordPushEnabled(), reqDto.isActive())) {
+                if (isSameStatus(currentUser.isRecordPushEnabled(), reqDto.isActive())) {
                     return UpdatePushNotificationToggleResDto.alreadySameStatus(reqDto.getDeviceId(), reqDto.isActive(), reqDto.getToggleType());
                 }
-                fcmToken.updateRecordPushEnabled(reqDto.isActive());
+                currentUser.updateRecordPushEnabled(reqDto.isActive());
             }
         }
 
@@ -105,9 +106,7 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public GetPushNotificationToggleResDto getPushNotificationToggle(String deviceId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        FcmToken fcmToken = fcmTokenRepository.findByUserIdAndDeviceId(currentUser.getId(), deviceId).orElseThrow(() -> new CustomException(ErrorCode.FCM_TOKEN_NOT_FOUND));
-
-        return GetPushNotificationToggleResDto.of(fcmToken.isAppPushEnabled(), fcmToken.isRecordPushEnabled());
+        return GetPushNotificationToggleResDto.of(currentUser.isAppPushEnabled(), currentUser.isRecordPushEnabled());
     }
 
     private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {

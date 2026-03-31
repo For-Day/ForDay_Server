@@ -32,13 +32,6 @@ public class FcmToken extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private DeviceType deviceType;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean isAppPushEnabled = false;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean isRecordPushEnabled = false;
 
     public static FcmToken createFcmToken(String deviceId, User user, String fcmToken, DeviceType deviceType) {
         return FcmToken.builder()
@@ -53,11 +46,11 @@ public class FcmToken extends BaseTimeEntity {
         this.fcmToken = newToken;
     }
 
-    public void updateAppPushEnabled(boolean active) {
+    /*public void updateAppPushEnabled(boolean active) {
         this.isAppPushEnabled = active;
     }
 
     public void updateRecordPushEnabled(boolean active) {
         this.isRecordPushEnabled = active;
-    }
+    }*/
 }
