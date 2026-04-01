@@ -15,10 +15,10 @@ import com.example.ForDay.domain.notification.utils.NotificationMessageGenerator
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
-import com.example.ForDay.global.common.error.exception.CustomException;
-import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.firebase.dto.request.FcmNotificationReqDto;
 import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
+import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
@@ -45,13 +45,15 @@ public class NotificationService {
     private final ApplicationEventPublisher eventPublisher;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
+    private final FcmTokenService fcmTokenService;
 
     @Transactional(readOnly = true)
-    public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, User user) {
-        if(!user.isRecordPushEnabled()) {
+    public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        if (!currentUser.isRecordPushEnabled()) {
             return GetNotificationListResDto.notPushEnabled();
         }
-        return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, user);
+        return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, currentUser);
     }
 
     @Transactional
@@ -101,11 +103,12 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<String> findActiveRecordDeviceToken(User targetUser) {
         if (!targetUser.isRecordPushEnabled()) {
+            log.info("유저의 알림이 활성화되어 있지 않습니다.");
             return Collections.emptyList();
         }
 
         List<FcmToken> fcmTokenList = fcmTokenRepository.findByUserId(targetUser.getId());
-
+        log.info("유저 fcm 조회 완료 {}", fcmTokenList);
         return fcmTokenList.stream()
                 .map(FcmToken::getFcmToken)
                 .toList();
@@ -132,24 +135,20 @@ public class NotificationService {
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        rabbitTemplate.convertAndSend(
-                RabbitMqConfig.NOTIFICATION_EXCHANGE,
-                RabbitMqConfig.NOTIFICATION_ROUTING_KEY,
-                NotificationEventDto.builder()
-                        .receiver(currentUser)
-                        .title(reqDto.getTitle())
-                        .body(reqDto.getBody())
-                        .data(Map.of(
-                                "landingUrl", "/api/v2/records/" + reqDto.getRecordId() + "?notificationId=" + reqDto.getNotificationId() + "&context=USER_FEED")
-                        )
-        );
+        FcmNotificationReqDto fcmSendReqDto = FcmNotificationReqDto.of(
+                reqDto.getFcmToken(),
+                NotificationEventDto.of(currentUser,
+                        NotificationMessageGenerator.REACTION_TITLE,
+                        reqDto.getBody(),
+                        createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())));
+        fcmTokenService.sendNotificationByToken(fcmSendReqDto);
 
         return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
     }
 
     public void markAsReadIfUnread(Long notificationId) {
         log.info("읽음 표시 시작");
-        if(notificationId != null) {
+        if (notificationId != null) {
             notificationRepository.findById(notificationId).ifPresent(Notification::markAsRead);
         }
     }

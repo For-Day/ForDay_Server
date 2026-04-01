@@ -195,8 +195,10 @@ public class HobbyService {
     @Transactional(readOnly = true)
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("id 사용 시작");
         log.info("[GetHomeHobbyInfo] Dashboard inquiry - UserId: {}, TargetHobbyId: {}",
                 currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
+        log.info("id 사용 끝");
 
         // 대상 취미 결정
         Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : getLatestInProgressHobby(currentUser);

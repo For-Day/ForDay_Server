@@ -56,22 +56,21 @@ public class FcmTokenService {
 
     // 로그인 % 계정 전환시 fcmToken을 등록하기 위한 메서드
     @Transactional
-    public void registerFcmToken(User user, String fcmToken, String deviceId, DeviceType deviceType) {
-        if (fcmToken == null || deviceId == null) return;
+    public String registerFcmToken(User user, String fcmToken, String deviceId, DeviceType deviceType) {
+        if (fcmToken == null || deviceId == null) return null;
 
-        fcmTokenRepository
+        FcmToken savedToken = fcmTokenRepository
                 .findByUserIdAndDeviceId(user.getId(), deviceId)
-                .ifPresentOrElse(
-                        // 이미 해당 기기에 토큰이 존재하는 경우 -> 토큰 갱신
-                        token -> {
-                            if (!isSameToken(fcmToken, token)) {
-                                token.updateToken(fcmToken);
-                            }
-                        },
-                        // 해당 기기에 토큰이 존재하지 않으면 토큰 새로 생성
-                        () -> fcmTokenRepository.save(FcmToken.createFcmToken(deviceId, user, fcmToken, deviceType))
+                .map(token -> {
+                    if (!isSameToken(fcmToken, token)) {
+                        token.updateToken(fcmToken);
+                    }
+                    return token;
+                })
+                .orElseGet(() ->
+                        fcmTokenRepository.save(FcmToken.createFcmToken(deviceId, user, fcmToken, deviceType))
                 );
-
+        return savedToken.getFcmToken();
     }
 
     @Transactional

@@ -16,15 +16,10 @@ public class ActivityItemScheduler {
 
     private final ActivityRecommendItemRepository activityRecommendItemRepository;
 
-    /**
-     * 매일 새벽 3시에 실행 (cron: 초 분 시 일 월 요일)
-     * 오늘 기준으로 이틀(48시간) 전 생성된 아이템 삭제
-     */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void deleteOldRecommendItems() {
-        // 기준 시간 계산: 현재 시간 - 2일
-        LocalDateTime targetDate = LocalDateTime.now().minusDays(2);
+        LocalDateTime targetDate = LocalDateTime.now().minusDays(1);
 
         log.info("[Scheduler] 추천 아이템 삭제 시작 (기준 시간: {})", targetDate);
 

@@ -86,8 +86,7 @@ public class AppService {
 
                     log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}, Key: {}", img.getUsage(), key);
 
-                    return GeneratePresignedUrlResDto.of(uploadUrl, fileUrl, img.getOrder()
-                    );
+                    return GeneratePresignedUrlResDto.of(uploadUrl, fileUrl, img.getOrder());
                 })
                 .toList();
     }

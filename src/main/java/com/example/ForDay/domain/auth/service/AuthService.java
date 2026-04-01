@@ -13,7 +13,6 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
-import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
 import java.util.UUID;
 
 import static com.example.ForDay.global.common.response.message.AuthSuccessMessage.LOGOUT_SUCCESS;
@@ -67,10 +65,10 @@ public class AuthService {
 
         log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
-        fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        String fcmToken = fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.KAKAO);
 
-        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO);
+        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO, fcmToken);
     }
 
     @Transactional
@@ -97,10 +95,10 @@ public class AuthService {
 
         log.info("[LOGIN] Apple login success userId={}", user.getId());
 
-        fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        String fcmToken = fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.APPLE);
 
-        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE);
+        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE, fcmToken);
     }
 
     @Transactional
@@ -272,8 +270,8 @@ public class AuthService {
             }
         }
 
-        fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
-        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken);
+        String fcmToken = fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken, fcmToken);
     }
 
     @Transactional

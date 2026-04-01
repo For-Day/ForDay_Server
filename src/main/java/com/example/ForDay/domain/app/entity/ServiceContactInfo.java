@@ -31,13 +31,4 @@ public class ServiceContactInfo extends BaseTimeEntity {
 
     @Column(name = "contact_number", nullable = false, length = 20)
     private String contactNumber; // 대표번호
-
-    public void updateContact(String serviceName, String companyName, String email,
-                              String representative, String contactNumber) {
-        this.serviceName = serviceName;
-        this.companyName = companyName;
-        this.email = email;
-        this.representative = representative;
-        this.contactNumber = contactNumber;
-    }
 }

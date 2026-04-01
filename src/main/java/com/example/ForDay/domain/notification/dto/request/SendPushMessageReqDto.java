@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SendPushMessageReqDto {
-    private String title;
     private String body;
     private Long recordId;
     private Long notificationId;

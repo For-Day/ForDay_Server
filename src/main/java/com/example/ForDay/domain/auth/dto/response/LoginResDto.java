@@ -37,7 +37,9 @@ public class LoginResDto {
 
     private boolean termsConsentCompleted;
 
-    public static LoginResDto of(LoginInternalResult result, User user, boolean isNewUser, SocialType socialType) {
+    private String fcmToken;
+
+    public static LoginResDto of(LoginInternalResult result, User user, boolean isNewUser, SocialType socialType, String fcmToken) {
         return new LoginResDto(
                 result.accessToken(),
                 result.refreshToken(),
@@ -47,7 +49,8 @@ public class LoginResDto {
                 result.isNicknameSet(),
                 result.onboardingData(),
                 user.getNickname(),
-                user.isTermsConsentCompleted()
+                user.isTermsConsentCompleted(),
+                fcmToken
         );
     }
 }

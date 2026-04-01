@@ -20,7 +20,6 @@ public class SecurityConfig {
 
     private final JwtTokenFilter jwtTokenFilter;
 
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
