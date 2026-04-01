@@ -19,8 +19,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCustom {
     private final JPAQueryFactory queryFactory;
-    private QUser user = QUser.user;
-    private QFriendRelation relation = QFriendRelation.friendRelation;
+    QUser user = QUser.user;
+    QFriendRelation relation = QFriendRelation.friendRelation;
 
     @Override
     public List<GetFriendListResDto.UserInfoDto> findMyFriendList(String currentUserId, String lastUserId, Integer size) {
@@ -55,7 +55,7 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
     public List<String> findAllBlockedIdsByUserId(String userId) {
         QFriendRelation friendRelation = QFriendRelation.friendRelation;
 
-        // 1. 내가 차단하거나 신고한 사람들
+        // 내가 차단하거나 신고한 사람들
         List<String> blockedByMe = queryFactory
                 .select(friendRelation.targetUser.id)
                 .from(friendRelation)
@@ -65,7 +65,7 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
                 )
                         .fetch();
 
-        // 2. 나를 차단한 사람들
+        // 나를 차단한 사람들
         List<String> blockedMe = queryFactory
                 .select(friendRelation.requester.id)
                 .from(friendRelation)
@@ -73,7 +73,6 @@ public class FriendRelationRepositoryImpl implements FriendRelationRepositoryCus
                         .and(friendRelation.relationStatus.eq(FriendRelationStatus.BLOCK)))
                 .fetch();
 
-        // 두 리스트 합치기 (중복 제거를 위해 Set 활용 가능)
         Set<String> allBlockedIds = new HashSet<>(blockedByMe);
         allBlockedIds.addAll(blockedMe);
 

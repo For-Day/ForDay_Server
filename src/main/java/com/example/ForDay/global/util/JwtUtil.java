@@ -49,21 +49,15 @@ public class JwtUtil {
         return getClaims(token).get("role", String.class);
     }
 
-
-    public String getUserId(String userId) {
-        return getClaims(userId).get("userId", String.class);
-    }
-
     public boolean isExpired(String token) {
         return getClaims(token).getExpiration().before(new Date());
     }
 
-    public String createAccessToken(String username, Role role, SocialType socialType, String userId) {
+    public String createAccessToken(String username, Role role, SocialType socialType) {
         return Jwts.builder()
                 .claim("username", username)
                 .claim("role", role)
                 .claim("socialType", socialType)
-                .claim("userId", userId)
                 .issuedAt(new Date())
                 .expiration(
                         new Date(

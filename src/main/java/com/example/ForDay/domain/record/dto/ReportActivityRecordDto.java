@@ -15,4 +15,5 @@ public class ReportActivityRecordDto {
     private String writerNickname;
     private RecordVisibility visibility;
     private boolean recordDeleted;
+    private String imageUrl;
 }

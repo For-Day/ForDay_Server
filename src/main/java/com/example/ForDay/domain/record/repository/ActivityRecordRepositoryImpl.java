@@ -185,7 +185,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                 record.user.deleted,
                                 record.user.nickname,
                                 record.visibility,
-                                record.deleted
+                                record.deleted,
+                                record.imageUrl
                         ))
                         .from(record)
                         .join(record.user, user)

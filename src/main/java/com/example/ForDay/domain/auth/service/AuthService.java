@@ -175,7 +175,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
         }
 
-        String newAccessToken = jwtUtil.createAccessToken(socialId, user.getRole(), user.getSocialType(), user.getId());
+        String newAccessToken = jwtUtil.createAccessToken(socialId, user.getRole(), user.getSocialType());
         String newRefreshToken = jwtUtil.createRefreshToken(socialId);
 
         refreshTokenService.save(socialId, newRefreshToken);
@@ -232,7 +232,7 @@ public class AuthService {
                 currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
                 userRepository.save(currentUser);
 
-                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO, currentUser.getId());
+                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
 
                 log.info("Switch success - userId: {}, newSocialType: KAKAO, socialId: {}",
@@ -262,7 +262,7 @@ public class AuthService {
                 // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> APPLE
                 currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
                 userRepository.save(currentUser);
-                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE, currentUser.getId());
+                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
                 refreshToken = jwtUtil.createRefreshToken(socialId);
 
                 log.info("Switch success - userId: {}, newSocialType: APPLE, socialId: {}",
@@ -303,7 +303,7 @@ public class AuthService {
 
     private LoginInternalResult processCommonLogin(User user, SocialType socialType) {
         // 토큰 발급 및 저장
-        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), socialType, user.getId());
+        String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), socialType);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
         refreshTokenService.save(user.getSocialId(), refreshToken);
 

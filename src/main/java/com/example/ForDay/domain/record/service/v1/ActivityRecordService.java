@@ -142,29 +142,26 @@ public class ActivityRecordService {
 
     @Transactional
     public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        // 현재 로그인한 사용자 조회
         User currentUser = userUtil.getCurrentUser(user);
-        // 기록 조회 + 삭제 여부 검증
+
         ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
-
-        // 차단 여부, 친구 관계, 공개 범위 등 접근 권한 검증
         activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
-
-        // 동일 유저의 동일 타입 리액션 중복 여부 체크
         validateDuplicateReaction(recordId, currentUser.getId(), type);
 
-        // 리액션 엔티티 생성 및 저장
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
         // 반응 수 증가
         int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
         if (result == 0) {
-            // update 되는 레코드가 없다는 것은 아직 해당 기록에 반응이 없다는 것이므로 초기화 해야 한다.
             recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
         }
         // 리액션 증가에 따른 랭킹 점수 업데이트
         redisReactionService.incrementRankingScore(record.getRecordId());
+
+        if(!isRecordOwner(currentUser, record)) {
+            notificationService.processReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
+        }
 
         return ReactToRecordResDto.of(type, recordId);
     }
@@ -466,5 +463,9 @@ public class ActivityRecordService {
                 }
             }
         });
+    }
+
+    private static boolean isRecordOwner(User currentUser, ReportActivityRecordDto record) {
+        return currentUser.getId().equals(record.getWriterId());
     }
 }
