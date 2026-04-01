@@ -65,10 +65,10 @@ public class AuthService {
 
         log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
-        fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        String fcmToken = fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.KAKAO);
 
-        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO);
+        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO, fcmToken);
     }
 
     @Transactional
@@ -95,10 +95,10 @@ public class AuthService {
 
         log.info("[LOGIN] Apple login success userId={}", user.getId());
 
-        fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        String fcmToken = fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.APPLE);
 
-        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE);
+        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE, fcmToken);
     }
 
     @Transactional
@@ -270,8 +270,8 @@ public class AuthService {
             }
         }
 
-        fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
-        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken);
+        String fcmToken = fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken, fcmToken);
     }
 
     @Transactional
