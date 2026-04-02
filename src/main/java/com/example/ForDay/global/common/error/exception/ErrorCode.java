@@ -89,7 +89,13 @@ public enum ErrorCode {
 
     // 앱 버전 관련
     PLATFORM_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 플랫폼에 대한 버전 정보가 존재하지 않습니다."),
-   ;
+
+    // fcm 관련
+    FCM_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "등록된 FCM 토큰이 없습니다."),
+
+    // 약관 관련
+    TERMS_CONSENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 동의 내역이 존재합니다.");
+
 
     private final HttpStatus status;
     private final String message;

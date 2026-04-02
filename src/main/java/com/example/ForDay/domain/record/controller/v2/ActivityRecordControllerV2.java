@@ -30,8 +30,9 @@ public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Doc
     public GetRecordDetailResDtoV2 getRecordDetailV2(@PathVariable(name = "recordId") Long recordId,
                                                      @Valid @ModelAttribute RecordSearchConditionReqDto condition,
                                                      @AuthenticationPrincipal CustomUserDetails user,
-                                                     @RequestParam(name = "hobbyIds", required = false) List<Long> hobbyIds) {
-        return activityRecordServiceV2.getRecordDetailV2(recordId, condition, user, hobbyIds);
+                                                     @RequestParam(name = "hobbyIds", required = false) List<Long> hobbyIds,
+                                                     @RequestParam(name = "notificationId", required = false) Long notificationId) {
+        return activityRecordServiceV2.getRecordDetailV2(recordId, condition, user, hobbyIds, notificationId);
     }
 
     // 기록에 반응한 유저 목록 조회 (최초 조회 -> 전체 + 감정별 목록 한번에 조회)

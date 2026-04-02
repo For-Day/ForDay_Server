@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.record.service.v2;
 
+import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
@@ -41,10 +42,11 @@ public class ActivityRecordServiceV2 {
     private final RedisReactionService redisReactionService;
     private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordUtil activityRecordUtil;
+    private final NotificationService notificationService;
 
     // 위, 아래 스와이프 적용 버전
-    @Transactional(readOnly = true)
-    public GetRecordDetailResDtoV2 getRecordDetailV2(Long recordId, RecordSearchConditionReqDto condition, CustomUserDetails user, List<Long> hobbyIds) {
+    @Transactional
+    public GetRecordDetailResDtoV2 getRecordDetailV2(Long recordId, RecordSearchConditionReqDto condition, CustomUserDetails user, List<Long> hobbyIds, Long notificationId) {
         User currentUser = userUtil.getCurrentUser(user);
 
         validateAccess(condition, currentUser);
@@ -65,6 +67,8 @@ public class ActivityRecordServiceV2 {
 
         Long prevId = activityRecordRepository.findPrevRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
         Long nextId = activityRecordRepository.findNextRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
+
+        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
 
         return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()));
     }

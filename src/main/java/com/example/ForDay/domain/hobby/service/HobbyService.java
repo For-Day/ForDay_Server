@@ -16,6 +16,7 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.type.StickerCover;
+import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
@@ -72,6 +73,7 @@ public class HobbyService {
     private final HobbyUtil hobbyUtil;
     private final ActivityRecordRedisService activityRecordRedisService;
     private final ActivityRedisService activityRedisService;
+    private final NotificationService notificationService;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails userDetails) {
@@ -193,8 +195,10 @@ public class HobbyService {
     @Transactional(readOnly = true)
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+        log.info("id 사용 시작");
         log.info("[GetHomeHobbyInfo] Dashboard inquiry - UserId: {}, TargetHobbyId: {}",
                 currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
+        log.info("id 사용 끝");
 
         // 대상 취미 결정
         Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : getLatestInProgressHobby(currentUser);
@@ -215,7 +219,7 @@ public class HobbyService {
 
         log.info("[GetHomeHobbyInfo] Completion - UserId: {}, Hobby: {}, AI Success: {}", currentUser.getId(), targetHobby.getHobbyName(), !aiInsight.summaryText().isEmpty());
 
-        return GetHomeHobbyInfoResDto.of(response, currentUser.getNickname(), aiInsight);
+        return GetHomeHobbyInfoResDto.of(notificationService.unreadNotificationExists(currentUser), response, currentUser.getNickname(), aiInsight);
     }
 
     @Transactional(readOnly = true)

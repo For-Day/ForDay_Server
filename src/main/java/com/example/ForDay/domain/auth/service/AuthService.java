@@ -13,6 +13,7 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
 import com.example.ForDay.global.util.UserUtil;
@@ -42,6 +43,7 @@ public class AuthService {
     private final AppleService appleService;
     private final HobbyRepository hobbyRepository;
     private final UserUtil userUtil;
+    private final FcmTokenService fcmTokenService;
 
     @Transactional
     public LoginResDto kakaoLogin(KakaoLoginReqDto reqDto) {
@@ -63,9 +65,10 @@ public class AuthService {
 
         log.info("[LOGIN] Kakao login success userId={}", user.getId());
 
+        String fcmToken = fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.KAKAO);
 
-        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO);
+        return LoginResDto.of(result, user, isNewUser, SocialType.KAKAO, fcmToken);
     }
 
     @Transactional
@@ -92,9 +95,10 @@ public class AuthService {
 
         log.info("[LOGIN] Apple login success userId={}", user.getId());
 
+        String fcmToken = fcmTokenService.registerFcmToken(user, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
         LoginInternalResult result = processCommonLogin(user, SocialType.APPLE);
 
-        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE);
+        return LoginResDto.of(result, user, isNewUser, SocialType.APPLE, fcmToken);
     }
 
     @Transactional
@@ -182,12 +186,12 @@ public class AuthService {
 
     @Transactional
     public MessageResDto logout(CustomUserDetails user) {
-        String socialId = user.getUsername();
-        log.info("[logout] 로그아웃 요청 - SocialId: {}", socialId);
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("[logout] 로그아웃 요청 - SocialId: {}", currentUser.getSocialId());
 
-        refreshTokenRepository.deleteById(socialId);
+        refreshTokenRepository.deleteById(currentUser.getSocialId());
 
-        log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", socialId);
+        log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", currentUser.getSocialId());
         return new MessageResDto(LOGOUT_SUCCESS);
     }
 
@@ -266,7 +270,8 @@ public class AuthService {
             }
         }
 
-        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken);
+        String fcmToken = fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken, fcmToken);
     }
 
     @Transactional
@@ -280,6 +285,8 @@ public class AuthService {
         User currentUser = userUtil.getCurrentUser(user);
         currentUser.withdraw();
         userRepository.save(currentUser);
+        fcmTokenService.deleteUserFcmToken(fcmTokenService.findUserFcmToken(currentUser.getId()));
+
         return UserWithDrawResDto.of(currentUser.getDeletedAt());
     }
 
