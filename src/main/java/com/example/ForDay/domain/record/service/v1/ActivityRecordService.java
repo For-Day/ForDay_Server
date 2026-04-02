@@ -5,7 +5,6 @@ import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.notification.entity.Notification;
 import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
@@ -24,7 +23,8 @@ import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepos
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
-import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
+import com.example.ForDay.domain.record.service.RecordRedisService;
+import com.example.ForDay.domain.record.service.StickerRedisService;
 import com.example.ForDay.domain.record.service.RedisReactionService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
@@ -79,9 +79,10 @@ public class ActivityRecordService {
     private final UserRepository userRepository;
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
     private final RedisTemplate<String, String> redisTemplate;
-    private final ActivityRecordRedisService recordRedisService;
+    private final StickerRedisService stickerRedisService;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
+    private final RecordRedisService recordRedisService;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -214,8 +215,8 @@ public class ActivityRecordService {
         handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl(), record.getId());
         record.updateRecord(activity, reqDto);
 
-        recordRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
-
+        stickerRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        recordRedisService.evictRecordCache(record.getId());
         return UpdateActivityRecordResDto.of(activity, record);
     }
 
@@ -223,32 +224,32 @@ public class ActivityRecordService {
     @Transactional
     public DeleteActivityRecordResDto deleteActivityRecord(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        ActivityRecord activityRecord = activityRecordUtil.getRecordByUserId(recordId, currentUser);
+        ActivityRecord record = activityRecordUtil.getRecordByUserId(recordId, currentUser);
         // 이미 삭제된 경우 예외 처리
-        if (activityRecord.isDeleted()) {
+        if (record.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
         }
 
-        reactionRepository.deleteByActivityRecord(activityRecord);
-        reportRepository.deleteByReportedRecord(activityRecord);
-        scrapRepository.deleteByActivityRecord(activityRecord);
+        reactionRepository.deleteByActivityRecord(record);
+        reportRepository.deleteByReportedRecord(record);
+        scrapRepository.deleteByActivityRecord(record);
 
-        String deleteImageUrl = activityRecord.getImageUrl();
+        String deleteImageUrl = record.getImageUrl();
 
-        if (isToday(activityRecord)) {
-            activityRecord.getActivity().deleteRecord();
-            activityRecord.getHobby().deleteRecord();
-            todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), activityRecord.getHobby().getId());
-            activityRecordRepository.delete(activityRecord);
-            notificationRepository.updateImageUrlByRecordId(activityRecord.getId(), null);
+        if (isToday(record)) {
+            record.getActivity().deleteRecord();
+            record.getHobby().deleteRecord();
+            todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), record.getHobby().getId());
+            activityRecordRepository.delete(record);
+            notificationRepository.updateImageUrlByRecordId(record.getId(), null);
         } else {
-            activityRecord.deleteRecord();
+            record.deleteRecord();
         }
 
         registerDeleteImageAfterCommit(deleteImageUrl);
-        recordRedisService.evictRecordCache(activityRecord.getHobby().getId(), currentUser.getId());
-
-        return DeleteActivityRecordResDto.of(activityRecord.getId(), deleteImageUrl);
+        stickerRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        recordRedisService.evictRecordCache(record.getId());
+        return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
     }
 
     @Transactional

@@ -19,7 +19,7 @@ import com.example.ForDay.domain.hobby.type.StickerCover;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
-import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
+import com.example.ForDay.domain.record.service.StickerRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AIService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
@@ -71,7 +71,7 @@ public class HobbyService {
     private final HobbyAiInsightService hobbyAiInsightService;
     private final AIService aiService;
     private final HobbyUtil hobbyUtil;
-    private final ActivityRecordRedisService activityRecordRedisService;
+    private final StickerRedisService stickerRedisService;
     private final ActivityRedisService activityRedisService;
     private final NotificationService notificationService;
 
@@ -366,7 +366,7 @@ public class HobbyService {
         boolean recordedToday = todayRecordRedisService.hasKey(todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId()));
 
         StickerContext context = StickerContext.of(hobby, recordedToday, page, size);
-        List<GetStickerInfoResDto.StickerDto> stickers =  activityRecordRedisService.getCachedStickers(hobby.getId(), context.getCurrentPage(), context.getSize(), currentUser.getId());
+        List<GetStickerInfoResDto.StickerDto> stickers =  stickerRedisService.getCachedStickers(hobby.getId(), context.getCurrentPage(), context.getSize(), currentUser.getId());
 
         return GetStickerInfoResDto.of(hobby, context, stickers);
     }
