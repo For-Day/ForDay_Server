@@ -9,6 +9,7 @@ import com.example.ForDay.domain.notification.entity.ReactionNotification;
 import com.example.ForDay.domain.notification.type.NotificationFilterType;
 import com.example.ForDay.domain.notification.type.NotificationType;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.util.TimeUtil;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         Long nextCursorId = content.isEmpty() ? null : content.get(content.size() - 1).getId();
 
         return new GetNotificationListResDto(
+                GetNotificationListResDto.PushInfo.pushEnabled(),
                 infoList,
                 hasNext,
                 nextCursorId != null ? String.valueOf(nextCursorId) : null
@@ -59,24 +61,12 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
     }
 
     private GetNotificationInfoResDto convertToInfoDto(Notification n) {
-        GetNotificationInfoResDto dto = new GetNotificationInfoResDto();
-        dto.setNotificationId(n.getId());
-        dto.setMessage(n.getMessage());
-        dto.setType(n.getType());
-        dto.setImageUrl(n.getSender() != null ? n.getSender().getProfileImageUrl() : null);
-        dto.setRead(n.isRead());
+        GetNotificationInfoResDto dto = GetNotificationInfoResDto.from(n);
 
         if (n instanceof ReactionNotification reaction) {
-            dto.setReactionAlram(new GetNotificationInfoResDto.ReactionAlramDto(
-                    reaction.getReactionType(),
-                    reaction.getRecordId()
-            ));
+            dto.setReactionAlram(GetNotificationInfoResDto.ReactionAlramDto.from(reaction));
         } else if (n instanceof CommentNotification comment) {
-            dto.setCommentAlram(new GetNotificationInfoResDto.CommentAlramDto(
-                    comment.getRecordId(),
-                    comment.getCommentId(),
-                    comment.getCommentContent()
-            ));
+            dto.setCommentAlram(GetNotificationInfoResDto.CommentAlramDto.from(comment));
         }
 
         return dto;

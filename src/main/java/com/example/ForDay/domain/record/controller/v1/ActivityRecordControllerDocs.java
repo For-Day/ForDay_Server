@@ -36,7 +36,9 @@ public interface ActivityRecordControllerDocs {
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"))
             )
     })
-    GetRecordDetailResDto getRecordDetail(@PathVariable(name = "activityRecordId") Long activityRecordId, @AuthenticationPrincipal CustomUserDetails user);
+    GetRecordDetailResDto getRecordDetail(@PathVariable(name = "activityRecordId") Long activityRecordId,
+                                          @AuthenticationPrincipal CustomUserDetails user,
+                                          @Parameter(description = "알림 목록 또는 푸시 알림 내역을 통해서 기록 조회시 해당 알림을 읽음 처리 하기 위한 파라미터입니다.", example = "12") @RequestParam(name = "notificationId", required = false) Long notificationId);
 
     @Operation(
             summary = "기록 공개 범위 수정",
@@ -130,7 +132,7 @@ public interface ActivityRecordControllerDocs {
     @PostMapping("/{recordId}/reactions")
     ReactToRecordResDto reactToRecord(
             @Parameter(description = "활동 기록 ID", example = "123") @PathVariable Long recordId,
-            @Parameter(description = "리액션 종류 (AWESOME, GREAT, AMAZING, FIGHTING)", example = "GREAT")   @RequestBody ReactToRecordReqDto reqDto,
+            @Parameter(description = "리액션 종류 (AWESOME, GREAT, AMAZING, FIGHTING)", example = "GREAT") @RequestBody ReactToRecordReqDto reqDto,
             @AuthenticationPrincipal CustomUserDetails user
     );
 
@@ -370,7 +372,8 @@ public interface ActivityRecordControllerDocs {
                     description = "조회 성공 (기록이 없으면 data가 null로 반환됨)",
                     content = @Content(schema = @Schema(implementation = GetActivityRecordByStoryResDto.class))
             )
-    })GetActivityRecordByStoryResDto getActivityRecordByStory(
+    })
+    GetActivityRecordByStoryResDto getActivityRecordByStory(
             @Parameter(description = "취미 ID (null이면 전체 조회, 아니면 조회하고자하는 취미의 id 값)", example = "14")
             @RequestParam(name = "hobbyId", required = false) Long hobbyId,
 

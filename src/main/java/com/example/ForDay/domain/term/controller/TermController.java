@@ -1,18 +1,21 @@
 package com.example.ForDay.domain.term.controller;
 
+import com.example.ForDay.domain.term.dto.request.RegisterTermsConsentReqDto;
 import com.example.ForDay.domain.term.dto.response.PrivacyTermsResponseDto;
+import com.example.ForDay.domain.term.dto.response.RegisterTermsConsentResDto;
 import com.example.ForDay.domain.term.dto.response.ServiceTermsResponseDto;
 import com.example.ForDay.domain.term.service.TermsService;
 import com.example.ForDay.domain.term.type.DocumentType;
+import com.example.ForDay.global.oauth.CustomUserDetails;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/terms")
 @RequiredArgsConstructor
-public class TermController {
+public class TermController implements TermControllerDocs{
     private final TermsService termsService;
 
     @GetMapping("/service")
@@ -23,5 +26,12 @@ public class TermController {
     @GetMapping("/privacy")
     public PrivacyTermsResponseDto getPrivacyPolicy() {
         return termsService.getPrivacyTerms(DocumentType.PRIVACY);
+    }
+
+    @Override
+    @PostMapping("/consent")
+    public RegisterTermsConsentResDto registerTermsConsent(@RequestBody @Valid RegisterTermsConsentReqDto reqDto,
+                                                           @AuthenticationPrincipal CustomUserDetails user) {
+        return termsService.registerTermsConsent(reqDto, user);
     }
 }

@@ -71,6 +71,12 @@ dependencies {
 	// lambda invoke
 	implementation platform("software.amazon.awssdk:bom:2.25.0")
 	implementation "software.amazon.awssdk:lambda"
+
+	// Firebase Admin SDK
+	implementation 'com.google.firebase:firebase-admin:9.2.0'
+
+	// RabbitMQ
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 }
 
 tasks.named('test') {

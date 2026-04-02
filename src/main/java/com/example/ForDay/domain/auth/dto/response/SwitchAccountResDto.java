@@ -13,8 +13,9 @@ public class SwitchAccountResDto {
     private SocialType socialType;
     private String accessToken;
     private String refreshToken;
+    private String fcmToken;
 
-    public static SwitchAccountResDto of(SocialType socialType, String accessToken, String refreshToken) {
-        return new SwitchAccountResDto(socialType, accessToken, refreshToken);
+    public static SwitchAccountResDto of(SocialType socialType, String accessToken, String refreshToken, String fcmToken) {
+        return new SwitchAccountResDto(socialType, accessToken, refreshToken, fcmToken);
     }
 }

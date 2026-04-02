@@ -73,6 +73,17 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private LocalDateTime deletedAt = null;
 
+    @Builder.Default
+    private boolean termsConsentCompleted = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isAppPushEnabled = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isRecordPushEnabled = false;
+
     // 게스트 마지막 활동일시 업데이트
     public void updateLastActivity() {
         this.lastActivityAt = LocalDateTime.now();
@@ -85,6 +96,10 @@ public class User extends BaseTimeEntity {
 
     public void completeOnboarding() {
         this.onboardingCompleted = true;
+    }
+
+    public void completeTermsConsent() {
+        this.termsConsentCompleted = true;
     }
 
     public void obtainSticker() {
@@ -139,5 +154,13 @@ public class User extends BaseTimeEntity {
                 .socialType(socialType)
                 .socialId(socialId)
                 .build();
+    }
+
+    public void updateAppPushEnabled(boolean active) {
+        this.isAppPushEnabled = active;
+    }
+
+    public void updateRecordPushEnabled(boolean active) {
+        this.isRecordPushEnabled = active;
     }
 }

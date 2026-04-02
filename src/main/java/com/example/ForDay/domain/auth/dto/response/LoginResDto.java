@@ -35,7 +35,11 @@ public class LoginResDto {
 
     private String nickname;
 
-    public static LoginResDto of(LoginInternalResult result, User user, boolean isNewUser, SocialType socialType) {
+    private boolean termsConsentCompleted;
+
+    private String fcmToken;
+
+    public static LoginResDto of(LoginInternalResult result, User user, boolean isNewUser, SocialType socialType, String fcmToken) {
         return new LoginResDto(
                 result.accessToken(),
                 result.refreshToken(),
@@ -44,7 +48,9 @@ public class LoginResDto {
                 result.onboardingCompleted(),
                 result.isNicknameSet(),
                 result.onboardingData(),
-                user.getNickname()
+                user.getNickname(),
+                user.isTermsConsentCompleted(),
+                fcmToken
         );
     }
 }

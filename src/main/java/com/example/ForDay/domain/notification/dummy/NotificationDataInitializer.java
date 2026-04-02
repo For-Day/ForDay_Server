@@ -34,7 +34,8 @@ public class NotificationDataInitializer implements CommandLineRunner {
                     NotificationType.RECORD_REACTION,
                     "테스트 유저님이 " + i + "번째 기록에 좋아요를 남겼어요.",
                     RecordReactionType.GREAT,
-                    (long) i
+                    (long) i,
+                    "이미지 url"
             );
             notificationRepository.save(reaction);
 
@@ -45,7 +46,8 @@ public class NotificationDataInitializer implements CommandLineRunner {
                     i + "번째 기록에 새 댓글이 달렸습니다.",
                     (long) i,
                     (long) (100 + i),
-                    "이것은 " + i + "번째 테스트 댓글 내용입니다."
+                    "이것은 " + i + "번째 테스트 댓글 내용입니다.",
+                    "이미지 url"
             );
             notificationRepository.save(comment);
         }

@@ -5,6 +5,9 @@ import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.notification.entity.Notification;
+import com.example.ForDay.domain.notification.repository.NotificationRepository;
+import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
@@ -77,10 +80,12 @@ public class ActivityRecordService {
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordRedisService recordRedisService;
+    private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
-    public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user) {
+    public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user, Long notificationId) {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
@@ -103,6 +108,9 @@ public class ActivityRecordService {
                 recordId, detail.writerId(), summaries.size(), scraped);
 
         String profileImageUrl = s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl());
+
+        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
+
         return GetRecordDetailResDto.of(detail, isRecordOwner, scraped, GetRecordDetailResDto.NewReactionDto.of(summaries, isRecordOwner), GetRecordDetailResDto.UserReactionDto.of(summaries, currentUserId), profileImageUrl);
     }
 
@@ -134,29 +142,26 @@ public class ActivityRecordService {
 
     @Transactional
     public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        // 현재 로그인한 사용자 조회
         User currentUser = userUtil.getCurrentUser(user);
-        // 기록 조회 + 삭제 여부 검증
+
         ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
-
-        // 차단 여부, 친구 관계, 공개 범위 등 접근 권한 검증
         activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
-
-        // 동일 유저의 동일 타입 리액션 중복 여부 체크
         validateDuplicateReaction(recordId, currentUser.getId(), type);
 
-        // 리액션 엔티티 생성 및 저장
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
         // 반응 수 증가
         int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
         if (result == 0) {
-            // update 되는 레코드가 없다는 것은 아직 해당 기록에 반응이 없다는 것이므로 초기화 해야 한다.
             recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
         }
         // 리액션 증가에 따른 랭킹 점수 업데이트
         redisReactionService.incrementRankingScore(record.getRecordId());
+
+        if(!isRecordOwner(currentUser, record)) {
+            notificationService.processReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
+        }
 
         return ReactToRecordResDto.of(type, recordId);
     }
@@ -206,7 +211,7 @@ public class ActivityRecordService {
         ActivityRecord record = activityRecordUtil.getRecordByUserId(recordId, currentUser);
         Activity activity = activityUtil.getActivityByUserId(reqDto.getActivityId(), currentUser.getId());
 
-        handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl());
+        handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl(), record.getId());
         record.updateRecord(activity, reqDto);
 
         recordRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
@@ -235,6 +240,7 @@ public class ActivityRecordService {
             activityRecord.getHobby().deleteRecord();
             todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), activityRecord.getHobby().getId());
             activityRecordRepository.delete(activityRecord);
+            notificationRepository.updateImageUrlByRecordId(activityRecord.getId(), null);
         } else {
             activityRecord.deleteRecord();
         }
@@ -313,7 +319,7 @@ public class ActivityRecordService {
 
         recordDtos.forEach(dto -> dto.convertImageUrls(s3Util));
 
-        return GetActivityRecordByStoryResDto.of(tabInfos, recordDtos, size);
+        return GetActivityRecordByStoryResDto.of(notificationService.unreadNotificationExists(currentUser), tabInfos, recordDtos, size);
     }
 
     private static boolean isToday(ActivityRecord activityRecord) {
@@ -349,7 +355,7 @@ public class ActivityRecordService {
         }
     }
 
-    private void handleImageUpdate(String oldImageUrl, String newImageUrl) {
+    private void handleImageUpdate(String oldImageUrl, String newImageUrl, Long recordId) {
         if (!isImageChanged(oldImageUrl, newImageUrl)) {
             return;
         }
@@ -359,6 +365,8 @@ public class ActivityRecordService {
         if (hasOldImage(oldImageUrl)) {
             registerImageDeletionAfterCommit(oldImageUrl);
         }
+
+        notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
     }
 
     private boolean isImageChanged(String oldUrl, String newUrl) {
@@ -455,5 +463,9 @@ public class ActivityRecordService {
                 }
             }
         });
+    }
+
+    private static boolean isRecordOwner(User currentUser, ReportActivityRecordDto record) {
+        return currentUser.getId().equals(record.getWriterId());
     }
 }

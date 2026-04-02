@@ -17,13 +17,13 @@ public class ReactionNotification extends Notification {
     private RecordReactionType reactionType;
     private Long recordId;
 
-    private ReactionNotification(User receiver, User sender, NotificationType type, String message, RecordReactionType reactionType, Long recordId) {
-        super(receiver, sender, type, message); // 부모 생성자 호출
+    private ReactionNotification(User receiver, User sender, NotificationType type, String message, RecordReactionType reactionType, Long recordId, String imageUrl) {
+        super(receiver, sender, type, message, imageUrl); // 부모 생성자 호출
         this.reactionType = reactionType;
         this.recordId = recordId;
     }
 
-    public static ReactionNotification create(User receiver, User sender, NotificationType type, String message, RecordReactionType reactionType, Long recordId) {
-        return new ReactionNotification(receiver, sender, type, message, reactionType, recordId);
+    public static ReactionNotification create(User receiver, User sender, NotificationType type, String message, RecordReactionType reactionType, Long recordId, String imageUrl) {
+        return new ReactionNotification(receiver, sender, type, message, reactionType, recordId, imageUrl);
     }
 }
