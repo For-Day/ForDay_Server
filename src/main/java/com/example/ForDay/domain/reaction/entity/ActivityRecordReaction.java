@@ -14,7 +14,8 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "activity_record_reactions",
         indexes = {
-                @Index(name = "idx_reaction_record_type", columnList = "activity_record_id, reactionType")
+                @Index(name = "idx_record_user_type",
+                        columnList = "activity_record_id, reacted_user_id, reactionType")
         }
 )
 @Getter
