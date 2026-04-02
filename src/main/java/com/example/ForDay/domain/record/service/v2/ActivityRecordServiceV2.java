@@ -80,7 +80,7 @@ public class ActivityRecordServiceV2 {
         if (!activityRecordUtil.isRecordOwner(currentUser.getId(), record.getWriterId())) {
             activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
         }
-        validateDuplicateReactionWithRedis(recordId, currentUser.getId(), reactionType); // 메모리 많이 차지해서 삭제 예정
+        validateDuplicateReaction(recordId, currentUser.getId(), reactionType);
 
         // DB 저장 대신 Redis Queue에 push
         String value = REACTION_QUEUE_VALUE_FORMAT.formatted(
@@ -103,13 +103,8 @@ public class ActivityRecordServiceV2 {
         }
     }
 
-    private void validateDuplicateReactionWithRedis(Long recordId, String userId, RecordReactionType type) {
-        String key = "reaction:done:" + recordId + ":" + userId;
-
-        // Set에 추가 시도 → 이미 있으면 0 반환 (중복)
-        Boolean added = redisTemplate.opsForSet().add(key, type.name()) == 1L;
-
-        if (!added) {
+    private void validateDuplicateReaction(Long recordId, String userId, RecordReactionType type) {
+        if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordId, userId, type)) {
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
     }
