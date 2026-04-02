@@ -73,6 +73,7 @@ public class ActivityRecordUtil {
         return Objects.equals(currentUserId, writerId);
     }
 
+    @Cacheable(value = "activityRecord", key = "#recordId", unless = "#result == null")
     public ReportActivityRecordDto getValidRecord(Long recordId) {
         ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
