@@ -145,7 +145,7 @@ public class ActivityRecordService {
         User currentUser = userUtil.getCurrentUser(user);
 
         ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
-        activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
+        if(!isRecordOwner(currentUser, record)) activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
         validateDuplicateReaction(recordId, currentUser.getId(), type);
 
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
