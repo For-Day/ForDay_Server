@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.service.v2;
 
 import com.example.ForDay.domain.notification.service.NotificationService;
+import com.example.ForDay.domain.reaction.service.ReactionRedisService;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
@@ -34,8 +35,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ActivityRecordServiceV2 {
-    private static final String REACTION_QUEUE_VALUE_FORMAT = "%d:%s:%s";
-
     private final ActivityRecordRepository activityRecordRepository;
     private final UserUtil userUtil;
     private final ActivityRecordReactionRepository recordReactionRepository;
@@ -45,6 +44,7 @@ public class ActivityRecordServiceV2 {
     private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
+    private final ReactionRedisService reactionRedisService;
 
     // 위, 아래 스와이프 적용 버전
     @Transactional
@@ -83,12 +83,7 @@ public class ActivityRecordServiceV2 {
         if (!activityRecordUtil.isRecordOwner(currentUser.getId(), record.getWriterId())) {
             activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
         }
-        validateDuplicateReactionWithRedis(recordId, currentUser.getId(), reactionType);
-
-        // DB 저장 대신 Redis Queue에 push
-        String value = REACTION_QUEUE_VALUE_FORMAT.formatted(
-                recordId, currentUser.getId(), reactionType.name());
-        redisTemplate.opsForList().rightPush("reaction_queue", value);
+        reactionRedisService.createReactionWithRedis(currentUser.getId(), recordId, reactionType);
 
         // 랭킹 점수는 즉시 반영
         reactionRankingService.incrementRankingScore(recordId);
