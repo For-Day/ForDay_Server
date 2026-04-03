@@ -14,14 +14,13 @@ import com.example.ForDay.domain.record.dto.response.GetActivityRecordByStoryRes
 import com.example.ForDay.domain.record.entity.QActivityRecord;
 import com.example.ForDay.domain.record.entity.QActivityRecordReport;
 import com.example.ForDay.domain.record.entity.QActivityRecordScrap;
-import com.example.ForDay.domain.record.service.RedisReactionService;
+import com.example.ForDay.domain.reaction.service.ReactionRankingService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.user.dto.response.GetUserFeedListResDto;
 import com.example.ForDay.domain.user.entity.QUser;
-import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.Role;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
@@ -43,7 +42,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCustom {
     private final JPAQueryFactory queryFactory;
-    private final RedisReactionService redisReactionService;
+    private final ReactionRankingService reactionRankingService;
 
     private final QActivityRecord record = QActivityRecord.activityRecord;
     private final QUser user = QUser.user;
@@ -204,8 +203,8 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
         // HOT 필터일 경우 Redis 조회
         List<Long> hotIds = null;
         if (storyFilterType == StoryFilterType.HOT) {
-            Double lastScore = (lastRecordId != null) ? redisReactionService.getScore(lastRecordId) : null;
-            hotIds = redisReactionService.getHotRecordIdsByCursor(lastScore, lastRecordId, size);
+            Double lastScore = (lastRecordId != null) ? reactionRankingService.getScore(lastRecordId) : null;
+            hotIds = reactionRankingService.getHotRecordIdsByCursor(lastScore, lastRecordId, size);
             if (hotIds.isEmpty()) return Collections.emptyList();
         }
 

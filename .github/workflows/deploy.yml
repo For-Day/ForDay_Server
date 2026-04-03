@@ -105,10 +105,6 @@ jobs:
               -p $TARGET_PORT:8080 \
               -e SPRING_DATA_REDIS_HOST=172.17.0.1 \
               -e SPRING_DATA_REDIS_PORT=6379 \
-              -e SPRING_RABBITMQ_HOST=172.17.0.1 \
-              -e SPRING_RABBITMQ_PORT=5672 \
-              -e SPRING_RABBITMQ_USERNAME=admin \
-              -e SPRING_RABBITMQ_PASSWORD=password123 \
               839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           
             echo "▶ 헬스 체크 시작"
