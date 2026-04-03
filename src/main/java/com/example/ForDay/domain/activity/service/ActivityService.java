@@ -21,7 +21,7 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.record.service.ActivityRecordRedisService;
+import com.example.ForDay.domain.record.service.StickerRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -63,7 +63,7 @@ public class ActivityService {
     private final ActivityUtil activityUtil;
     private final S3Util s3Util;
     private final ActivityBulkRepository activityBulkRepository;
-    private final ActivityRecordRedisService recordRedisService;
+    private final StickerRedisService recordRedisService;
     private final ActivityRedisService activityRedisService;
 
     @Transactional
