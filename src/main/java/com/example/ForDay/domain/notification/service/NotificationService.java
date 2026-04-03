@@ -30,6 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -80,12 +81,13 @@ public class NotificationService {
     }
 
     public void processReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
-        String body = NotificationMessageGenerator.generateReactionBody(sender.getNickname(), reactionType.getDescription());
+        String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription()); // notification 내용
+        String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
 
         // ReactionNotification 객체 생성
-        ReactionNotification savedNotification = notificationRepository.save(ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, body, reactionType, recordId, imageUrl));
+        ReactionNotification savedNotification = notificationRepository.save(ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl));
         // 푸시 알림 로직 수행
-        eventPublisher.publishEvent(NotificationEventDto.of(receiver, NotificationMessageGenerator.REACTION_TITLE, body, createDataForReaction(recordId, savedNotification.getId())));
+        eventPublisher.publishEvent(NotificationEventDto.of(receiver, sender.getNickname(), pushReactionBody, createDataForReaction(recordId, savedNotification.getId())));
         //sendNotificationEvent(receiver, NotificationMessageGenerator.REACTION_TITLE, body, createDataForReaction(recordId, NotificationType.RECORD_REACTION));
     }
 
