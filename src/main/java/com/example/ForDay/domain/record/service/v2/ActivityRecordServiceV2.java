@@ -101,22 +101,6 @@ public class ActivityRecordServiceV2 {
         }
     }
 
-    private void validateDuplicateReaction(Long recordId, String userId, RecordReactionType type) {
-        if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordId, userId, type)) {
-            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
-        }
-    }
-
-    private void validateDuplicateReactionWithRedis(Long recordId, String userId, RecordReactionType type) {
-        String lockKey = String.format(CacheConstants.REACTION_LOCK_KEY, recordId, userId, type.name());Boolean isFirstRequest = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "1", Duration.ofSeconds(5));
-
-        if (Boolean.FALSE.equals(isFirstRequest)) {
-            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
-        }
-
-    }
-
     private static void validateAccess(RecordSearchConditionReqDto condition, User currentUser) {
         if(currentUser.getRole().equals(Role.GUEST)) {
             if (isStoryContext(condition)) {
