@@ -136,19 +136,26 @@ public class NotificationService {
         return Objects.equals(pushEnabled, active);
     }
 
-  /*  public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
+    public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
+
+        NotificationEventDto eventDto = NotificationEventDto.of(
+                currentUser,
+                List.of(reqDto.getFcmToken()),
+                NotificationMessageGenerator.REACTION_TITLE,
+                reqDto.getBody(),
+                createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())
+        );
 
         FcmNotificationReqDto fcmSendReqDto = FcmNotificationReqDto.of(
                 reqDto.getFcmToken(),
-                NotificationEventDto.of(currentUser,
-                        NotificationMessageGenerator.REACTION_TITLE,
-                        reqDto.getBody(),
-                        createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())));
+                eventDto
+        );
+
         fcmTokenService.sendNotificationByToken(fcmSendReqDto);
 
         return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
-    }*/
+    }
 
     public void markAsReadIfUnread(Long notificationId) {
         log.info("읽음 표시 시작");
