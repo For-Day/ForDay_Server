@@ -30,7 +30,6 @@ public class RecordRedisService {
     }
 
     private void performEvict(Long recordId) {
-        // 단일 레코드이므로 패턴을 정확하게 생성
         String pattern = String.format(CacheConstants.RECORD_KEY_PATTERN, recordId);
         deleteKeysByPattern(pattern);
     }

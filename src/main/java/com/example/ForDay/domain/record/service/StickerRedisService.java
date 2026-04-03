@@ -32,17 +32,14 @@ public class StickerRedisService {
     }
 
     public void evictRecordCache(Long hobbyId, String userId) {
-        // 현재 활성화된 트랜잭션이 있는지 확인
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    // 트랜잭션 커밋 성공 시 실행될 로직
                     executeEvict(hobbyId, userId);
                 }
             });
         } else {
-            // 트랜잭션이 없는 상태에서 호출된 경우 즉시 삭제
             executeEvict(hobbyId, userId);
         }
     }
