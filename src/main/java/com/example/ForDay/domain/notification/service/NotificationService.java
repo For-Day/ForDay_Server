@@ -126,7 +126,8 @@ public class NotificationService {
         return Map.of(
                 "recordId", String.valueOf(recordId),
                 "type", NotificationType.RECORD_REACTION.name(),
-                "landingUrl", "/api/v2/records/" + recordId + "?notificationId=" + notificationId + "&context=USER_FEED"
+                "landingUrl", "/api/v2/records/" + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
+                "sendAt", LocalDateTime.now().toString()
         );
     }
 
