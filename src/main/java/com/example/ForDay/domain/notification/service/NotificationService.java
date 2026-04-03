@@ -85,21 +85,22 @@ public class NotificationService {
         String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
 
         // ReactionNotification 객체 생성
-        ReactionNotification savedNotification = notificationRepository.save(ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl));
-        // 푸시 알림 로직 수행
-        eventPublisher.publishEvent(NotificationEventDto.of(receiver, sender.getNickname(), pushReactionBody, createDataForReaction(recordId, savedNotification.getId())));
-        //sendNotificationEvent(receiver, NotificationMessageGenerator.REACTION_TITLE, body, createDataForReaction(recordId, NotificationType.RECORD_REACTION));
-    }
+        ReactionNotification savedNotification =
+                notificationRepository.save(
+                        ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
+                );
 
-    // rabbitMq에 메세지 이벤트 발행
-    public void sendNotificationEvent(User receiver, String title, String body, Map<String, String> data) {
-        NotificationEventDto eventDto = NotificationEventDto.of(receiver, title, body, data);
+        List<String> tokens = findActiveRecordDeviceToken(receiver);
 
-        rabbitTemplate.convertAndSend(
-                RabbitMqConfig.NOTIFICATION_EXCHANGE,
-                RabbitMqConfig.NOTIFICATION_ROUTING_KEY,
-                eventDto
-        );
+        if (!tokens.isEmpty()) {
+            eventPublisher.publishEvent(NotificationEventDto.of(
+                    receiver,
+                    tokens,
+                    sender.getNickname(),
+                    pushReactionBody,
+                    createDataForReaction(recordId, savedNotification.getId())
+            ));
+        }
     }
 
     @Transactional(readOnly = true)
@@ -135,7 +136,7 @@ public class NotificationService {
         return Objects.equals(pushEnabled, active);
     }
 
-    public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
+  /*  public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
         FcmNotificationReqDto fcmSendReqDto = FcmNotificationReqDto.of(
@@ -147,7 +148,7 @@ public class NotificationService {
         fcmTokenService.sendNotificationByToken(fcmSendReqDto);
 
         return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
-    }
+    }*/
 
     public void markAsReadIfUnread(Long notificationId) {
         log.info("읽음 표시 시작");

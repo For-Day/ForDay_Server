@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.*;
 public class TestNotificationController {
     private final NotificationService notificationService;
 
-    @PostMapping("/fcm/sendMessage")
+    /*@PostMapping("/fcm/sendMessage")
     public SendPushMessageResDto sendPushMessage(@RequestBody SendPushMessageReqDto reqDto,
                                                  @AuthenticationPrincipal CustomUserDetails user) {
 
         return notificationService.sendPushMessage(reqDto, user);
-    }
+    }*/
 }

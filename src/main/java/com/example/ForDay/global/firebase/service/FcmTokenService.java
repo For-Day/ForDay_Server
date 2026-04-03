@@ -33,7 +33,7 @@ public class FcmTokenService {
             Notification notification = Notification.builder()
                     .setTitle(reqDto.getTitle())
                     .setBody(reqDto.getBody())
-                    //    .setImage(reqDto.getImage())
+                    //.setImage(reqDto.getImage())
                     .build();
 
             Message message = Message.builder()
