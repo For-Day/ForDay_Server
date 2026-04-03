@@ -9,11 +9,12 @@ import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
-import com.example.ForDay.domain.record.service.RedisReactionService;
+import com.example.ForDay.domain.reaction.service.ReactionRankingService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.Role;
+import com.example.ForDay.global.common.constants.CacheConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -40,7 +41,7 @@ public class ActivityRecordServiceV2 {
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
-    private final RedisReactionService redisReactionService;
+    private final ReactionRankingService reactionRankingService;
     private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
@@ -78,10 +79,11 @@ public class ActivityRecordServiceV2 {
     public ReactToRecordResDto reactToRecordWithRedis(Long recordId, RecordReactionType reactionType, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
+
         if (!activityRecordUtil.isRecordOwner(currentUser.getId(), record.getWriterId())) {
             activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
         }
-        validateDuplicateReaction(recordId, currentUser.getId(), reactionType);
+        validateDuplicateReactionWithRedis(recordId, currentUser.getId(), reactionType);
 
         // DB 저장 대신 Redis Queue에 push
         String value = REACTION_QUEUE_VALUE_FORMAT.formatted(
@@ -89,7 +91,7 @@ public class ActivityRecordServiceV2 {
         redisTemplate.opsForList().rightPush("reaction_queue", value);
 
         // 랭킹 점수는 즉시 반영
-        redisReactionService.incrementRankingScore(recordId);
+        reactionRankingService.incrementRankingScore(recordId);
 
         return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", reactionType, recordId);
     }
@@ -108,6 +110,16 @@ public class ActivityRecordServiceV2 {
         if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordId, userId, type)) {
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
+    }
+
+    private void validateDuplicateReactionWithRedis(Long recordId, String userId, RecordReactionType type) {
+        String lockKey = String.format(CacheConstants.REACTION_LOCK_KEY, recordId, userId, type.name());Boolean isFirstRequest = redisTemplate.opsForValue()
+                .setIfAbsent(lockKey, "1", Duration.ofSeconds(5));
+
+        if (Boolean.FALSE.equals(isFirstRequest)) {
+            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
+        }
+
     }
 
     private static void validateAccess(RecordSearchConditionReqDto condition, User currentUser) {

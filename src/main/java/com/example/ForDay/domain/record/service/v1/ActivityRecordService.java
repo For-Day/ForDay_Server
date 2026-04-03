@@ -25,7 +25,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.service.RecordRedisService;
 import com.example.ForDay.domain.record.service.StickerRedisService;
-import com.example.ForDay.domain.record.service.RedisReactionService;
+import com.example.ForDay.domain.reaction.service.ReactionRankingService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
@@ -75,7 +75,7 @@ public class ActivityRecordService {
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final RedisReactionService redisReactionService;
+    private final ReactionRankingService reactionRankingService;
     private final UserRepository userRepository;
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
     private final RedisTemplate<String, String> redisTemplate;
@@ -158,7 +158,7 @@ public class ActivityRecordService {
             recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
         }
         // 리액션 증가에 따른 랭킹 점수 업데이트
-        redisReactionService.incrementRankingScore(record.getRecordId());
+        reactionRankingService.incrementRankingScore(record.getRecordId());
 
         if(!isRecordOwner(currentUser, record)) {
             notificationService.processReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
@@ -198,7 +198,7 @@ public class ActivityRecordService {
         redisTemplate.opsForSet().remove(key, type.name());
 
         // Redis 점수 차감
-        redisReactionService.decrementRankingScore(recordId);
+        reactionRankingService.decrementRankingScore(recordId);
 
         log.info("[cancelReactToRecord] 리액션 취소 완료 - RecordId: {}, UserId: {}", recordId, userId);
         return CancelReactToRecordResDto.of(type, recordId);

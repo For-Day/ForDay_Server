@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.record.service;
+package com.example.ForDay.domain.reaction.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class RedisReactionService {
+public class ReactionRankingService {
 
     private final RedisTemplate<String, Object> redisObjectTemplate;
     private static final String RANKING_KEY = "reaction:ranking:30days";
