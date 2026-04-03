@@ -24,35 +24,25 @@ public class NotificationConsumer {
 
     @RabbitListener(queues = RabbitMqConfig.NOTIFICATION_QUEUE)
     public void consumeRecordNotification(NotificationEventDto eventDto) {
-        log.info("[RabbitMQ] 메시지 수신 성공: {}", eventDto);
-        User receiver = eventDto.getReceiver();
+        log.info("[RabbitMQ] 메시지 수신 - ReceiverId: {}, Title: {}", eventDto.getReceiverId(), eventDto.getTitle());
 
-        //String userId = eventDto.getReceiver().getId();
+        List<String> tokens = eventDto.getFcmTokens();
 
-        // DB에서 최신 유저 정보를 다시 조회 (중요!)
-        //User receiver = userRepository.findById(userId)
-        //        .orElseThrow(() -> new EntityNotFoundException("유저를 찾을 수 없습니다."));
-
-        if (receiver == null) {
-            log.warn("[RabbitMQ] 수신자(Receiver) 정보가 없어 처리를 중단합니다.");
+        if (tokens == null || tokens.isEmpty()) {
+            log.warn("[RabbitMQ] 전송할 FCM 토큰이 없어 처리를 중단합니다. ReceiverId: {}", eventDto.getReceiverId());
             return;
         }
 
-        List<String> tokens = notificationService.findActiveRecordDeviceToken(receiver);
-
-        if (tokens.isEmpty()) {
-            log.warn("[FCM] 유저({})에게 전송할 활성화된 토큰이 없습니다.", receiver.getId());
-            return;
-        }
-
-        log.info("[FCM] 유저({})에게 발송 시작 - 토큰 개수: {}개", receiver.getId(), tokens.size());
+        log.info("[FCM] 발송 시작 - 유저 ID: {}, 토큰 개수: {}개", eventDto.getReceiverId(), tokens.size());
 
         for (String token : tokens) {
             try {
                 FcmNotificationReqDto reqDto = FcmNotificationReqDto.of(token, eventDto);
+
                 fcmTokenService.sendNotificationByToken(reqDto);
-                log.info("[FCM] 전송 요청 완료 - Token: {}", token);
+                log.info("[FCM] 전송 요청 성공 - Token: {}", token);
             } catch (Exception e) {
+                // 특정 토큰 전송 실패 시 로그 남기고 다음 토큰으로 진행
                 log.error("[FCM] 전송 중 에러 발생 - Token: {}, Error: {}", token, e.getMessage());
             }
         }
