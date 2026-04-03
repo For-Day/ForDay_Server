@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.record.service;
+package com.example.ForDay.domain.reaction.service;
 
 import com.example.ForDay.domain.record.dto.ReactionCountDto;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;

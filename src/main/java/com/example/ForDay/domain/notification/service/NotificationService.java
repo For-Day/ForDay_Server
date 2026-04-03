@@ -30,6 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -80,24 +81,26 @@ public class NotificationService {
     }
 
     public void processReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
-        String body = NotificationMessageGenerator.generateReactionBody(sender.getNickname(), reactionType.getDescription());
+        String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription()); // notification 내용
+        String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
 
         // ReactionNotification 객체 생성
-        ReactionNotification savedNotification = notificationRepository.save(ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, body, reactionType, recordId, imageUrl));
-        // 푸시 알림 로직 수행
-        eventPublisher.publishEvent(NotificationEventDto.of(receiver, NotificationMessageGenerator.REACTION_TITLE, body, createDataForReaction(recordId, savedNotification.getId())));
-        //sendNotificationEvent(receiver, NotificationMessageGenerator.REACTION_TITLE, body, createDataForReaction(recordId, NotificationType.RECORD_REACTION));
-    }
+        ReactionNotification savedNotification =
+                notificationRepository.save(
+                        ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
+                );
 
-    // rabbitMq에 메세지 이벤트 발행
-    public void sendNotificationEvent(User receiver, String title, String body, Map<String, String> data) {
-        NotificationEventDto eventDto = NotificationEventDto.of(receiver, title, body, data);
+        List<String> tokens = findActiveRecordDeviceToken(receiver);
 
-        rabbitTemplate.convertAndSend(
-                RabbitMqConfig.NOTIFICATION_EXCHANGE,
-                RabbitMqConfig.NOTIFICATION_ROUTING_KEY,
-                eventDto
-        );
+        if (!tokens.isEmpty()) {
+            eventPublisher.publishEvent(NotificationEventDto.of(
+                    receiver,
+                    tokens,
+                    sender.getNickname(),
+                    pushReactionBody,
+                    createDataForReaction(recordId, savedNotification.getId())
+            ));
+        }
     }
 
     @Transactional(readOnly = true)
@@ -124,7 +127,8 @@ public class NotificationService {
         return Map.of(
                 "recordId", String.valueOf(recordId),
                 "type", NotificationType.RECORD_REACTION.name(),
-                "landingUrl", "/api/v2/records/" + recordId + "?notificationId=" + notificationId + "&context=USER_FEED"
+                "landingUrl", "/api/v2/records/" + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
+                "sendAt", LocalDateTime.now().toString()
         );
     }
 
@@ -135,12 +139,19 @@ public class NotificationService {
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
+        NotificationEventDto eventDto = NotificationEventDto.of(
+                currentUser,
+                List.of(reqDto.getFcmToken()),
+                NotificationMessageGenerator.REACTION_TITLE,
+                reqDto.getBody(),
+                createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())
+        );
+
         FcmNotificationReqDto fcmSendReqDto = FcmNotificationReqDto.of(
                 reqDto.getFcmToken(),
-                NotificationEventDto.of(currentUser,
-                        NotificationMessageGenerator.REACTION_TITLE,
-                        reqDto.getBody(),
-                        createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())));
+                eventDto
+        );
+
         fcmTokenService.sendNotificationByToken(fcmSendReqDto);
 
         return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");

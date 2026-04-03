@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.record.service;
+package com.example.ForDay.domain.reaction.service;
 
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
@@ -9,6 +9,7 @@ import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -59,10 +60,13 @@ public class ReactionScheduler {
                 })
                 .toList();
 
-        // Bulk insert
-        recordReactionRepository.saveAll(reactions);
+        try {
+            recordReactionRepository.saveAll(reactions);
+            recordReactionRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            log.warn("벌크 저장 중 중복 데이터 발견. 건별 저장으로 전환하거나 무시합니다.");
+        }
 
-        // ReactionCount 업데이트
         rawValues.forEach(value -> {
             String[] split = value.split(":");
             Long recordId = Long.parseLong(split[0]);

@@ -16,10 +16,14 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.example.ForDay.global.common.response.message.FriendSuccessMessage.*;
 
@@ -31,6 +35,7 @@ public class FriendService {
     private final UserUtil userUtil;
     private final UserRepository userRepository;
     private final S3Util s3Util;
+    private final FriendRedisService friendRedisService;
 
     @Transactional
     public AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails userDetails) {
@@ -63,7 +68,7 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
-
+        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return AddFriendResDto.of(ADD_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
@@ -78,6 +83,7 @@ public class FriendService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
         friendRelationRepository.delete(myRelation);
+        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return DeleteFriendResDto.of(DELETE_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
@@ -104,7 +110,7 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.BLOCK));
         }
-
+        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return BlockFriendResDto.of(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
     }
 
@@ -147,7 +153,7 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
-
+        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return ReportFriendResDto.of(REPORT_FRIEND_SUCCESS, targetUser);
     }
 

@@ -25,7 +25,7 @@ import java.util.Random;
 import java.util.UUID;
 
 @Slf4j
-@Component
+//@Component
 @Profile("local")
 @RequiredArgsConstructor
 public class DataInitializer {

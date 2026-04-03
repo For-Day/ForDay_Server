@@ -11,6 +11,7 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -38,6 +39,7 @@ public class ActivityRecordUtil {
         validateRecordAuthority(relations, visibility, writerId, currentUserId);
     }
 
+    @Cacheable(value = "friendRelations", key = "#currentUserId + ':' + #targetUserId")
     public List<FriendRelation> getRelations(String currentUserId, String targetUserId) {
         return friendRelationRepository.findAllRelationsBetween(currentUserId, targetUserId);
     }
@@ -71,6 +73,7 @@ public class ActivityRecordUtil {
         return Objects.equals(currentUserId, writerId);
     }
 
+    @Cacheable(value = "activityRecord", key = "#recordId", unless = "#result == null")
     public ReportActivityRecordDto getValidRecord(Long recordId) {
         ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
