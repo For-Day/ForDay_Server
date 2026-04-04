@@ -20,7 +20,7 @@ import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerRedisService;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.service.AIService;
+import com.example.ForDay.global.ai.service.AiActivityRecommendService;
 import com.example.ForDay.global.ai.service.UserSummaryAIService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -68,7 +68,7 @@ public class HobbyService {
     private final S3Util s3Util;
     private final ActivityRecommendItemRepository activityRecommendItemRepository;
     private final HobbyAiInsightService hobbyAiInsightService;
-    private final AIService aiService;
+    private final AiActivityRecommendService aiActivityRecommendService;
     private final HobbyUtil hobbyUtil;
     private final StickerRedisService stickerRedisService;
     private final ActivityCacheService activityCacheService;
@@ -103,7 +103,7 @@ public class HobbyService {
         int currentCount = aiCallCountService.increaseAndGet(currentUser.getSocialId(), hobbyId);
 
         try {
-            FastAPIRecommendResDto response = aiService.requestActivityRecommendAI(currentUser, hobby);
+            FastAPIRecommendResDto response = aiActivityRecommendService.requestActivityRecommendAI(currentUser, hobby);
             String summary = AiMessageConstants.formatHobbySummary(userSummaryAIService.determine(currentUser, hobby));
             saveRecommendItems(hobby, response);
 
