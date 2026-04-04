@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.record.service.v1;
 
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
+import com.example.ForDay.global.ai.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;

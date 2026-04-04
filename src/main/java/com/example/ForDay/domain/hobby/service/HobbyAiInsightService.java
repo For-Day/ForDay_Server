@@ -3,6 +3,8 @@ package com.example.ForDay.domain.hobby.service;
 import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.service.AiCallCountService;
+import com.example.ForDay.global.ai.service.UserSummaryAIService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

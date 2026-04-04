@@ -5,7 +5,7 @@ import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.type.AIItemType;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.hobby.service.UserSummaryAIService;
+import com.example.ForDay.global.ai.service.UserSummaryAIService;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.constants.AiMessageConstants;

@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.hobby.service;
+package com.example.ForDay.global.ai.service;
 
 import com.example.ForDay.domain.hobby.dto.request.ActivitySummaryRequest;
 import com.example.ForDay.domain.hobby.dto.response.ActivitySummaryResponse;
