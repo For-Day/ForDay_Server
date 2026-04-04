@@ -59,7 +59,6 @@ public class ActivityRecordService {
     private final ActivityRecordUtil activityRecordUtil;
     private final ActivityUtil activityUtil;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
-    private final ActivityRecordReportRepository activityRecordReportRepository;
     private final HobbyRepository hobbyRepository;
     private final RecentRedisService recentRedisService;
     private final S3Util s3Util;
@@ -67,7 +66,6 @@ public class ActivityRecordService {
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final UserRepository userRepository;
     private final StickerRedisService stickerRedisService;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
@@ -172,16 +170,11 @@ public class ActivityRecordService {
     public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user, StoryFilterType storyFilterType) {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[getActivityRecordByStory] 조회 시작 - User: {}, Filter: {}, Keyword: {}", currentUser.getId(), storyFilterType, keyword);
-        // 검색어 저장
+
         saveRecentKeywordIfPresent(currentUser.getId(), keyword);
-
-        // 상단 탭 정보 조회 (첫 페이지 조회 시에만)
         List<GetActivityRecordByStoryResDto.StoryTabInfo> tabInfos = getStoryTabInfos(currentUser.getId(), hobbyId, lastRecordId);
-
-        // 취미 상세 정보 조회 (검색 조건용)
         HobbyInfo hobbyInfo = getTargetHobbyInfo(hobbyId);
 
-        // 데이터 조회 및 페이징 처리
         List<GetActivityRecordByStoryResDto.RecordDto> recordDtos = activityRecordRepository.getActivityRecordByStory(
                 hobbyInfo.id(), lastRecordId, size + 1, keyword, currentUser.getId(), storyFilterType, hobbyInfo.name()
         );
