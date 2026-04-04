@@ -6,6 +6,7 @@ import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
+import com.example.ForDay.domain.record.service.RecordReportService;
 import com.example.ForDay.domain.record.service.RecordScrapService;
 import com.example.ForDay.domain.record.service.v1.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -23,6 +24,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     private final ActivityRecordService activityRecordService;
     private final ReactionService reactionService;
     private final RecordScrapService recordScrapService;
+    private final RecordReportService recordReportService;
 
     @Override
     @GetMapping("/{recordId}")
@@ -103,7 +105,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     public ReportActivityRecordResDto reportActivityRecord(@PathVariable(value = "recordId") Long recordId,
                                                            @RequestBody @Valid ReportActivityRecordReqDto reqDto,
                                                            @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.reportActivityRecord(recordId, reqDto, user);
+        return recordReportService.reportActivityRecord(recordId, reqDto, user);
     }
 
     @Override

@@ -168,27 +168,6 @@ public class ActivityRecordService {
         return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
     }
 
-    @Transactional
-    public ReportActivityRecordResDto reportActivityRecord(Long recordId, ReportActivityRecordReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-
-        log.info("[reportActivityRecord] 신고 요청 - recordId={}, reporter={}", recordId, currentUser.getId());
-
-        // 기록 조회 + 접근 권한 검증
-        ReportActivityRecordDto record = getAccessibleReportRecord(recordId, currentUser);
-
-        // 중복 신고 방지
-        validateDuplicateReport(record.getRecordId(), currentUser.getId());
-
-        // 신고 저장
-        saveReport(record, currentUser, reqDto.getReason());
-
-        log.info("[reportActivityRecord] 신고 완료 - recordId={}", recordId);
-
-        return ReportActivityRecordResDto.from(record);
-    }
-
-
     @Transactional(readOnly = true)
     public GetActivityRecordByStoryResDto getActivityRecordByStory(Long hobbyId, Long lastRecordId, Integer size, String keyword, CustomUserDetails user, StoryFilterType storyFilterType) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -288,28 +267,6 @@ public class ActivityRecordService {
             }
         });
     }
-
-    private void validateDuplicateReport(Long recordId, String userId) {
-        if (activityRecordReportRepository.existsByReportedRecordIdAndReporterId(recordId, userId)) {
-            throw new CustomException(ErrorCode.ALREADY_RECORD_REPORTED);
-        }
-    }
-
-    private void saveReport(ReportActivityRecordDto record, User reporter, String reason) {
-        ActivityRecord recordProxy = activityRecordRepository.getReferenceById(record.getRecordId());
-        User reportedUserProxy = userRepository.getReferenceById(record.getWriterId());
-        ActivityRecordReport report = ActivityRecordReport.of(reporter, reportedUserProxy, recordProxy, reason);
-        activityRecordReportRepository.save(report);
-    }
-
-    private ReportActivityRecordDto getAccessibleReportRecord(Long recordId, User user) {
-        ReportActivityRecordDto record = activityRecordRepository.getReportActivityRecord(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        activityRecordUtil.validateAccess(user.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
-        return record;
-    }
-
 
     private void registerDeleteImageAfterCommit(String imageUrl) {
         if (!StringUtils.hasText(imageUrl)) {
