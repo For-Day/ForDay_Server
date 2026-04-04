@@ -1,14 +1,13 @@
 package com.example.ForDay.domain.record.service.v1;
 
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.global.ai.service.TodayRecordRedisService;
+import com.example.ForDay.domain.activity.utils.ActivityUtil;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
-import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
-import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
+import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
 import com.example.ForDay.domain.record.dto.*;
 import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
@@ -16,33 +15,28 @@ import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.entity.ActivityRecordReport;
 import com.example.ForDay.domain.record.entity.ActivityRecordScrap;
-import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.service.RecordRedisService;
 import com.example.ForDay.domain.record.service.StickerRedisService;
-import com.example.ForDay.domain.reaction.service.ReactionRankingService;
-import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
+import com.example.ForDay.global.ai.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
-import com.example.ForDay.domain.activity.utils.ActivityUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -58,8 +52,6 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class ActivityRecordService {
-    private static final String REACTION_DONE_KEY_FORMAT = "reaction:done:%d:%s";
-
     private final ActivityRecordRepository activityRecordRepository;
     private final UserUtil userUtil;
     private final ActivityRecordReactionRepository recordReactionRepository;
@@ -75,10 +67,7 @@ public class ActivityRecordService {
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final ReactionRankingService reactionRankingService;
     private final UserRepository userRepository;
-    private final ActivityRecordReactionCountRepository recordReactionCountRepository;
-    private final RedisTemplate<String, String> redisTemplate;
     private final StickerRedisService stickerRedisService;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
@@ -116,58 +105,6 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public GetRecordReactionUsersResDto getRecordReactionUsers(Long recordId, RecordReactionType type, CustomUserDetails user, String lastUserId, Integer size) {
-        // 엔티티 전체 대신 권한 확인용 DTO만 조회 (Fetch Join 제거 효과)
-        RecordDetailQueryDto recordDetail = activityRecordRepository.findDetailDtoById(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        if (recordDetail.recordDeleted()) {
-            throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
-        }
-
-        String currentUserId = userUtil.getCurrentUser(user).getId();
-        activityRecordUtil.validateAccess(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted(), recordDetail.visibility());
-
-        boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, recordDetail.writerId());
-        // 리포지토리에서 DTO(ReactionUserInfo)로 직접 조회하여 N+1 및 오버페칭 방지
-        List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers = recordReactionRepository.findReactionUsersDtoByType(recordId, type, lastUserId, size, isRecordOwner);
-
-
-        // 게시글 주인인 경우에만 벌크 업데이트 실행
-        if (isRecordOwner) {
-            recordReactionRepository.markAsReadByRecordIdAndType(recordId, type);
-        }
-
-        return GetRecordReactionUsersResDto.of(type, reactionUsers, size);
-    }
-
-    @Transactional
-    public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-
-        ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
-        if(!isRecordOwner(currentUser, record)) activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
-        validateDuplicateReaction(recordId, currentUser.getId(), type);
-
-        ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
-        recordReactionRepository.save(reaction);
-
-        // 반응 수 증가
-        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
-        if (result == 0) {
-            recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
-        }
-        // 리액션 증가에 따른 랭킹 점수 업데이트
-        reactionRankingService.incrementRankingScore(record.getRecordId());
-
-        if(!isRecordOwner(currentUser, record)) {
-            notificationService.processReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
-        }
-
-        return ReactToRecordResDto.of(type, recordId);
-    }
-
-    @Transactional
     public UpdateRecordVisibilityResDto updateRecordVisibility(Long recordId, UpdateRecordVisibilityReqDto reqDto, CustomUserDetails user) {
         ActivityRecord activityRecord = activityRecordUtil.getRecord(recordId);
         verifyRecordOwner(activityRecord, userUtil.getCurrentUser(user));
@@ -181,27 +118,6 @@ public class ActivityRecordService {
 
         activityRecord.updateVisibility(next);
         return UpdateRecordVisibilityResDto.updateVisibility(previous, next);
-    }
-
-    @Transactional
-    public CancelReactToRecordResDto cancelReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
-        String userId = user.getUserId();
-
-        int deletedCount = recordReactionRepository.deleteByRecordIdAndUserIdAndType(recordId, userId, type);
-        if (deletedCount == 0) {
-            throw new CustomException(ErrorCode.REACTION_NOT_FOUND);
-        }
-
-        recordReactionCountRepository.decreaseCount(recordId, type.name());
-
-        String key = REACTION_DONE_KEY_FORMAT.formatted(recordId, userId);
-        redisTemplate.opsForSet().remove(key, type.name());
-
-        // Redis 점수 차감
-        reactionRankingService.decrementRankingScore(recordId);
-
-        log.info("[cancelReactToRecord] 리액션 취소 완료 - RecordId: {}, UserId: {}", recordId, userId);
-        return CancelReactToRecordResDto.of(type, recordId);
     }
 
 
@@ -400,12 +316,6 @@ public class ActivityRecordService {
         });
     }
 
-    private void validateDuplicateReaction(Long recordId, String userId, RecordReactionType type) {
-        if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordId, userId, type)) {
-            throw new CustomException(ErrorCode.DUPLICATE_REACTION);
-        }
-    }
-
     private ActivityRecordWithUserDto getAccessibleRecordWithUser(Long recordId, User user) {
         ActivityRecordWithUserDto record = activityRecordRepository.getActivityRecordWithUser(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
@@ -464,9 +374,5 @@ public class ActivityRecordService {
                 }
             }
         });
-    }
-
-    private static boolean isRecordOwner(User currentUser, ReportActivityRecordDto record) {
-        return currentUser.getId().equals(record.getWriterId());
     }
 }

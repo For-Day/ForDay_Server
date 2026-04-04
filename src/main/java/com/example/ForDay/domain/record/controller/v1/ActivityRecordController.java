@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.record.controller.v1;
 
+import com.example.ForDay.domain.reaction.service.ReactionService;
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/records")
 public class ActivityRecordController implements ActivityRecordControllerDocs {
     private final ActivityRecordService activityRecordService;
+    private final ReactionService reactionService;
 
     @Override
     @GetMapping("/{recordId}")
@@ -43,7 +45,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
                                                                @RequestParam(name = "lastUserId", required = false) String lastUserId,
                                                                @RequestParam(name = "size", required = false, defaultValue = "10") Integer size,
                                                                @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.getRecordReactionUsers(recordId, reactionType, user, lastUserId, size);
+        return reactionService.getRecordReactionUsers(recordId, reactionType, user, lastUserId, size);
     }
 
     @Override
@@ -51,7 +53,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     public ReactToRecordResDto reactToRecord(@PathVariable(name = "recordId") Long recordId,
                                              @RequestBody ReactToRecordReqDto reqDto,
                                              @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.reactToRecord(recordId, reqDto.getReactionType(), user);
+        return reactionService.reactToRecord(recordId, reqDto.getReactionType(), user);
     }
 
     @Override
@@ -61,7 +63,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
             @RequestParam(name = "reactionType") RecordReactionType reactionType,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return activityRecordService.cancelReactToRecord(recordId, reactionType, user);
+        return reactionService.cancelReactToRecord(recordId, reactionType, user);
     }
 
 
