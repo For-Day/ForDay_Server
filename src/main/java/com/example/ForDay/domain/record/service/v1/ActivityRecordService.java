@@ -10,23 +10,19 @@ import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
 import com.example.ForDay.domain.record.dto.*;
-import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.entity.ActivityRecordReport;
-import com.example.ForDay.domain.record.entity.ActivityRecordScrap;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
-import com.example.ForDay.domain.record.service.RecordRedisService;
+import com.example.ForDay.domain.record.service.RecordCacheService;
 import com.example.ForDay.domain.record.service.StickerRedisService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.ai.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -46,7 +42,6 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -69,7 +64,7 @@ public class ActivityRecordService {
     private final StickerRedisService stickerRedisService;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
-    private final RecordRedisService recordRedisService;
+    private final RecordCacheService recordCacheService;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -130,7 +125,7 @@ public class ActivityRecordService {
         record.updateRecord(activity, reqDto);
 
         stickerRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
-        recordRedisService.evictRecordCache(record.getId());
+        recordCacheService.evictRecordCache(record.getId());
         return UpdateActivityRecordResDto.of(activity, record);
     }
 
@@ -162,7 +157,7 @@ public class ActivityRecordService {
 
         registerDeleteImageAfterCommit(deleteImageUrl);
         stickerRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
-        recordRedisService.evictRecordCache(record.getId());
+        recordCacheService.evictRecordCache(record.getId());
         return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
     }
 

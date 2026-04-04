@@ -13,7 +13,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RecordRedisService {
+public class RecordCacheService {
     private final RedisTemplate<String, String> redisTemplate;
 
     public void evictRecordCache(Long recordId) {
