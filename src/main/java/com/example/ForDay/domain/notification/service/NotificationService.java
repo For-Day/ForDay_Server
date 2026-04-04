@@ -40,9 +40,9 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+    public static final String RECORD_DETAIL_URL = "/api/v2/records/";
     private final NotificationRepository notificationRepository;
     private final FcmTokenRepository fcmTokenRepository;
-    private final RabbitTemplate rabbitTemplate;
     private final ApplicationEventPublisher eventPublisher;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
@@ -76,7 +76,6 @@ public class NotificationService {
             }
         }
         userRepository.save(currentUser);
-
         return UpdatePushNotificationToggleResDto.of(reqDto.isActive(), reqDto.getToggleType());
     }
 
@@ -84,7 +83,6 @@ public class NotificationService {
         String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription()); // notification 내용
         String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
 
-        // ReactionNotification 객체 생성
         ReactionNotification savedNotification =
                 notificationRepository.save(
                         ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
@@ -127,7 +125,7 @@ public class NotificationService {
         return Map.of(
                 "recordId", String.valueOf(recordId),
                 "type", NotificationType.RECORD_REACTION.name(),
-                "landingUrl", "/api/v2/records/" + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
+                "landingUrl", RECORD_DETAIL_URL + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
                 "sendAt", LocalDateTime.now().toString()
         );
     }
@@ -136,6 +134,7 @@ public class NotificationService {
         return Objects.equals(pushEnabled, active);
     }
 
+    @Transactional
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
