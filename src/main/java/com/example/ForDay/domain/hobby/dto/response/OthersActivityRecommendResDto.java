@@ -1,13 +1,14 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
 import com.example.ForDay.domain.activity.entity.OtherActivity;
+import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.OTHER_HOBBY_MANNY_ACTIVITY_SUCCESS;
+import static com.example.ForDay.global.common.response.message.HobbySuccessCode.OTHER_HOBBY_MANNY_ACTIVITY_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -17,7 +18,7 @@ public class OthersActivityRecommendResDto {
     private List<ActivityDto> activities;
 
     public static  OthersActivityRecommendResDto of(List<ActivityDto> activities) {
-        return new OthersActivityRecommendResDto(OTHER_HOBBY_MANNY_ACTIVITY_SUCCESS, activities);
+        return new OthersActivityRecommendResDto(HobbySuccessCode.OTHER_HOBBY_MANNY_ACTIVITY_SUCCESS.getMessage(), activities);
     }
 
     @Data

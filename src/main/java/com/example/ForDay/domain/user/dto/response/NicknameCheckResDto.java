@@ -1,11 +1,12 @@
 package com.example.ForDay.domain.user.dto.response;
 
+import com.example.ForDay.global.common.response.message.UserSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.UserSuccessMessage.ALREADY_USED_NICKNAME;
-import static com.example.ForDay.global.common.response.message.UserSuccessMessage.ENABLE_USE_NICKNAME;
+import static com.example.ForDay.global.common.response.message.UserSuccessCode.ALREADY_USED_NICKNAME;
+import static com.example.ForDay.global.common.response.message.UserSuccessCode.ENABLE_USE_NICKNAME;
 
 @Data
 @AllArgsConstructor
@@ -19,7 +20,7 @@ public class NicknameCheckResDto {
         return new NicknameCheckResDto(
                 nickname,
                 false,
-                ALREADY_USED_NICKNAME
+                UserSuccessCode.ALREADY_USED_NICKNAME.getMessage()
         );
     }
 
@@ -27,7 +28,7 @@ public class NicknameCheckResDto {
         return new NicknameCheckResDto(
                 nickname,
                 true,
-                ENABLE_USE_NICKNAME
+                UserSuccessCode.ENABLE_USE_NICKNAME.getMessage()
         );
     }
 }

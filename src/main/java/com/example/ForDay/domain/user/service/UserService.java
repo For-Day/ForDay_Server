@@ -17,6 +17,7 @@ import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.message.UserSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
@@ -123,7 +124,7 @@ public class UserService {
         String oldImageUrl = currentUser.getProfileImageUrl();
 
         if (isSameImageCheck(oldImageUrl, newImageUrl)) {
-            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
+            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), UserSuccessCode.ALREADY_SAME_PROFILE_IMAGE.getMessage());
         }
 
         s3Util.validateS3Image(newImageUrl);
@@ -133,7 +134,7 @@ public class UserService {
 
         log.info("[PROFILE] Image changed for user: {} ({} -> {})", currentUser.getId(), oldImageUrl, newImageUrl);
 
-        return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(newImageUrl), "프로필 이미지가 성공적으로 변경되었습니다.");
+        return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(newImageUrl), UserSuccessCode.UPDATE_PROFILE_IMAGE_SUCCESS.getMessage());
     }
 
     @Transactional(readOnly = true)

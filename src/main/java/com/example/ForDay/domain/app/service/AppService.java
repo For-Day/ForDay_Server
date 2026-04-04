@@ -16,10 +16,10 @@ import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.common.response.message.AppSuccessCode;
 import com.example.ForDay.infra.s3.property.S3Properties;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3DeleteUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
-import static com.example.ForDay.global.common.response.message.AppSuccessMessage.DELETE_S3_IMAGE_SUCCESS;
+import static com.example.ForDay.global.common.response.message.AppSuccessCode.DELETE_S3_IMAGE_SUCCESS;
 
 @Slf4j
 @Service
@@ -99,7 +97,7 @@ public class AppService {
         log.info("[deleteS3Image] S3 이미지 삭제 예약 - URL: {}", imageUrl);
         s3DeleteUtil.registerS3DeletionAfterCommit(imageUrl);
 
-        return new MessageResDto(DELETE_S3_IMAGE_SUCCESS);
+        return new MessageResDto(AppSuccessCode.DELETE_S3_IMAGE_SUCCESS.getMessage());
     }
 
     @Transactional(readOnly = true)

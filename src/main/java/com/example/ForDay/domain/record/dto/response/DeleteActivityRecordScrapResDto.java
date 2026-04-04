@@ -1,11 +1,12 @@
 package com.example.ForDay.domain.record.dto.response;
 
+import com.example.ForDay.global.common.response.message.RecordSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.RecordSuccessMessage.DELETE_SCRAP_SUCCESS;
-import static com.example.ForDay.global.common.response.message.RecordSuccessMessage.NOT_EXISTS_SCRAP;
+import static com.example.ForDay.global.common.response.message.RecordSuccessCode.DELETE_SCRAP_SUCCESS;
+import static com.example.ForDay.global.common.response.message.RecordSuccessCode.NOT_EXISTS_SCRAP;
 
 @Data
 @NoArgsConstructor
@@ -17,7 +18,7 @@ public class DeleteActivityRecordScrapResDto {
 
     public static DeleteActivityRecordScrapResDto notExistScrap(Long recordId) {
         return new DeleteActivityRecordScrapResDto(
-                NOT_EXISTS_SCRAP,
+                RecordSuccessCode.NOT_EXISTS_SCRAP.getMessage(),
                 recordId,
                 false
         );
@@ -25,7 +26,7 @@ public class DeleteActivityRecordScrapResDto {
 
     public static DeleteActivityRecordScrapResDto deleteScrap(Long recordId) {
         return new DeleteActivityRecordScrapResDto(
-                DELETE_SCRAP_SUCCESS,
+                RecordSuccessCode.DELETE_SCRAP_SUCCESS.getMessage(),
                 recordId,
                 true
         );

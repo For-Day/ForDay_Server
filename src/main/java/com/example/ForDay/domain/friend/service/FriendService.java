@@ -11,6 +11,7 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.message.FriendSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
@@ -21,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-import static com.example.ForDay.global.common.response.message.FriendSuccessMessage.*;
+import static com.example.ForDay.global.common.response.message.FriendSuccessCode.*;
 
 @Slf4j
 @Service
@@ -51,7 +52,7 @@ public class FriendService {
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.FOLLOW) {
-                return AddFriendResDto.of(ALREADY_FRIEND, targetUser.getNickname());
+                return AddFriendResDto.of(FriendSuccessCode.ALREADY_FRIEND.getMessage(), targetUser.getNickname());
             }
             if (status == FriendRelationStatus.BLOCK || status == FriendRelationStatus.REPORT) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
@@ -61,7 +62,7 @@ public class FriendService {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
         friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
-        return AddFriendResDto.of(ADD_FRIEND_SUCCESS, targetUser.getNickname());
+        return AddFriendResDto.of(FriendSuccessCode.ADD_FRIEND_SUCCESS.getMessage(), targetUser.getNickname());
     }
 
     @Transactional
@@ -76,7 +77,7 @@ public class FriendService {
 
         friendRelationRepository.delete(myRelation);
         friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
-        return DeleteFriendResDto.of(DELETE_FRIEND_SUCCESS, targetUser.getNickname());
+        return DeleteFriendResDto.of(FriendSuccessCode.DELETE_FRIEND_SUCCESS.getMessage(), targetUser.getNickname());
     }
 
     @Transactional
@@ -96,7 +97,7 @@ public class FriendService {
 
         if (myRelation != null) {
             if (myRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-                return BlockFriendResDto.of(ALREADY_BLOCKED, targetUser.getNickname());
+                return BlockFriendResDto.of(FriendSuccessCode.ALREADY_BLOCKED.getMessage(), targetUser.getNickname());
             }
             myRelation.changeStatus(FriendRelationStatus.BLOCK);
         } else {
@@ -116,7 +117,7 @@ public class FriendService {
                 s3Util::toProfileMainResizedUrl
         );
 
-        return GetFriendListResDto.of(FRIEND_LIST_GET_SUCCESS, updatedList, size);
+        return GetFriendListResDto.of(FriendSuccessCode.FRIEND_LIST_GET_SUCCESS.getMessage(), updatedList, size);
     }
 
     @Transactional
@@ -137,7 +138,7 @@ public class FriendService {
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.REPORT) {
-                return ReportFriendResDto.of(ALREADY_REPORTED, targetUser);
+                return ReportFriendResDto.of(FriendSuccessCode.ALREADY_REPORTED.getMessage(), targetUser);
             } else if (status == FriendRelationStatus.BLOCK) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
@@ -146,7 +147,7 @@ public class FriendService {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
         friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
-        return ReportFriendResDto.of(REPORT_FRIEND_SUCCESS, targetUser);
+        return ReportFriendResDto.of(FriendSuccessCode.REPORT_FRIEND_SUCCESS.getMessage(), targetUser);
     }
 
     private User findTargetUser(String userId) {

@@ -26,6 +26,7 @@ import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
@@ -38,14 +39,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
 
 import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
-import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.*;
+import static com.example.ForDay.global.common.response.message.HobbySuccessCode.*;
 
 @Slf4j
 @Service
@@ -227,7 +226,7 @@ public class HobbyService {
         hobby.updateHobbyTimeMinutes(dto.getMinutes());
 
         log.info("[HobbyService] 취미 시간 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, dto.getMinutes());
-        return new MessageResDto(UPDATE_HOBBY_TIME_SUCCESS);
+        return new MessageResDto(HobbySuccessCode.UPDATE_HOBBY_TIME_SUCCESS.getMessage());
     }
 
 
@@ -239,7 +238,7 @@ public class HobbyService {
         hobby.updateExecutionCount(dto.getExecutionCount());
 
         log.info("[HobbyService] 취미 실행 횟수 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, dto.getExecutionCount());
-        return new MessageResDto(UPDATE_EXECUTION_COUNT_SUCCESS);
+        return new MessageResDto(HobbySuccessCode.UPDATE_EXECUTION_COUNT_SUCCESS.getMessage());
     }
 
     @Transactional
@@ -252,7 +251,7 @@ public class HobbyService {
 
         hobby.updateGoalDays(after);
         log.info("[HobbyService] 취미 목표 기간 수정 완료 - hobbyId={}, userId={}, before={}, after={}", hobbyId, hobby.getUser().getId(), before, after);
-        return new MessageResDto(UPDATE_GOAL_DAYS_SUCCESS);
+        return new MessageResDto(HobbySuccessCode.UPDATE_GOAL_DAYS_SUCCESS.getMessage());
     }
 
     @Transactional
@@ -269,7 +268,7 @@ public class HobbyService {
 
         if (currentStatus == targetStatus) {
             log.info("[HobbyService] 취미 상태 변경 요청 무시 (동일 상태) - hobbyId={}, status={}", hobbyId, currentStatus);
-            return new MessageResDto(ALREADY_HOBBY_STATUS);
+            return new MessageResDto(HobbySuccessCode.ALREADY_HOBBY_STATUS.getMessage());
         }
 
         switch (targetStatus) {

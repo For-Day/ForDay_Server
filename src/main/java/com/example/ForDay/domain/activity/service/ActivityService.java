@@ -24,6 +24,7 @@ import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.common.response.message.ActivitySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
@@ -34,9 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
-
-import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.ACTIVITY_DELETE_SUCCESS;
-import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.ACTIVITY_UPDATE_SUCCESS;
 
 @Slf4j
 @Service
@@ -127,7 +125,7 @@ public class ActivityService {
 
         log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'", activityId, currentUser.getId(), beforeContent, reqDto.getContent());
         activityCacheService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
-        return new MessageResDto(ACTIVITY_UPDATE_SUCCESS);
+        return new MessageResDto(ActivitySuccessCode.ACTIVITY_UPDATE_SUCCESS.getMessage());
     }
 
     @Transactional
@@ -143,7 +141,7 @@ public class ActivityService {
 
         log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}", activityId, currentUser.getId());
         activityCacheService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
-        return new MessageResDto(ACTIVITY_DELETE_SUCCESS);
+        return new MessageResDto(ActivitySuccessCode.ACTIVITY_DELETE_SUCCESS.getMessage());
     }
 
     @Transactional

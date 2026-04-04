@@ -1,10 +1,11 @@
 package com.example.ForDay.domain.user.dto.response;
 
+import com.example.ForDay.global.common.response.message.UserSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.UserSuccessMessage.NICKNAME_REGISTER_SUCCESS;
+import static com.example.ForDay.global.common.response.message.UserSuccessCode.NICKNAME_REGISTER_SUCCESS;
 
 @Data
 @NoArgsConstructor
@@ -15,7 +16,7 @@ public class NicknameRegisterResDto {
 
     public static NicknameRegisterResDto from(String nickname) {
         return new NicknameRegisterResDto(
-                NICKNAME_REGISTER_SUCCESS,
+                UserSuccessCode.NICKNAME_REGISTER_SUCCESS.getMessage(),
                 nickname
         );
     }

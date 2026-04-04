@@ -15,6 +15,7 @@ import com.example.ForDay.domain.notification.utils.NotificationMessageGenerator
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
+import com.example.ForDay.global.common.response.message.NotificationSuccessCode;
 import com.example.ForDay.global.firebase.dto.request.FcmNotificationReqDto;
 import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
@@ -140,7 +141,7 @@ public class NotificationService {
 
         fcmTokenService.sendNotificationByToken(fcmSendReqDto);
 
-        return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
+        return new SendPushMessageResDto(NotificationSuccessCode.SEND_NOTIFICATION_SUCCESS.getMessage());
     }
 
     private boolean isSameStatus(boolean pushEnabled, boolean active) {

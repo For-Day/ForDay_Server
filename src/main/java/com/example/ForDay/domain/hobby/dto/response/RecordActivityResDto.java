@@ -3,12 +3,10 @@ package com.example.ForDay.domain.hobby.dto.response;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.global.common.response.message.ActivitySuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.RECORD_ACTIVITY_SUCCESS;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -29,7 +27,7 @@ public class RecordActivityResDto {
             String sticker,
             boolean extensionCheckRequired) {
         return new RecordActivityResDto(
-                RECORD_ACTIVITY_SUCCESS,
+                ActivitySuccessCode.RECORD_ACTIVITY_SUCCESS.getMessage(),
                 hobby.getId(),
                 activityRecord.getId(),
                 activity.getContent(),

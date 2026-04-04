@@ -1,10 +1,11 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
+import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.ADD_ACTIVITY_SUCCESS;
+import static com.example.ForDay.global.common.response.message.HobbySuccessCode.ADD_ACTIVITY_SUCCESS;
 
 @Data
 @NoArgsConstructor
@@ -15,7 +16,7 @@ public class AddActivityResDto {
 
     public static AddActivityResDto of(Integer createdActivityNum) {
         return new AddActivityResDto(
-                ADD_ACTIVITY_SUCCESS,
+                HobbySuccessCode.ADD_ACTIVITY_SUCCESS.getMessage(),
                 createdActivityNum
         );
     }
