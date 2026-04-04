@@ -4,8 +4,6 @@ import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.service.ActivityCacheService;
-import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
 import com.example.ForDay.domain.hobby.dto.StickerContext;
@@ -15,12 +13,15 @@ import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.type.StickerCover;
+import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiActivityRecommendService;
+import com.example.ForDay.global.ai.service.AiCallCountService;
 import com.example.ForDay.global.ai.service.AiUserSummaryService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -28,11 +29,9 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
 import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3DeleteUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +43,6 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
-import static com.example.ForDay.global.common.response.message.HobbySuccessCode.*;
 
 @Slf4j
 @Service
@@ -73,7 +71,6 @@ public class HobbyService {
     private final StickerInfoCacheService stickerInfoCacheService;
     private final ActivityCacheService activityCacheService;
     private final NotificationService notificationService;
-    private final S3DeleteUtil s3DeleteUtil;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails userDetails) {
@@ -441,7 +438,7 @@ public class HobbyService {
             return CoverChangeResult.unchanged(hobby.getId(), oldUrl);
         }
         s3Util.validateS3Image(newUrl);
-        s3DeleteUtil.registerS3DeletionAfterCommit(oldUrl);
+        s3Util.registerS3DeletionAfterCommit(oldUrl);
         hobby.updateCoverImage(newUrl);
 
         return CoverChangeResult.changed(hobby.getId(), newUrl);
@@ -461,7 +458,7 @@ public class HobbyService {
         Hobby hobby = record.getHobby();
         String oldCoverUrl = hobby.getCoverImageUrl();
         String newCoverUrl = buildCoverUrlFromRecord(record);
-        s3DeleteUtil.registerS3DeletionAfterCommit(oldCoverUrl);
+        s3Util.registerS3DeletionAfterCommit(oldCoverUrl);
         hobby.updateCoverImage(newCoverUrl);
 
         return CoverChangeResult.changed(hobby.getId(), newCoverUrl);

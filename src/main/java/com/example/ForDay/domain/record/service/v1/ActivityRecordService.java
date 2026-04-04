@@ -9,7 +9,9 @@ import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
-import com.example.ForDay.domain.record.dto.*;
+import com.example.ForDay.domain.record.dto.HobbyInfo;
+import com.example.ForDay.domain.record.dto.ReactionSummary;
+import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
@@ -19,25 +21,22 @@ import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.service.RecordCacheService;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3DeleteUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -66,7 +65,6 @@ public class ActivityRecordService {
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
     private final RecordCacheService recordCacheService;
-    private final S3DeleteUtil s3DeleteUtil;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -157,7 +155,7 @@ public class ActivityRecordService {
             record.deleteRecord();
         }
 
-        s3DeleteUtil.registerS3DeletionAfterCommit(deleteImageUrl);
+        s3Util.registerS3DeletionAfterCommit(deleteImageUrl);
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
         return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
@@ -219,7 +217,7 @@ public class ActivityRecordService {
             return;
         }
         s3Util.validateS3Image(newImageUrl);
-        s3DeleteUtil.registerS3DeletionAfterCommit(oldImageUrl);
+        s3Util.registerS3DeletionAfterCommit(oldImageUrl);
         notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
     }
 

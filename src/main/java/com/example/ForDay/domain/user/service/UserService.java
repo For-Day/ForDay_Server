@@ -9,6 +9,7 @@ import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.domain.user.dto.TargetUserInfo;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
@@ -19,18 +20,13 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.message.UserSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3DeleteUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -38,7 +34,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -49,7 +44,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserUtil userUtil;
-    private final S3Service s3Service;
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
@@ -58,7 +52,6 @@ public class UserService {
     private final S3Util s3Util;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
-    private final S3DeleteUtil s3DeleteUtil;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -130,7 +123,7 @@ public class UserService {
         s3Util.validateS3Image(newImageUrl);
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
-        s3DeleteUtil.registerS3DeletionAfterCommit(oldImageUrl);
+        s3Util.registerS3DeletionAfterCommit(oldImageUrl);
 
         log.info("[PROFILE] Image changed for user: {} ({} -> {})", currentUser.getId(), oldImageUrl, newImageUrl);
 

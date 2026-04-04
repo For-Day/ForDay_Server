@@ -19,7 +19,7 @@ import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.AppSuccessCode;
 import com.example.ForDay.infra.s3.property.S3Properties;
 import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3DeleteUtil;
+import com.example.ForDay.infra.s3.util.S3Util;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +29,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 
-import static com.example.ForDay.global.common.response.message.AppSuccessCode.DELETE_S3_IMAGE_SUCCESS;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,8 +37,8 @@ public class AppService {
     private final S3Service s3Service;
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
-    private final S3DeleteUtil s3DeleteUtil;
     private final AppVersionRepository appVersionRepository;
+    private final S3Util s3Util;
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
@@ -95,7 +93,7 @@ public class AppService {
         }
 
         log.info("[deleteS3Image] S3 이미지 삭제 예약 - URL: {}", imageUrl);
-        s3DeleteUtil.registerS3DeletionAfterCommit(imageUrl);
+        s3Util.registerS3DeletionAfterCommit(imageUrl);
 
         return new MessageResDto(AppSuccessCode.DELETE_S3_IMAGE_SUCCESS.getMessage());
     }
