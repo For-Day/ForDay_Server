@@ -6,6 +6,7 @@ import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
+import com.example.ForDay.domain.record.service.RecordScrapService;
 import com.example.ForDay.domain.record.service.v1.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.StoryFilterType;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class ActivityRecordController implements ActivityRecordControllerDocs {
     private final ActivityRecordService activityRecordService;
     private final ReactionService reactionService;
+    private final RecordScrapService recordScrapService;
 
     @Override
     @GetMapping("/{recordId}")
@@ -86,14 +88,14 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     @PostMapping("/{recordId}/scrap")
     public AddActivityRecordScrapResDto addActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
                                                                @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.addActivityRecordScrap(recordId, user);
+        return recordScrapService.addActivityRecordScrap(recordId, user);
     }
 
     @Override
     @DeleteMapping("/{recordId}/scrap")
     public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
                                                                      @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.deleteActivityRecordScrap(recordId, user);
+        return recordScrapService.deleteActivityRecordScrap(recordId, user);
     }
 
     @Override

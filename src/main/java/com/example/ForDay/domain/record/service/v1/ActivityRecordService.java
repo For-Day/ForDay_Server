@@ -169,33 +169,6 @@ public class ActivityRecordService {
     }
 
     @Transactional
-    public AddActivityRecordScrapResDto addActivityRecordScrap(Long recordId, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-
-        getAccessibleRecordWithUser(recordId, currentUser);
-        validateDuplicateScrap(recordId, currentUser.getId());
-
-        ActivityRecordScrap scrap = ActivityRecordScrap.of(activityRecordRepository.getReferenceById(recordId), currentUser);
-        activityRecordScrapRepository.save(scrap);
-
-        return AddActivityRecordScrapResDto.from(recordId);
-    }
-
-    @Transactional
-    public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(Long recordId, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user);
-
-        Optional<ActivityRecordScrap> scrap = activityRecordScrapRepository.findByActivityRecordIdAndUserId(recordId, currentUser.getId());
-
-        if (scrap.isEmpty()) {
-            return DeleteActivityRecordScrapResDto.notExistScrap(recordId);
-        }
-        activityRecordScrapRepository.delete(scrap.get());
-
-        return DeleteActivityRecordScrapResDto.deleteScrap(recordId);
-    }
-
-    @Transactional
     public ReportActivityRecordResDto reportActivityRecord(Long recordId, ReportActivityRecordReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
@@ -314,21 +287,6 @@ public class ActivityRecordService {
                 }
             }
         });
-    }
-
-    private ActivityRecordWithUserDto getAccessibleRecordWithUser(Long recordId, User user) {
-        ActivityRecordWithUserDto record = activityRecordRepository.getActivityRecordWithUser(recordId)
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        activityRecordUtil.validateAccess(user.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
-
-        return record;
-    }
-
-    private void validateDuplicateScrap(Long recordId, String userId) {
-        if (activityRecordScrapRepository.existsByScrap(recordId, userId)) {
-            throw new CustomException(ErrorCode.DUPLICATE_SCRAP);
-        }
     }
 
     private void validateDuplicateReport(Long recordId, String userId) {
