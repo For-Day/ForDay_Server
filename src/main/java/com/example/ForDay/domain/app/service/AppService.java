@@ -69,10 +69,8 @@ public class AppService {
 
         return reqDto.getImages().stream()
                 .map(img -> {
-                    // 이미지에 대한 key 값 생성
                     String key = s3Service.generateKey(img.getUsage(), img.getOriginalFilename());
 
-                    // key값을 사용하여 s3에 presigned url 만들어달라고 s3에 요청
                     GeneratePresignedUrlRequest request = s3Service.createPresignedPutRequest(
                             s3Properties.getBucket(),
                             key,
@@ -80,12 +78,8 @@ public class AppService {
                     );
 
                     String uploadUrl = amazonS3.generatePresignedUrl(request).toString();
-
-                    // 실제 접근 가능한 이미지 url
                     String fileUrl = s3Service.createFileUrl(key);
-
                     log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}, Key: {}", img.getUsage(), key);
-
                     return GeneratePresignedUrlResDto.of(uploadUrl, fileUrl, img.getOrder());
                 })
                 .toList();

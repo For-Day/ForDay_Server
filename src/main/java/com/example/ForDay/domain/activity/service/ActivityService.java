@@ -67,23 +67,22 @@ public class ActivityService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
         Hobby hobby = activity.getHobby();
 
-        hobby.validateCanRecord(); // 취미 진행 상태 및 스티커 완료 여부 확인
-        todayRecordRedisService.validateNotRecordedToday(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 확인
-        s3Util.validateS3Image(reqDto.getImageUrl()); // S3 이미지 존재 여부 확인
+        hobby.validateCanRecord();
+        todayRecordRedisService.validateNotRecordedToday(currentUser.getId(), hobby.getId());
+        s3Util.validateS3Image(reqDto.getImageUrl());
 
         ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
-        activity.record(); // 해당 취미와 활동에 대해 스티커 + 1
-        currentUser.obtainSticker(); // 해당 유저가 모은 스티커 + 1
+        activity.record();
+        currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
         log.info("[RecordActivity] 기록 저장 성공 - RecordId: {}, 현재 스티커 수: {}", activityRecord.getId(), hobby.getCurrentStickerNum());
 
-        // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (hobby.isStickerFull()) {
             log.info("[RecordActivity] 취미 완주 달성! 취미 카드 생성을 시작합니다. HobbyId: {}", hobby.getId());
             createHobbyCard(hobby, currentUser);
         }
-        todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 표시
+        todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId());
         recordRedisService.evictRecordCache(hobby.getId(), currentUser.getId());
 
         return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
@@ -99,7 +98,7 @@ public class ActivityService {
 
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
         hobby.validateInProgress();
-        s3Util.validateS3Image(reqDto.getImageUrl()); // S3 이미지 존재 여부 확인
+        s3Util.validateS3Image(reqDto.getImageUrl());
 
         ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
 
@@ -107,7 +106,6 @@ public class ActivityService {
         currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
-        // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
             createHobbyCard(hobby, currentUser);
         }
@@ -122,7 +120,6 @@ public class ActivityService {
         User currentUser = userUtil.getCurrentUser(user);
         Activity activity = activityUtil.getActivityByUserId(activityId, currentUser.getId());
 
-        // 진행 중인 취미가 아니면 활동 수정 불가
         Hobby hobby = activity.getHobby();
         hobby.validateInProgress();
 
@@ -140,10 +137,7 @@ public class ActivityService {
         User currentUser = userUtil.getCurrentUser(user);
         Activity activity = activityUtil.getActivityByUserId(activityId, currentUser.getId());
 
-        // 삭제 가능 여부 (해당 활동으로 획득한 스티커가 없을 때)
         activity.validateDeletable();
-
-        // 진행 중인 취미가 아니면 활동 삭제 불가
         Hobby hobby = activity.getHobby();
         hobby.validateInProgress();
         activityRepository.delete(activity);
@@ -181,8 +175,8 @@ public class ActivityService {
     public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = hobbyUtil.getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
-        hobbyUtil.verifyHobbyOwner(hobby, currentUser); // 취미 소유자인지 검증
-        hobby.validateInProgress(); // 현재 진행 중인 취미인지
+        hobbyUtil.verifyHobbyOwner(hobby, currentUser);
+        hobby.validateInProgress();
 
         log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}", currentUser.getId(), hobbyId, reqDto.getActivities().size());
 
@@ -219,7 +213,6 @@ public class ActivityService {
     }
 
     private void validateTargetUser(String currentUserId, ActivityRecordCollectInfo target) {
-        // 탈퇴한 회원인지 먼저 확인
         if (target.isUserDeleted()) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }

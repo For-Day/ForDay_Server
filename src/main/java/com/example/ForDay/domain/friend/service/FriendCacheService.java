@@ -3,7 +3,6 @@ package com.example.ForDay.domain.friend.service;
 import com.example.ForDay.global.common.constants.CacheConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -14,7 +13,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FriendRedisService {
+public class FriendCacheService {
     private final RedisTemplate<String, String> redisTemplate;
     public void evictFriendCache(String currentUserId, String targetUserId) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {

@@ -34,20 +34,14 @@ public class ActivityRecommendItemService {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[AI Recommend] 아이템 조회 시작 - HobbyId: {}, Type: {}", hobbyId, type);
 
-        // 취미 조회 및 검증
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
-
-        // 오늘 생성된 추천 아이템 조회
         List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(hobby.getId(), LocalDate.now().atStartOfDay(), LocalDate.now().atTime(LocalTime.MAX), type);
 
         if (items.isEmpty()) {
             return new GetAiRecommendItemsResDto();
         }
-
-        // 사용자 요약 문구 생성
         String userSummaryText = AiMessageConstants.formatPreviousRecommendation(userSummaryAIService.determine(currentUser, hobby));
 
-        // DTO 변환 및 반환
         return GetAiRecommendItemsResDto.of(hobby, items, userSummaryText);
     }
 }

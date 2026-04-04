@@ -16,14 +16,10 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.example.ForDay.global.common.response.message.FriendSuccessMessage.*;
 
@@ -35,7 +31,7 @@ public class FriendService {
     private final UserUtil userUtil;
     private final UserRepository userRepository;
     private final S3Util s3Util;
-    private final FriendRedisService friendRedisService;
+    private final FriendCacheService friendCacheService;
 
     @Transactional
     public AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails userDetails) {
@@ -46,21 +42,17 @@ public class FriendService {
             throw new CustomException(ErrorCode.CANNOT_FOLLOW_SELF);
         }
 
-        // 양방향 관계 조회 및 할당
         List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUser.getId(), targetUser.getId());
         FriendRelation myRelation = findInRelations(relations, currentUser.getId());
         FriendRelation targetRelation = findInRelations(relations, targetUser.getId());
 
-        // 상대가 나를 차단했는지 확인
         validateNotBlockedByTarget(targetRelation);
 
-        // 내 관계 처리
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.FOLLOW) {
                 return AddFriendResDto.of(ALREADY_FRIEND, targetUser.getNickname());
             }
-            // 내가 차단/신고한 유저에게는 친구 추가 불가
             if (status == FriendRelationStatus.BLOCK || status == FriendRelationStatus.REPORT) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
@@ -68,7 +60,7 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return AddFriendResDto.of(ADD_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
@@ -83,7 +75,7 @@ public class FriendService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
         friendRelationRepository.delete(myRelation);
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return DeleteFriendResDto.of(DELETE_FRIEND_SUCCESS, targetUser.getNickname());
     }
 
@@ -110,7 +102,7 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.BLOCK));
         }
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return BlockFriendResDto.of(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
     }
 
@@ -153,7 +145,7 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return ReportFriendResDto.of(REPORT_FRIEND_SUCCESS, targetUser);
     }
 
