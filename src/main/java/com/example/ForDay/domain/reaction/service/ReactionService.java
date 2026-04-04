@@ -19,7 +19,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class RecordReactionService {
+public class ReactionService {
     private final ActivityRecordUtil activityRecordUtil;
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final ActivityRecordReactionCountRepository activityRecordReactionCountRepository;

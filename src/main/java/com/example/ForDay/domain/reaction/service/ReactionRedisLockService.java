@@ -12,7 +12,7 @@ import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
-public class ReactionRedisService {
+public class ReactionRedisLockService {
     private final RedisTemplate<String, String> redisTemplate;
     public void createReactionWithRedis(String userId, Long recordId, RecordReactionType type) {
         validateDuplicateReaction(recordId, userId, type);
