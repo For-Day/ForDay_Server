@@ -35,6 +35,5 @@ public class FileStorageConstants {
     // 커버 리사이즈 경로
     public static final String COVER_THUMB_DIR = "/resized/thumb/";
 
-
     private FileStorageConstants() {}
 }

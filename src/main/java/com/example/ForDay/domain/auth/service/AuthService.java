@@ -302,12 +302,9 @@ public class AuthService {
     }
 
     private LoginInternalResult processCommonLogin(User user, SocialType socialType) {
-        // 토큰 발급 및 저장
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), socialType);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
         refreshTokenService.save(user.getSocialId(), refreshToken);
-
-        // 온보딩 상태 조회
         OnboardingDataDto dataDto = getOnboardingData(user, user.isNicknameSet(), user.isOnboardingCompleted());
 
         return new LoginInternalResult(accessToken, refreshToken, user.isOnboardingCompleted(), user.isNicknameSet(), dataDto);

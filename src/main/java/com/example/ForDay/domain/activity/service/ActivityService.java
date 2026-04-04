@@ -20,7 +20,7 @@ import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.service.TodayRecordRedisService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;

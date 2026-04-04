@@ -5,7 +5,7 @@ import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.type.AIItemType;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.global.ai.service.UserSummaryAIService;
+import com.example.ForDay.global.ai.service.AiUserSummaryService;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
@@ -27,7 +27,7 @@ public class ActivityRecommendItemService {
     private final UserUtil userUtil;
     private final HobbyUtil hobbyUtil;
     private final ActivityRecommendItemRepository recommendItemRepository;
-    private final UserSummaryAIService userSummaryAIService;
+    private final AiUserSummaryService aiUserSummaryService;
 
     @Transactional(readOnly = true)
     public GetAiRecommendItemsResDto getAiRecommendItems(Long hobbyId, CustomUserDetails user, AIItemType type) {
@@ -40,7 +40,7 @@ public class ActivityRecommendItemService {
         if (items.isEmpty()) {
             return new GetAiRecommendItemsResDto();
         }
-        String userSummaryText = AiMessageConstants.formatPreviousRecommendation(userSummaryAIService.determine(currentUser, hobby));
+        String userSummaryText = AiMessageConstants.formatPreviousRecommendation(aiUserSummaryService.determine(currentUser, hobby));
 
         return GetAiRecommendItemsResDto.of(hobby, items, userSummaryText);
     }

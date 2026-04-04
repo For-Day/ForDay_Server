@@ -5,7 +5,7 @@ import com.example.ForDay.domain.activity.repository.ActivityRecommendItemReposi
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.service.ActivityCacheService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.global.ai.service.TodayRecordRedisService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
 import com.example.ForDay.domain.hobby.dto.StickerContext;
@@ -21,7 +21,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiActivityRecommendService;
-import com.example.ForDay.global.ai.service.UserSummaryAIService;
+import com.example.ForDay.global.ai.service.AiUserSummaryService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -31,6 +31,7 @@ import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3DeleteUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +63,7 @@ public class HobbyService {
     private final AiCallCountService aiCallCountService;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final UserSummaryAIService userSummaryAIService;
+    private final AiUserSummaryService aiUserSummaryService;
     private final S3Service s3Service;
     private final CoverLambdaInvoker invoker;
     private final S3Util s3Util;
@@ -73,6 +74,7 @@ public class HobbyService {
     private final StickerInfoCacheService stickerInfoCacheService;
     private final ActivityCacheService activityCacheService;
     private final NotificationService notificationService;
+    private final S3DeleteUtil s3DeleteUtil;
 
     @Transactional
     public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails userDetails) {
@@ -104,7 +106,7 @@ public class HobbyService {
 
         try {
             FastAPIRecommendResDto response = aiActivityRecommendService.requestActivityRecommendAI(currentUser, hobby);
-            String summary = AiMessageConstants.formatHobbySummary(userSummaryAIService.determine(currentUser, hobby));
+            String summary = AiMessageConstants.formatHobbySummary(aiUserSummaryService.determine(currentUser, hobby));
             saveRecommendItems(hobby, response);
 
             return ActivityAIRecommendResDto.of(currentCount, maxCallLimit, summary, response.getActivities());
@@ -440,7 +442,7 @@ public class HobbyService {
             return CoverChangeResult.unchanged(hobby.getId(), oldUrl);
         }
         s3Util.validateS3Image(newUrl);
-        registerDeleteCoverAfterCommit(oldUrl);
+        s3DeleteUtil.registerS3DeletionAfterCommit(oldUrl);
         hobby.updateCoverImage(newUrl);
 
         return CoverChangeResult.changed(hobby.getId(), newUrl);
@@ -460,7 +462,7 @@ public class HobbyService {
         Hobby hobby = record.getHobby();
         String oldCoverUrl = hobby.getCoverImageUrl();
         String newCoverUrl = buildCoverUrlFromRecord(record);
-        registerDeleteCoverAfterCommit(oldCoverUrl);
+        s3DeleteUtil.registerS3DeletionAfterCommit(oldCoverUrl);
         hobby.updateCoverImage(newCoverUrl);
 
         return CoverChangeResult.changed(hobby.getId(), newCoverUrl);
@@ -494,29 +496,6 @@ public class HobbyService {
         payload.put("dstKey", resizedCoverKey);
 
         invoker.invokeSync(payload);
-    }
-
-    /**
-     * (원본 + 리사이즈 thumb) 커버 이미지 삭제를 afterCommit으로 등록
-     */
-    private void registerDeleteCoverAfterCommit(String coverUrl) {
-        if (!StringUtils.hasText(coverUrl)) return;
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    String oldKey = s3Service.extractKeyFromFileUrl(coverUrl);
-                    s3Service.deleteByKey(oldKey);
-
-                    String resizedUrl = s3Util.toCoverMainResizedUrl(coverUrl);
-                    String resizedKey = s3Service.extractKeyFromFileUrl(resizedUrl);
-                    s3Service.deleteByKey(resizedKey);
-                } catch (Exception e) {
-                    log.error("기존 커버 이미지 S3 삭제 실패: {}", coverUrl, e);
-                }
-            }
-        });
     }
 
     private void validateMaxInProgressHobbies(User user) {

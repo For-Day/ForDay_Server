@@ -121,19 +121,6 @@ public class NotificationService {
         return GetPushNotificationToggleResDto.of(currentUser.isAppPushEnabled(), currentUser.isRecordPushEnabled());
     }
 
-    private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {
-        return Map.of(
-                "recordId", String.valueOf(recordId),
-                "type", NotificationType.RECORD_REACTION.name(),
-                "landingUrl", RECORD_DETAIL_URL + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
-                "sendAt", LocalDateTime.now().toString()
-        );
-    }
-
-    private boolean isSameStatus(boolean pushEnabled, boolean active) {
-        return Objects.equals(pushEnabled, active);
-    }
-
     @Transactional
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -156,6 +143,10 @@ public class NotificationService {
         return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
     }
 
+    private boolean isSameStatus(boolean pushEnabled, boolean active) {
+        return Objects.equals(pushEnabled, active);
+    }
+
     public void markAsReadIfUnread(Long notificationId) {
         log.info("읽음 표시 시작");
         if (notificationId != null) {
@@ -165,5 +156,14 @@ public class NotificationService {
 
     public boolean unreadNotificationExists(User user) {
         return notificationRepository.existsByReceiverIdAndIsReadFalse(user.getId());
+    }
+
+    private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {
+        return Map.of(
+                "recordId", String.valueOf(recordId),
+                "type", NotificationType.RECORD_REACTION.name(),
+                "landingUrl", RECORD_DETAIL_URL + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
+                "sendAt", LocalDateTime.now().toString()
+        );
     }
 }

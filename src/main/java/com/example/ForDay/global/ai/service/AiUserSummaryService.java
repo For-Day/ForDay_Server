@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserSummaryAIService {
+public class AiUserSummaryService {
 
     public static final String AI_USER_SUMMARY_PREFIX = "ai:user:summary:text";
     public static final String AI_USER_SUMMARY_FORMAT = AI_USER_SUMMARY_PREFIX + ":%s:%s";

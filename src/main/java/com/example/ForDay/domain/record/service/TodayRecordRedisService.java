@@ -1,4 +1,4 @@
-package com.example.ForDay.global.ai.service;
+package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;

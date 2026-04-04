@@ -21,6 +21,7 @@ import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3DeleteUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +57,7 @@ public class UserService {
     private final S3Util s3Util;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
+    private final S3DeleteUtil s3DeleteUtil;
 
     @Transactional
     public User createOauth(String socialId, String email, SocialType socialType) {
@@ -110,7 +112,7 @@ public class UserService {
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId == null ?  notificationService.unreadNotificationExists(targetUser) : false
+        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId == null ? notificationService.unreadNotificationExists(targetUser) : false
         );
     }
 
@@ -120,22 +122,14 @@ public class UserService {
         String newImageUrl = StringUtils.hasText(reqDto.getProfileImageUrl()) ? reqDto.getProfileImageUrl() : null;
         String oldImageUrl = currentUser.getProfileImageUrl();
 
-        // 동일 이미지 여부 체크
         if (isSameImageCheck(oldImageUrl, newImageUrl)) {
             return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
         }
 
-        // 새로운 이미지가 있는 경우에만 S3 존재 여부 검증
         s3Util.validateS3Image(newImageUrl);
-
-        // 상태 업데이트
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
-
-        // 이전 이미지가 실제 S3 객체였다면 삭제 등록
-        if (StringUtils.hasText(oldImageUrl)) {
-            registerS3Deletion(oldImageUrl);
-        }
+        s3DeleteUtil.registerS3DeletionAfterCommit(oldImageUrl);
 
         log.info("[PROFILE] Image changed for user: {} ({} -> {})", currentUser.getId(), oldImageUrl, newImageUrl);
 
@@ -276,27 +270,6 @@ public class UserService {
         scrapDtos.stream()
                 .filter(dto -> StringUtils.hasText(dto.getThumbnailImageUrl()))
                 .forEach(dto -> dto.setThumbnailImageUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailImageUrl())));
-    }
-
-    private void registerS3Deletion(String oldImageUrl) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                log.info("[S3-Cleanup] 이전 이미지 삭제 시작: {}", oldImageUrl);
-                try {
-                    // 리스트 형태로 만들어서 한 번에 삭제 로직 실행
-                    List<String> keysToDelete = Stream.of(
-                            oldImageUrl,
-                            s3Util.toProfileMainResizedUrl(oldImageUrl),
-                            s3Util.toProfileListResizedUrl(oldImageUrl)
-                    ).map(s3Service::extractKeyFromFileUrl).toList();
-
-                    keysToDelete.forEach(s3Service::deleteByKey);
-                } catch (Exception e) {
-                    log.error("[S3-Cleanup] 이전 프로필 이미지 삭제 실패: {}", oldImageUrl, e);
-                }
-            }
-        });
     }
 
     private TargetUserInfo resolveTargetUserInfo(String currentUserId, String targetUserId, User currentUser) {

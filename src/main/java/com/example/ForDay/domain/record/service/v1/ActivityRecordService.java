@@ -23,12 +23,13 @@ import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.service.TodayRecordRedisService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.infra.s3.util.S3DeleteUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +66,7 @@ public class ActivityRecordService {
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
     private final RecordCacheService recordCacheService;
+    private final S3DeleteUtil s3DeleteUtil;
 
     // 이제 사용 x
     @Transactional(readOnly = true)
@@ -155,7 +157,7 @@ public class ActivityRecordService {
             record.deleteRecord();
         }
 
-        registerDeleteImageAfterCommit(deleteImageUrl);
+        s3DeleteUtil.registerS3DeletionAfterCommit(deleteImageUrl);
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
         return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
@@ -216,66 +218,12 @@ public class ActivityRecordService {
         if (!isImageChanged(oldImageUrl, newImageUrl)) {
             return;
         }
-
         s3Util.validateS3Image(newImageUrl);
-
-        if (hasOldImage(oldImageUrl)) {
-            registerImageDeletionAfterCommit(oldImageUrl);
-        }
-
+        s3DeleteUtil.registerS3DeletionAfterCommit(oldImageUrl);
         notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
     }
 
     private boolean isImageChanged(String oldUrl, String newUrl) {
         return StringUtils.hasText(newUrl) && !newUrl.equals(oldUrl);
-    }
-
-    private boolean hasOldImage(String oldImageUrl) {
-        return StringUtils.hasText(oldImageUrl);
-    }
-
-    private void registerImageDeletionAfterCommit(String oldImageUrl) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    String originalKey = s3Service.extractKeyFromFileUrl(oldImageUrl);
-
-                    String thumbUrl = s3Util.toFeedThumbResizedUrl(oldImageUrl);
-                    String thumbKey = s3Service.extractKeyFromFileUrl(thumbUrl);
-
-                    s3Service.deleteByKey(originalKey);
-                    s3Service.deleteByKey(thumbKey);
-
-                    log.info("[S3-Cleanup] 기존 이미지 삭제 완료: {}", oldImageUrl);
-
-                } catch (Exception e) {
-                    log.error("[S3-Cleanup] 삭제 실패: {}", oldImageUrl, e);
-                }
-            }
-        });
-    }
-
-    private void registerDeleteImageAfterCommit(String imageUrl) {
-        if (!StringUtils.hasText(imageUrl)) {
-            return;
-        }
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    String imageKey = s3Service.extractKeyFromFileUrl(imageUrl);
-                    String feedThumbResizedUrl = s3Util.toFeedThumbResizedUrl(imageUrl);
-                    String feedThumbResizedKey = s3Service.extractKeyFromFileUrl(feedThumbResizedUrl);
-
-                    s3Service.deleteByKey(imageKey);
-                    s3Service.deleteByKey(feedThumbResizedKey);
-
-                } catch (Exception e) {
-                    log.error("S3 파일 삭제 실패 (DB는 정상 삭제됨): {}", imageUrl, e);
-                }
-            }
-        });
     }
 }
