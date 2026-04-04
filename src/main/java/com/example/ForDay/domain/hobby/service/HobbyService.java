@@ -5,7 +5,7 @@ import com.example.ForDay.domain.activity.entity.OtherActivity;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.activity.repository.OtherActivityRepository;
-import com.example.ForDay.domain.activity.service.ActivityRedisService;
+import com.example.ForDay.domain.activity.service.ActivityCacheService;
 import com.example.ForDay.domain.activity.service.TodayRecordRedisService;
 import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
@@ -72,7 +72,7 @@ public class HobbyService {
     private final AIService aiService;
     private final HobbyUtil hobbyUtil;
     private final StickerRedisService stickerRedisService;
-    private final ActivityRedisService activityRedisService;
+    private final ActivityCacheService activityCacheService;
     private final NotificationService notificationService;
 
     @Transactional
@@ -189,7 +189,7 @@ public class HobbyService {
             throw new CustomException(ErrorCode.NOT_HOBBY_OWNER);
         }
 
-        return activityRedisService.getHobbyActivitiesCached(hobbyId, currentUser.getId(), size);
+        return activityCacheService.getHobbyActivitiesCached(hobbyId, currentUser.getId(), size);
     }
 
     @Transactional(readOnly = true)
