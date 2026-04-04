@@ -18,7 +18,7 @@ import com.example.ForDay.domain.hobby.service.HobbyCardService;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
-import com.example.ForDay.domain.record.service.StickerRedisService;
+import com.example.ForDay.domain.record.service.StickerInfoCacheService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -54,7 +54,7 @@ public class ActivityService {
     private final ActivityUtil activityUtil;
     private final S3Util s3Util;
     private final ActivityBulkRepository activityBulkRepository;
-    private final StickerRedisService recordRedisService;
+    private final StickerInfoCacheService recordRedisService;
     private final ActivityCacheService activityCacheService;
 
     @Transactional

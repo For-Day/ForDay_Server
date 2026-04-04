@@ -18,7 +18,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordReportRepositor
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.service.RecordCacheService;
-import com.example.ForDay.domain.record.service.StickerRedisService;
+import com.example.ForDay.domain.record.service.StickerInfoCacheService;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.record.type.StoryFilterType;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
@@ -61,7 +61,7 @@ public class ActivityRecordService {
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final StickerRedisService stickerRedisService;
+    private final StickerInfoCacheService stickerInfoCacheService;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
     private final RecordCacheService recordCacheService;
@@ -124,7 +124,7 @@ public class ActivityRecordService {
         handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl(), record.getId());
         record.updateRecord(activity, reqDto);
 
-        stickerRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
         return UpdateActivityRecordResDto.of(activity, record);
     }
@@ -156,7 +156,7 @@ public class ActivityRecordService {
         }
 
         registerDeleteImageAfterCommit(deleteImageUrl);
-        stickerRedisService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
         return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
     }

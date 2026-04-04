@@ -5,7 +5,6 @@ import com.example.ForDay.global.common.constants.CacheConstants;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,7 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class StickerRedisService {
+public class StickerInfoCacheService {
 
     private final ActivityRecordRepository activityRecordRepository;
     private final RedisTemplate<String, String> redisTemplate;
