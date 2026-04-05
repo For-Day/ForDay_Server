@@ -1,7 +1,5 @@
 package com.example.ForDay.global.ai.service;
 
-import com.example.ForDay.domain.activity.dto.request.FastAPIHobbyCardReqDto;
-import com.example.ForDay.domain.activity.dto.response.FastAPIHobbyCardResDto;
 import com.example.ForDay.domain.hobby.dto.request.FastAPIRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.FastAPIRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
@@ -15,9 +13,8 @@ import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
-public class AIService {
+public class AiActivityRecommendService {
     private static final String AI_ACTIVITIES_RECOMMEND_PATH = "/ai/activities/recommend";
-    private static final String AI_HOBBY_CARD_CONTENT_PATH = "/ai/hobby-card/content";
 
     @Value("${fastapi.url}")
     private String fastApiBaseUrl;
@@ -30,20 +27,6 @@ public class AIService {
         FastAPIRecommendResDto response = restTemplate.postForObject(url, requestDto, FastAPIRecommendResDto.class);
 
         if (response == null || response.getActivities().isEmpty()) {
-            throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
-        }
-        return response;
-    }
-
-    public FastAPIHobbyCardResDto requestHobbyCardContentAI(Hobby hobby) {
-        String url = fastApiBaseUrl + AI_HOBBY_CARD_CONTENT_PATH;
-        FastAPIHobbyCardReqDto requestDto = FastAPIHobbyCardReqDto.builder()
-                .userHobbyId(hobby.getId())
-                .build();
-
-        FastAPIHobbyCardResDto response = restTemplate.postForObject(url, requestDto, FastAPIHobbyCardResDto.class);
-
-        if (response == null || response.getContent().isEmpty()) {
             throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
         }
         return response;

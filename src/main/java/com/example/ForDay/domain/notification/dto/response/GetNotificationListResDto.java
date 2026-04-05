@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.notification.dto.response;
 
+import com.example.ForDay.global.common.response.message.NotificationSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,7 +35,7 @@ public class GetNotificationListResDto {
         public static PushInfo notPushEnabled() {
             return new PushInfo(
                     false,
-                    "알림을 놓치지 않도록 알림 권한을 허용해주세요."
+                    NotificationSuccessCode.REQUEST_NOTIFICATION_PERMISSION.getMessage()
             );
         }
 

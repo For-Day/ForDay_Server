@@ -7,7 +7,7 @@ import com.example.ForDay.domain.hobby.repository.HobbyCardRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.ai.service.AIService;
+import com.example.ForDay.global.ai.service.AiHobbyCardService;
 import com.example.ForDay.infra.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +27,10 @@ public class HobbyCardService {
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
     private final S3Service s3Service;
-    private final AIService aiService;
+    private final AiHobbyCardService aiHobbyCardService;
 
     public HobbyCard createHobbyCard(User user, Hobby hobby) {
-        FastAPIHobbyCardResDto response = aiService.requestHobbyCardContentAI(hobby);
+        FastAPIHobbyCardResDto response = aiHobbyCardService.requestHobbyCardContentAI(hobby);
         String hobbyCardImageUrl = resolveHobbyCardImageUrl(hobby);
 
         HobbyCard hobbyCard = HobbyCard.of(user, hobby, response.getContent(), hobbyCardImageUrl);

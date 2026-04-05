@@ -13,6 +13,7 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.common.response.message.AuthSuccessCode;
 import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
@@ -27,7 +28,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.UUID;
 
-import static com.example.ForDay.global.common.response.message.AuthSuccessMessage.LOGOUT_SUCCESS;
+import static com.example.ForDay.global.common.response.message.AuthSuccessCode.LOGOUT_SUCCESS;
 
 @Slf4j
 @Service
@@ -192,7 +193,7 @@ public class AuthService {
         refreshTokenRepository.deleteById(currentUser.getSocialId());
 
         log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", currentUser.getSocialId());
-        return new MessageResDto(LOGOUT_SUCCESS);
+        return new MessageResDto(AuthSuccessCode.LOGOUT_SUCCESS.getMessage());
     }
 
     @Transactional
@@ -302,12 +303,9 @@ public class AuthService {
     }
 
     private LoginInternalResult processCommonLogin(User user, SocialType socialType) {
-        // 토큰 발급 및 저장
         String accessToken = jwtUtil.createAccessToken(user.getSocialId(), user.getRole(), socialType);
         String refreshToken = jwtUtil.createRefreshToken(user.getSocialId());
         refreshTokenService.save(user.getSocialId(), refreshToken);
-
-        // 온보딩 상태 조회
         OnboardingDataDto dataDto = getOnboardingData(user, user.isNicknameSet(), user.isOnboardingCompleted());
 
         return new LoginInternalResult(accessToken, refreshToken, user.isOnboardingCompleted(), user.isNicknameSet(), dataDto);

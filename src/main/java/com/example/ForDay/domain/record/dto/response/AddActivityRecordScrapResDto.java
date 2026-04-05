@@ -1,10 +1,11 @@
 package com.example.ForDay.domain.record.dto.response;
 
+import com.example.ForDay.global.common.response.message.RecordSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.RecordSuccessMessage.RECORD_SCRAP_SUCCESS;
+import static com.example.ForDay.global.common.response.message.RecordSuccessCode.RECORD_SCRAP_SUCCESS;
 
 @Data
 @NoArgsConstructor
@@ -16,7 +17,7 @@ public class AddActivityRecordScrapResDto {
 
     public static AddActivityRecordScrapResDto from(Long recordId) {
         return new AddActivityRecordScrapResDto(
-                RECORD_SCRAP_SUCCESS,
+                RecordSuccessCode.RECORD_SCRAP_SUCCESS.getMessage(),
                 recordId,
                 true
         );

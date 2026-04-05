@@ -2,11 +2,12 @@ package com.example.ForDay.domain.hobby.dto.response;
 
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.global.common.response.message.ActivitySuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.COLLECT_ACTIVITY_SUCCESS;
+import static com.example.ForDay.global.common.response.message.ActivitySuccessCode.COLLECT_ACTIVITY_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -24,7 +25,7 @@ public class CollectActivityResDto {
                 hobby.getHobbyName(),
                 activity.getId(),
                 activity.getContent(),
-                COLLECT_ACTIVITY_SUCCESS
+                ActivitySuccessCode.COLLECT_ACTIVITY_SUCCESS.getMessage()
         );
     }
 }

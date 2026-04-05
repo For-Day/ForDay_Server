@@ -3,6 +3,8 @@ package com.example.ForDay.domain.hobby.service;
 import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.service.AiCallCountService;
+import com.example.ForDay.global.ai.service.AiUserSummaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -12,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class HobbyAiInsightService {
 
     private final AiCallCountService aiCallCountService;
-    private final UserSummaryAIService aiSummaryService;
+    private final AiUserSummaryService aiSummaryService;
 
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;

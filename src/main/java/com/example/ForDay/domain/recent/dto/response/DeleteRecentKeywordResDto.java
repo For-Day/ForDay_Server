@@ -1,10 +1,11 @@
 package com.example.ForDay.domain.recent.dto.response;
 
+import com.example.ForDay.global.common.response.message.RecentSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.RecentSuccessMessage.DELETE_KEYWORD_SUCCESS;
+import static com.example.ForDay.global.common.response.message.RecentSuccessCode.DELETE_KEYWORD_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -15,7 +16,7 @@ public class DeleteRecentKeywordResDto {
 
     public static DeleteRecentKeywordResDto of(Long recentId) {
         return new DeleteRecentKeywordResDto(
-                DELETE_KEYWORD_SUCCESS,
+                RecentSuccessCode.DELETE_KEYWORD_SUCCESS.getMessage(),
                 recentId
         );
     }

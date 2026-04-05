@@ -9,6 +9,7 @@ import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.domain.user.dto.TargetUserInfo;
 import com.example.ForDay.domain.user.dto.request.SetUserProfileImageReqDto;
 import com.example.ForDay.domain.user.dto.response.*;
@@ -17,18 +18,15 @@ import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.message.UserSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -36,7 +34,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -47,7 +44,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserUtil userUtil;
-    private final S3Service s3Service;
     private final HobbyRepository hobbyRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
@@ -64,18 +60,15 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public NicknameCheckResDto nicknameCheck(String nickname) {
-        // 형식 검증 (길이, 허용 문자)
         Optional<String> validationMessage = validateNicknameFormat(nickname);
         if (validationMessage.isPresent()) {
             return new NicknameCheckResDto(nickname, false, validationMessage.get());
         }
 
-        // 중복 검증 (DB 조회)
         if (isExistsByNickname(nickname)) {
             return NicknameCheckResDto.alreadyUsedNickname(nickname);
         }
 
-        // 사용 가능 응답
         return NicknameCheckResDto.canUseNickname(nickname);
     }
 
@@ -98,7 +91,6 @@ public class UserService {
         String targetId;
 
         if (userId != null) {
-            // 다른 사용자 정보 조회시 (차단 관계, 탈퇴한 회원인지 고려)
             User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -110,7 +102,7 @@ public class UserService {
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId == null ?  notificationService.unreadNotificationExists(targetUser) : false
+        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId == null ? notificationService.unreadNotificationExists(targetUser) : false
         );
     }
 
@@ -120,37 +112,25 @@ public class UserService {
         String newImageUrl = StringUtils.hasText(reqDto.getProfileImageUrl()) ? reqDto.getProfileImageUrl() : null;
         String oldImageUrl = currentUser.getProfileImageUrl();
 
-        // 동일 이미지 여부 체크
         if (isSameImageCheck(oldImageUrl, newImageUrl)) {
-            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), "이미 동일한 프로필 이미지로 설정되어 있습니다.");
+            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), UserSuccessCode.ALREADY_SAME_PROFILE_IMAGE.getMessage());
         }
 
-        // 새로운 이미지가 있는 경우에만 S3 존재 여부 검증
         s3Util.validateS3Image(newImageUrl);
-
-        // 상태 업데이트
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
-
-        // 이전 이미지가 실제 S3 객체였다면 삭제 등록
-        if (StringUtils.hasText(oldImageUrl)) {
-            registerS3Deletion(oldImageUrl);
-        }
+        s3Util.registerS3DeletionAfterCommit(oldImageUrl);
 
         log.info("[PROFILE] Image changed for user: {} ({} -> {})", currentUser.getId(), oldImageUrl, newImageUrl);
 
-        return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(newImageUrl), "프로필 이미지가 성공적으로 변경되었습니다.");
+        return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(newImageUrl), UserSuccessCode.UPDATE_PROFILE_IMAGE_SUCCESS.getMessage());
     }
 
     @Transactional(readOnly = true)
     public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
-        // 조회 대상 유저 확정 및 검증
         User targetUser = resolveTargetUser(currentUser, userId);
-        // 취미 리스트 조회
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(targetUser);
-
-        // 썸네일 URL 가공 (커버 사이즈용)
         processHobbyThumbnailUrls(hobbyList);
 
         return GetHobbyInProgressResDto.of(targetUser, hobbyList);
@@ -167,18 +147,15 @@ public class UserService {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
 
-        // 조회 대상 유저 및 권한 확정
         TargetUserInfo targetInfo = resolveTargetUserInfo(currentUserId, userId, currentUser);
-        // 전체 개수 조회 (첫 페이지 진입 시에만)
+
         Long totalFeedCount = (lastRecordId == null)
                 ? activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetInfo.user().getId())
                 : null;
 
-        // 피드 목록 조회 (Slice 페이징을 위해 feedSize + 1)
         List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(
                 hobbyIds, lastRecordId, feedSize + 1, targetInfo.user().getId(), targetInfo.visibilities(), currentUserId
         );
-        // 썸네일 URL 리사이징 처리
         processFeedThumbnailUrls(feedList);
 
         return GetUserFeedListResDto.of(feedList, totalFeedCount, feedSize);
@@ -187,7 +164,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user, String userId) {
         String currentUserId = user.getUserId();
-        String targetUserId = (userId == null) ? currentUserId : userId; // 조회하고자하는 유저
+        String targetUserId = (userId == null) ? currentUserId : userId;
 
         if (userId != null) {
             User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -203,24 +180,16 @@ public class UserService {
     public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-
-        // 조회 대상 결정 (본인 또는 타인)
         String targetUserId = (userId == null) ? currentUserId : userId;
         boolean isMyScrap = targetUserId.equals(currentUserId);
 
-        // 노출 권한(Visibility) 리스트 결정
         List<RecordVisibility> visibilities = resolveVisibilities(currentUserId, targetUserId, isMyScrap);
-
-        // 데이터 조회 (Slice 방식 페이징을 위해 size + 1 조회)
         List<GetUserScrapListResDto.ScrapDto> scrapDtos = activityRecordScrapRepository.getScrapList(
                 lastScrapId, size + 1, targetUserId, currentUserId, visibilities
         );
-
-        // 이미지 URL 가공 및 결과 생성
         processThumbnailUrls(scrapDtos);
 
         long totalCount = (lastScrapId == null) ? activityRecordScrapRepository.countByUserId(targetUserId) : 0;
-
         return GetUserScrapListResDto.of(scrapDtos, totalCount, size);
     }
 
@@ -250,21 +219,17 @@ public class UserService {
 
     private List<RecordVisibility> resolveVisibilities(String currentUserId, String targetUserId, boolean isMyScrap) {
         if (isMyScrap) {
-            // 내 스크랩은 모든 권한(PUBLIC, FRIEND, PRIVATE) 조회 가능
             return List.of(RecordVisibility.PUBLIC, RecordVisibility.FRIEND, RecordVisibility.PRIVATE);
         }
 
-        // 타인 조회 시 기본은 PUBLIC
         List<RecordVisibility> visibilities = new ArrayList<>(List.of(RecordVisibility.PUBLIC));
 
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 차단 및 탈퇴 상태 체크
         List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
         activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 
-        // 팔로우 관계라면 FRIEND 권한 추가
         if (friendRelationRepository.existsByFriendship(currentUserId, targetUserId, FriendRelationStatus.FOLLOW)) {
             visibilities.add(RecordVisibility.FRIEND);
         }
@@ -278,34 +243,11 @@ public class UserService {
                 .forEach(dto -> dto.setThumbnailImageUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailImageUrl())));
     }
 
-    private void registerS3Deletion(String oldImageUrl) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                log.info("[S3-Cleanup] 이전 이미지 삭제 시작: {}", oldImageUrl);
-                try {
-                    // 리스트 형태로 만들어서 한 번에 삭제 로직 실행
-                    List<String> keysToDelete = Stream.of(
-                            oldImageUrl,
-                            s3Util.toProfileMainResizedUrl(oldImageUrl),
-                            s3Util.toProfileListResizedUrl(oldImageUrl)
-                    ).map(s3Service::extractKeyFromFileUrl).toList();
-
-                    keysToDelete.forEach(s3Service::deleteByKey);
-                } catch (Exception e) {
-                    log.error("[S3-Cleanup] 이전 프로필 이미지 삭제 실패: {}", oldImageUrl, e);
-                }
-            }
-        });
-    }
-
     private TargetUserInfo resolveTargetUserInfo(String currentUserId, String targetUserId, User currentUser) {
         if (targetUserId == null || targetUserId.equals(currentUserId)) {
-            // 내 피드 조회 시 모든 권한 반환
             return new TargetUserInfo(currentUser, List.of(RecordVisibility.PUBLIC, RecordVisibility.FRIEND, RecordVisibility.PRIVATE));
         }
 
-        // 남의 피드 조회 시 검증 및 관계 확인
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
@@ -338,7 +280,6 @@ public class UserService {
 
         User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 차단 및 탈퇴 상태 체크
         List<FriendRelation> relations = activityRecordUtil.getRelations(currentUser.getId(), targetUser.getId());
         activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 

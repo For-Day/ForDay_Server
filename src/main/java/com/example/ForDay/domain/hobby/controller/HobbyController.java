@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.controller;
 
 import com.example.ForDay.domain.activity.service.ActivityService;
+import com.example.ForDay.domain.activity.service.OtherActivityService;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.HobbyService;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class HobbyController implements HobbyControllerDocs {
     private final HobbyService hobbyService;
     private final ActivityService activityService;
+    private final OtherActivityService otherActivityService;
 
     @Override
     @PostMapping("/create")
@@ -43,7 +45,7 @@ public class HobbyController implements HobbyControllerDocs {
     @GetMapping("/activities/others/v1")
     public OthersActivityRecommendResDto othersActivityRecommendV1(@RequestParam(name = "hobbyId") Long hobbyId,
                                                                    @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyService.othersActivityRecommendV1(hobbyId, user);
+        return otherActivityService.othersActivityRecommendV1(hobbyId, user);
     }
 
     @Override

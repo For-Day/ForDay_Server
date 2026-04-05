@@ -1,12 +1,13 @@
 package com.example.ForDay.domain.auth.dto.response;
 
+import com.example.ForDay.global.common.response.message.AuthSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-import static com.example.ForDay.global.common.response.message.AuthSuccessMessage.WITHDRAW_SUCCESS;
+import static com.example.ForDay.global.common.response.message.AuthSuccessCode.WITHDRAW_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -17,7 +18,7 @@ public class UserWithDrawResDto {
 
     public static UserWithDrawResDto of(LocalDateTime deletedAt) {
         return new UserWithDrawResDto(
-                WITHDRAW_SUCCESS,
+                AuthSuccessCode.WITHDRAW_SUCCESS.getMessage(),
                 deletedAt
         );
     }

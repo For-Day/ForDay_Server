@@ -40,7 +40,6 @@ public class TermsService {
     private final ServiceContactInfoRepository serviceContactInfoRepository;
     private final UserUtil userUtil;
     private final UserTermsConsentRepository userTermsConsentRepository;
-    private final FcmTokenService fcmTokenService;
     private final UserRepository userRepository;
 
     public ServiceTermsResponseDto getServiceTerms(DocumentType type) {

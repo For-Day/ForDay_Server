@@ -11,10 +11,12 @@ import com.example.ForDay.domain.app.entity.AppVersion;
 import com.example.ForDay.domain.app.repository.AppVersionRepository;
 import com.example.ForDay.domain.app.type.Platform;
 import com.example.ForDay.domain.app.type.UpdateType;
+import com.example.ForDay.domain.app.utils.AppVersionUtil;
 import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.common.response.message.AppSuccessCode;
 import com.example.ForDay.infra.s3.property.S3Properties;
 import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
@@ -25,11 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.List;
-
-import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
-import static com.example.ForDay.global.common.response.message.AppSuccessMessage.DELETE_S3_IMAGE_SUCCESS;
 
 @Slf4j
 @Service
@@ -39,8 +37,8 @@ public class AppService {
     private final S3Service s3Service;
     private final AmazonS3 amazonS3;
     private final S3Properties s3Properties;
-    private final S3Util s3Util;
     private final AppVersionRepository appVersionRepository;
+    private final S3Util s3Util;
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
@@ -69,10 +67,8 @@ public class AppService {
 
         return reqDto.getImages().stream()
                 .map(img -> {
-                    // 이미지에 대한 key 값 생성
                     String key = s3Service.generateKey(img.getUsage(), img.getOriginalFilename());
 
-                    // key값을 사용하여 s3에 presigned url 만들어달라고 s3에 요청
                     GeneratePresignedUrlRequest request = s3Service.createPresignedPutRequest(
                             s3Properties.getBucket(),
                             key,
@@ -80,12 +76,8 @@ public class AppService {
                     );
 
                     String uploadUrl = amazonS3.generatePresignedUrl(request).toString();
-
-                    // 실제 접근 가능한 이미지 url
                     String fileUrl = s3Service.createFileUrl(key);
-
                     log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}, Key: {}", img.getUsage(), key);
-
                     return GeneratePresignedUrlResDto.of(uploadUrl, fileUrl, img.getOrder());
                 })
                 .toList();
@@ -94,48 +86,16 @@ public class AppService {
     @Transactional
     public MessageResDto deleteS3Image(DeleteS3ImageReqDto reqDto) {
         String imageUrl = reqDto.getImageUrl();
-        log.info("[deleteS3Image] S3 이미지 삭제 프로세스 시작 - URL: {}", imageUrl);
+
         if (!StringUtils.hasText(imageUrl)) {
             log.warn("[deleteS3Image] 삭제 실패 - 빈 이미지 URL 입력됨");
             throw new CustomException(ErrorCode.INVALID_IMAGE_URL);
         }
 
-        String originalKey = s3Service.extractKeyFromFileUrl(imageUrl);
-        List<String> keysToDelete = new ArrayList<>();
-        keysToDelete.add(originalKey);
-        try {
-            if (originalKey.contains(ACTIVITY_RECORD)) {
-                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toFeedThumbResizedUrl(imageUrl)));
-            } else if (originalKey.contains(PROFILE_IMAGE)) {
-                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileMainResizedUrl(imageUrl)));
-                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toProfileListResizedUrl(imageUrl)));
-            } else if (originalKey.contains(COVER_IMAGE)) {
-                keysToDelete.add(s3Service.extractKeyFromFileUrl(s3Util.toCoverMainResizedUrl(imageUrl)));
-            } else {
-                log.warn("[deleteS3Image] 삭제 실패 - 알 수 없는 이미지 경로: {}", originalKey);
-                throw new CustomException(ErrorCode.INVALID_IMAGE_SOURCE);
-            }
-        } catch (Exception e) {
-            log.error("[deleteS3Image] 리사이징 키 추출 중 예외 발생: {}", e.getMessage());
-            throw new CustomException(ErrorCode.INVALID_IMAGE_URL);
-        }
+        log.info("[deleteS3Image] S3 이미지 삭제 예약 - URL: {}", imageUrl);
+        s3Util.registerS3DeletionAfterCommit(imageUrl);
 
-        log.info("[deleteS3Image] 삭제 대상 키 리스트: {}", keysToDelete);
-
-        try {
-            for (String key : keysToDelete) {
-                if (key != null) {
-                    s3Service.deleteByKey(key);
-                    log.info("[deleteS3Image] S3 객체 삭제됨: {}", key);
-                }
-            }
-        } catch (Exception e) {
-            log.error("S3 이미지 삭제 중 오류 발생: {}", imageUrl, e);
-            throw new CustomException(ErrorCode.S3_DELETE_ERROR);
-        }
-
-        log.info("[deleteS3Image] 모든 관련 이미지 삭제 완료 - Original Key: {}", originalKey);
-        return new MessageResDto(DELETE_S3_IMAGE_SUCCESS);
+        return new MessageResDto(AppSuccessCode.DELETE_S3_IMAGE_SUCCESS.getMessage());
     }
 
     @Transactional(readOnly = true)

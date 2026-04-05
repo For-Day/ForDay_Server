@@ -263,17 +263,17 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                         report.reporter.id.eq(currentUserId)
                                 ).notExists(),
                         // 공개 범위(Visibility) 필터링
-                        record.visibility.eq(RecordVisibility.PUBLIC) // PUBLIC은 기본 통과
+                        record.visibility.eq(RecordVisibility.PUBLIC) // PUBLIC은 무조건 통과
                                 .or(record.visibility.eq(RecordVisibility.FRIEND) // FRIEND인 경우
-                                        .and(JPAExpressions // 내가 작성자를 팔로우 중인지 확인
-                                                .selectFrom(followRelation)
-                                                .where(
-                                                        followRelation.requester.id.eq(currentUserId),
-                                                        followRelation.targetUser.id.eq(user.id),
-                                                        followRelation.relationStatus.eq(FriendRelationStatus.FOLLOW)
-                                                ).exists()
+                                        .and(record.user.id.eq(currentUserId) // 작성자가 본인이거나
+                                                .or(JPAExpressions // 내가 작성자를 팔로우 중이거나
+                                                        .selectFrom(followRelation)
+                                                        .where(followRelation.requester.id.eq(currentUserId),
+                                                                followRelation.targetUser.id.eq(user.id),
+                                                                followRelation.relationStatus.eq(FriendRelationStatus.FOLLOW)
+                                                        ).exists()
+                                                )
                                         )
-                                        .or(record.user.id.eq(currentUserId))
                                 )
                 )
                 .orderBy(createOrderSpecifier(storyFilterType, hotIds))
@@ -356,7 +356,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
 
         switch (cond.context()) {
             case STORY_ALL -> {
-                if(StringUtils.hasText(cond.keyword())) {
+                if (StringUtils.hasText(cond.keyword())) {
                     builder.and(activity.content.contains(cond.keyword()).or(record.memo.contains(cond.keyword())));
                 }
                 builder.and(publicOrFriendVisibility(currentUserId));
@@ -383,7 +383,7 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                     )
                     );
                 }
-                if(StringUtils.hasText(cond.keyword())) {
+                if (StringUtils.hasText(cond.keyword())) {
                     builder.and(activity.content.contains(cond.keyword()).or(record.memo.contains(cond.keyword())));
                 }
                 builder.and(publicOrFriendVisibility(currentUserId));

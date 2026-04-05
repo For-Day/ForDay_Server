@@ -1,13 +1,12 @@
 package com.example.ForDay.domain.record.controller.v2;
 
-import com.example.ForDay.domain.reaction.service.RecordReactionService;
+import com.example.ForDay.domain.reaction.service.ReactionService;
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
 import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
-import com.example.ForDay.domain.record.service.v1.ActivityRecordService;
 import com.example.ForDay.domain.record.service.v2.ActivityRecordServiceV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -23,7 +22,7 @@ import java.util.List;
 @RequestMapping("/api/v2/records")
 public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Docs{
     private final ActivityRecordServiceV2 activityRecordServiceV2;
-    private final RecordReactionService recordReactionService;
+    private final ReactionService reactionService;
 
     @Override
     @GetMapping("/{recordId}")
@@ -42,7 +41,7 @@ public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Doc
                                                     @RequestParam(defaultValue = "20") int size,
                                                     @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return recordReactionService.getReactionSummary(recordId, size, user);
+        return reactionService.getReactionSummary(recordId, size, user);
     }
 
     // 무한 스크롤 (탭별 조회)
@@ -54,7 +53,7 @@ public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Doc
                                                 @RequestParam(defaultValue = "10") int size,
                                                 @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return recordReactionService.getReactionTabScroll(recordId, type, lastReactionId, size, user);
+        return reactionService.getReactionTabScroll(recordId, type, lastReactionId, size, user);
     }
 
     @PostMapping("/{recordId}/reaction")
