@@ -1,11 +1,12 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
 import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
+import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.HobbySuccessMessage.SET_HOBBY_COVER_IMAGE_SUCCESS;
+import static com.example.ForDay.global.common.response.message.HobbySuccessCode.SET_HOBBY_COVER_IMAGE_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -18,7 +19,7 @@ public class SetHobbyCoverImageResDto {
 
     public static SetHobbyCoverImageResDto of(CoverChangeResult result, String coverImageUrl) {
         return new SetHobbyCoverImageResDto(
-                SET_HOBBY_COVER_IMAGE_SUCCESS,
+                HobbySuccessCode.SET_HOBBY_COVER_IMAGE_SUCCESS.getMessage(),
                 result.hobbyId(),
                 result.recordId(),
                 coverImageUrl

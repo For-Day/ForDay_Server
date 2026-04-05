@@ -11,21 +11,18 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.common.response.message.FriendSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static com.example.ForDay.global.common.response.message.FriendSuccessMessage.*;
+import static com.example.ForDay.global.common.response.message.FriendSuccessCode.*;
 
 @Slf4j
 @Service
@@ -35,7 +32,7 @@ public class FriendService {
     private final UserUtil userUtil;
     private final UserRepository userRepository;
     private final S3Util s3Util;
-    private final FriendRedisService friendRedisService;
+    private final FriendCacheService friendCacheService;
 
     @Transactional
     public AddFriendResDto addFriend(AddFriendReqDto reqDto, CustomUserDetails userDetails) {
@@ -46,21 +43,17 @@ public class FriendService {
             throw new CustomException(ErrorCode.CANNOT_FOLLOW_SELF);
         }
 
-        // 양방향 관계 조회 및 할당
         List<FriendRelation> relations = friendRelationRepository.findBothDirections(currentUser.getId(), targetUser.getId());
         FriendRelation myRelation = findInRelations(relations, currentUser.getId());
         FriendRelation targetRelation = findInRelations(relations, targetUser.getId());
 
-        // 상대가 나를 차단했는지 확인
         validateNotBlockedByTarget(targetRelation);
 
-        // 내 관계 처리
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.FOLLOW) {
-                return AddFriendResDto.of(ALREADY_FRIEND, targetUser.getNickname());
+                return AddFriendResDto.of(FriendSuccessCode.ALREADY_FRIEND.getMessage(), targetUser.getNickname());
             }
-            // 내가 차단/신고한 유저에게는 친구 추가 불가
             if (status == FriendRelationStatus.BLOCK || status == FriendRelationStatus.REPORT) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
@@ -68,8 +61,8 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.FOLLOW));
         }
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
-        return AddFriendResDto.of(ADD_FRIEND_SUCCESS, targetUser.getNickname());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        return AddFriendResDto.of(FriendSuccessCode.ADD_FRIEND_SUCCESS.getMessage(), targetUser.getNickname());
     }
 
     @Transactional
@@ -83,8 +76,8 @@ public class FriendService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIEND_NOT_FOUND));
 
         friendRelationRepository.delete(myRelation);
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
-        return DeleteFriendResDto.of(DELETE_FRIEND_SUCCESS, targetUser.getNickname());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        return DeleteFriendResDto.of(FriendSuccessCode.DELETE_FRIEND_SUCCESS.getMessage(), targetUser.getNickname());
     }
 
     @Transactional
@@ -104,13 +97,13 @@ public class FriendService {
 
         if (myRelation != null) {
             if (myRelation.getRelationStatus() == FriendRelationStatus.BLOCK) {
-                return BlockFriendResDto.of(ALREADY_BLOCKED, targetUser.getNickname());
+                return BlockFriendResDto.of(FriendSuccessCode.ALREADY_BLOCKED.getMessage(), targetUser.getNickname());
             }
             myRelation.changeStatus(FriendRelationStatus.BLOCK);
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.BLOCK));
         }
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
         return BlockFriendResDto.of(targetUser.getNickname() + "님이 차단되었어요.", targetUser.getNickname());
     }
 
@@ -124,7 +117,7 @@ public class FriendService {
                 s3Util::toProfileMainResizedUrl
         );
 
-        return GetFriendListResDto.of(FRIEND_LIST_GET_SUCCESS, updatedList, size);
+        return GetFriendListResDto.of(FriendSuccessCode.FRIEND_LIST_GET_SUCCESS.getMessage(), updatedList, size);
     }
 
     @Transactional
@@ -145,7 +138,7 @@ public class FriendService {
         if (myRelation != null) {
             FriendRelationStatus status = myRelation.getRelationStatus();
             if (status == FriendRelationStatus.REPORT) {
-                return ReportFriendResDto.of(ALREADY_REPORTED, targetUser);
+                return ReportFriendResDto.of(FriendSuccessCode.ALREADY_REPORTED.getMessage(), targetUser);
             } else if (status == FriendRelationStatus.BLOCK) {
                 throw new CustomException(ErrorCode.USER_NOT_FOUND);
             }
@@ -153,8 +146,8 @@ public class FriendService {
         } else {
             friendRelationRepository.save(FriendRelation.of(currentUser, targetUser, FriendRelationStatus.REPORT));
         }
-        friendRedisService.evictFriendCache(currentUser.getId(), targetUser.getId());
-        return ReportFriendResDto.of(REPORT_FRIEND_SUCCESS, targetUser);
+        friendCacheService.evictFriendCache(currentUser.getId(), targetUser.getId());
+        return ReportFriendResDto.of(FriendSuccessCode.REPORT_FRIEND_SUCCESS.getMessage(), targetUser);
     }
 
     private User findTargetUser(String userId) {

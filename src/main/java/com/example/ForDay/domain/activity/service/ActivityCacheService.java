@@ -16,7 +16,7 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ActivityRedisService {
+public class ActivityCacheService {
     private final ActivityRepository activityRepository;
     private final StringRedisTemplate redisTemplate;
 

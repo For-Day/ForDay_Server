@@ -15,6 +15,7 @@ import com.example.ForDay.domain.notification.utils.NotificationMessageGenerator
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
+import com.example.ForDay.global.common.response.message.NotificationSuccessCode;
 import com.example.ForDay.global.firebase.dto.request.FcmNotificationReqDto;
 import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
@@ -40,9 +41,9 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+    public static final String RECORD_DETAIL_URL = "/api/v2/records/";
     private final NotificationRepository notificationRepository;
     private final FcmTokenRepository fcmTokenRepository;
-    private final RabbitTemplate rabbitTemplate;
     private final ApplicationEventPublisher eventPublisher;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
@@ -76,7 +77,6 @@ public class NotificationService {
             }
         }
         userRepository.save(currentUser);
-
         return UpdatePushNotificationToggleResDto.of(reqDto.isActive(), reqDto.getToggleType());
     }
 
@@ -84,7 +84,6 @@ public class NotificationService {
         String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription()); // notification 내용
         String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
 
-        // ReactionNotification 객체 생성
         ReactionNotification savedNotification =
                 notificationRepository.save(
                         ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
@@ -123,19 +122,7 @@ public class NotificationService {
         return GetPushNotificationToggleResDto.of(currentUser.isAppPushEnabled(), currentUser.isRecordPushEnabled());
     }
 
-    private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {
-        return Map.of(
-                "recordId", String.valueOf(recordId),
-                "type", NotificationType.RECORD_REACTION.name(),
-                "landingUrl", "/api/v2/records/" + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
-                "sendAt", LocalDateTime.now().toString()
-        );
-    }
-
-    private boolean isSameStatus(boolean pushEnabled, boolean active) {
-        return Objects.equals(pushEnabled, active);
-    }
-
+    @Transactional
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
@@ -154,7 +141,11 @@ public class NotificationService {
 
         fcmTokenService.sendNotificationByToken(fcmSendReqDto);
 
-        return new SendPushMessageResDto("성공적으로 푸시 알림이 전송되었습니다.");
+        return new SendPushMessageResDto(NotificationSuccessCode.SEND_NOTIFICATION_SUCCESS.getMessage());
+    }
+
+    private boolean isSameStatus(boolean pushEnabled, boolean active) {
+        return Objects.equals(pushEnabled, active);
     }
 
     public void markAsReadIfUnread(Long notificationId) {
@@ -166,5 +157,14 @@ public class NotificationService {
 
     public boolean unreadNotificationExists(User user) {
         return notificationRepository.existsByReceiverIdAndIsReadFalse(user.getId());
+    }
+
+    private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {
+        return Map.of(
+                "recordId", String.valueOf(recordId),
+                "type", NotificationType.RECORD_REACTION.name(),
+                "landingUrl", RECORD_DETAIL_URL + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
+                "sendAt", LocalDateTime.now().toString()
+        );
     }
 }

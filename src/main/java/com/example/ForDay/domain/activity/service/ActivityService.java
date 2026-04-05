@@ -2,34 +2,30 @@ package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
-import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityBulkRepository;
-import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
-import com.example.ForDay.domain.activity.type.AIItemType;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.activity.utils.ActivityUtil;
 import com.example.ForDay.domain.friend.repository.FriendRelationRepository;
 import com.example.ForDay.domain.friend.type.FriendRelationStatus;
 import com.example.ForDay.domain.hobby.dto.request.AddActivityReqDto;
+import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.AddActivityResDto;
 import com.example.ForDay.domain.hobby.dto.response.CollectActivityResDto;
-import com.example.ForDay.domain.hobby.service.HobbyCardService;
-import com.example.ForDay.domain.hobby.service.UserSummaryAIService;
-import com.example.ForDay.domain.record.entity.ActivityRecord;
-import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
-import com.example.ForDay.domain.activity.repository.ActivityRepository;
-import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.domain.record.service.StickerRedisService;
+import com.example.ForDay.domain.hobby.service.HobbyCardService;
+import com.example.ForDay.domain.hobby.utils.HobbyUtil;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.record.service.StickerInfoCacheService;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.common.constants.AiMessageConstants;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
+import com.example.ForDay.global.common.response.message.ActivitySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.domain.activity.utils.ActivityUtil;
-import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
@@ -37,13 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Objects;
-
-import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.ACTIVITY_DELETE_SUCCESS;
-import static com.example.ForDay.global.common.response.message.ActivitySuccessMessage.ACTIVITY_UPDATE_SUCCESS;
 
 @Slf4j
 @Service
@@ -56,15 +47,13 @@ public class ActivityService {
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final FriendRelationRepository friendRelationRepository;
-    private final ActivityRecommendItemRepository recommendItemRepository;
-    private final UserSummaryAIService userSummaryAIService;
     private final HobbyUtil hobbyUtil;
     private final HobbyCardService hobbyCardService;
     private final ActivityUtil activityUtil;
     private final S3Util s3Util;
     private final ActivityBulkRepository activityBulkRepository;
-    private final StickerRedisService recordRedisService;
-    private final ActivityRedisService activityRedisService;
+    private final StickerInfoCacheService recordRedisService;
+    private final ActivityCacheService activityCacheService;
 
     @Transactional
     public RecordActivityResDto recordActivity(Long activityId, RecordActivityReqDto reqDto, CustomUserDetails user) {
@@ -75,23 +64,22 @@ public class ActivityService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
         Hobby hobby = activity.getHobby();
 
-        hobby.validateCanRecord(); // 취미 진행 상태 및 스티커 완료 여부 확인
-        todayRecordRedisService.validateNotRecordedToday(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 확인
-        s3Util.validateS3Image(reqDto.getImageUrl()); // S3 이미지 존재 여부 확인
+        hobby.validateCanRecord();
+        todayRecordRedisService.validateNotRecordedToday(currentUser.getId(), hobby.getId());
+        s3Util.validateS3Image(reqDto.getImageUrl());
 
         ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
-        activity.record(); // 해당 취미와 활동에 대해 스티커 + 1
-        currentUser.obtainSticker(); // 해당 유저가 모은 스티커 + 1
+        activity.record();
+        currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
         log.info("[RecordActivity] 기록 저장 성공 - RecordId: {}, 현재 스티커 수: {}", activityRecord.getId(), hobby.getCurrentStickerNum());
 
-        // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (hobby.isStickerFull()) {
             log.info("[RecordActivity] 취미 완주 달성! 취미 카드 생성을 시작합니다. HobbyId: {}", hobby.getId());
             createHobbyCard(hobby, currentUser);
         }
-        todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId()); // 오늘 기록 여부 표시
+        todayRecordRedisService.markAsRecorded(currentUser.getId(), hobby.getId());
         recordRedisService.evictRecordCache(hobby.getId(), currentUser.getId());
 
         return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
@@ -107,7 +95,7 @@ public class ActivityService {
 
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
         hobby.validateInProgress();
-        s3Util.validateS3Image(reqDto.getImageUrl()); // S3 이미지 존재 여부 확인
+        s3Util.validateS3Image(reqDto.getImageUrl());
 
         ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
 
@@ -115,7 +103,6 @@ public class ActivityService {
         currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
 
-        // 취미 카드 생성 로직 (목표일 여부와 관계없이 취미를 66개 모으면 취미 카드 생성)
         if (Objects.equals(hobby.getCurrentStickerNum(), STICKER_COMPLETE_COUNT)) {
             createHobbyCard(hobby, currentUser);
         }
@@ -130,7 +117,6 @@ public class ActivityService {
         User currentUser = userUtil.getCurrentUser(user);
         Activity activity = activityUtil.getActivityByUserId(activityId, currentUser.getId());
 
-        // 진행 중인 취미가 아니면 활동 수정 불가
         Hobby hobby = activity.getHobby();
         hobby.validateInProgress();
 
@@ -138,8 +124,8 @@ public class ActivityService {
         activity.updateContent(reqDto.getContent());
 
         log.info("[ActivityService] 활동 수정 완료 - activityId={}, userId={}, before='{}', after='{}'", activityId, currentUser.getId(), beforeContent, reqDto.getContent());
-        activityRedisService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
-        return new MessageResDto(ACTIVITY_UPDATE_SUCCESS);
+        activityCacheService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
+        return new MessageResDto(ActivitySuccessCode.ACTIVITY_UPDATE_SUCCESS.getMessage());
     }
 
     @Transactional
@@ -148,23 +134,19 @@ public class ActivityService {
         User currentUser = userUtil.getCurrentUser(user);
         Activity activity = activityUtil.getActivityByUserId(activityId, currentUser.getId());
 
-        // 삭제 가능 여부 (해당 활동으로 획득한 스티커가 없을 때)
         activity.validateDeletable();
-
-        // 진행 중인 취미가 아니면 활동 삭제 불가
         Hobby hobby = activity.getHobby();
         hobby.validateInProgress();
         activityRepository.delete(activity);
 
         log.info("[ActivityService] 활동 삭제 완료 - activityId={}, userId={}", activityId, currentUser.getId());
-        activityRedisService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
-        return new MessageResDto(ACTIVITY_DELETE_SUCCESS);
+        activityCacheService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
+        return new MessageResDto(ActivitySuccessCode.ACTIVITY_DELETE_SUCCESS.getMessage());
     }
 
     @Transactional
     public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-
         log.info("[Activity Collect] 시작 - 사용자: {}, 취미ID: {}, 활동ID: {}", currentUser.getId(), hobbyId, activityId);
 
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
@@ -185,34 +167,12 @@ public class ActivityService {
         return CollectActivityResDto.of(hobby, newActivity);
     }
 
-    @Transactional(readOnly = true)
-    public GetAiRecommendItemsResDto getAiRecommendItems(Long hobbyId, CustomUserDetails user, AIItemType type) {
-        User currentUser = userUtil.getCurrentUser(user);
-        log.info("[AI Recommend] 아이템 조회 시작 - HobbyId: {}, Type: {}", hobbyId, type);
-
-        // 취미 조회 및 검증
-        Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
-
-        // 오늘 생성된 추천 아이템 조회
-        List<ActivityRecommendItem> items = recommendItemRepository.findAllByHobbyIdAndDate(hobby.getId(), LocalDate.now().atStartOfDay(), LocalDate.now().atTime(LocalTime.MAX), type);
-
-        if (items.isEmpty()) {
-            return new GetAiRecommendItemsResDto();
-        }
-
-        // 사용자 요약 문구 생성
-        String userSummaryText = AiMessageConstants.formatPreviousRecommendation(userSummaryAIService.determine(currentUser, hobby));
-
-        // DTO 변환 및 반환
-        return GetAiRecommendItemsResDto.of(hobby, items, userSummaryText);
-    }
-
     @Transactional
     public AddActivityResDto addActivity(Long hobbyId, AddActivityReqDto reqDto, CustomUserDetails user) {
         Hobby hobby = hobbyUtil.getHobby(hobbyId);
         User currentUser = userUtil.getCurrentUser(user);
-        hobbyUtil.verifyHobbyOwner(hobby, currentUser); // 취미 소유자인지 검증
-        hobby.validateInProgress(); // 현재 진행 중인 취미인지
+        hobbyUtil.verifyHobbyOwner(hobby, currentUser);
+        hobby.validateInProgress();
 
         log.info("[AddActivity] 시작 - UserId: {}, HobbyId: {}, 요청 활동 수: {}", currentUser.getId(), hobbyId, reqDto.getActivities().size());
 
@@ -222,12 +182,10 @@ public class ActivityService {
 
         activityBulkRepository.bulkInsertActivities(activities);
         log.info("[AddActivity] 성공 - 저장된 활동 수: {}", activities.size());
-        activityRedisService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
+        activityCacheService.evictCacheAfterCommit(currentUser.getId(), hobby.getId());
 
         return AddActivityResDto.of(activities.size());
     }
-
-
     private void createHobbyCard(Hobby hobby, User currentUser) {
         log.info("[HobbyCard] 생성 프로세스 시작 - 사용자: {}, 취미: {}", currentUser.getId(), hobby.getId());
 
@@ -251,7 +209,6 @@ public class ActivityService {
     }
 
     private void validateTargetUser(String currentUserId, ActivityRecordCollectInfo target) {
-        // 탈퇴한 회원인지 먼저 확인
         if (target.isUserDeleted()) {
             throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
         }

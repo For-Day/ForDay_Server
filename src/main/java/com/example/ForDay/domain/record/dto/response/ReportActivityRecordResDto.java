@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.dto.response;
 
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.global.common.response.message.RecordSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,14 +16,12 @@ public class ReportActivityRecordResDto {
     private String recordWriterNickname;
     private String message;
 
-    private static final String SUCCESS_MESSAGE = "기록이 정상적으로 신고되었습니다.";
-
     public static ReportActivityRecordResDto from(ReportActivityRecordDto record) {
         return new ReportActivityRecordResDto(
                 record.getRecordId(),
                 record.getWriterId(),
                 record.getWriterNickname(),
-                SUCCESS_MESSAGE
+                RecordSuccessCode.REPORT_RECORD_SUCCESS.getMessage()
         );
     }
 }

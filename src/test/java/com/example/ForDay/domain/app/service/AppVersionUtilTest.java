@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.app.service;
 
+import com.example.ForDay.domain.app.utils.AppVersionUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

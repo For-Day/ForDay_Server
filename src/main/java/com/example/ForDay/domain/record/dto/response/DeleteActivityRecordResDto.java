@@ -1,11 +1,12 @@
 package com.example.ForDay.domain.record.dto.response;
 
+import com.example.ForDay.global.common.response.message.RecordSuccessCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.RecordSuccessMessage.DELETE_RECORD_SUCCESS;
+import static com.example.ForDay.global.common.response.message.RecordSuccessCode.DELETE_RECORD_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -22,7 +23,7 @@ public class DeleteActivityRecordResDto {
 
     public static DeleteActivityRecordResDto of(Long recordId, String deleteImageUrl) {
         return new DeleteActivityRecordResDto(
-                DELETE_RECORD_SUCCESS,
+                RecordSuccessCode.DELETE_RECORD_SUCCESS.getMessage(),
                 recordId,
                 deleteImageUrl
         );

@@ -3,6 +3,7 @@ package com.example.ForDay.domain.record.dto.response;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.global.common.response.message.RecordSuccessCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -38,7 +39,7 @@ public class UpdateActivityRecordResDto {
 
     public static UpdateActivityRecordResDto of(Activity activity, ActivityRecord record) {
         return new UpdateActivityRecordResDto(
-                SUCCESS_MESSAGE,
+                RecordSuccessCode.UPDATE_RECORD_SUCCESS.getMessage(),
                 activity.getId(),
                 activity.getContent(),
                 record.getSticker(),

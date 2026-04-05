@@ -3,7 +3,6 @@ package com.example.ForDay.infra.s3.service;
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.Headers;
-import com.amazonaws.services.s3.model.CopyObjectRequest;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.example.ForDay.domain.app.type.ImageUsageType;
 import com.example.ForDay.infra.s3.property.S3Properties;
