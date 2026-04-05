@@ -2,6 +2,7 @@ package com.example.ForDay.domain.activity.controller;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
+import com.example.ForDay.domain.activity.service.ActivityRecommendItemService;
 import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.domain.activity.type.AIItemType;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/activities")
 public class ActivityController implements ActivityControllerDocs {
     private final ActivityService activityService;
+    private final ActivityRecommendItemService recommendItemService;
 
     @Override
     @PatchMapping("/{activityId}")
@@ -37,6 +39,6 @@ public class ActivityController implements ActivityControllerDocs {
     public GetAiRecommendItemsResDto getAiRecommendItems(@RequestParam(name = "hobbyId") Long hobbyId,
                                                          @RequestParam(name = "type", defaultValue = "ALL") AIItemType type,
                                                          @AuthenticationPrincipal CustomUserDetails user) {
-        return activityService.getAiRecommendItems(hobbyId, user, type);
+        return recommendItemService.getAiRecommendItems(hobbyId, user, type);
     }
 }

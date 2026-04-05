@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.app.service;
+package com.example.ForDay.domain.app.utils;
 
 import java.util.Objects;
 

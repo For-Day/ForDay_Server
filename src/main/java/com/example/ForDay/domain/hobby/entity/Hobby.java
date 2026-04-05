@@ -133,11 +133,9 @@ public class Hobby extends BaseTimeEntity {
     }
 
     public void validateCanRecord() {
-        // 1. 진행 상태 확인
         if (this.status != HobbyStatus.IN_PROGRESS) {
             throw new CustomException(ErrorCode.INVALID_HOBBY_STATUS);
         }
-        // 2. 이미 다 채웠는지 확인
         if (this.isStickerFull()) {
             throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
         }

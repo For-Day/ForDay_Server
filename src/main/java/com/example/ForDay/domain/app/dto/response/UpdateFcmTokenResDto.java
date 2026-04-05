@@ -1,10 +1,11 @@
 package com.example.ForDay.domain.app.dto.response;
 
+import com.example.ForDay.global.common.response.message.AppSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import static com.example.ForDay.global.common.response.message.AppSuccessMessage.UPDATE_FCM_TOKEN_SUCCESS;
+import static com.example.ForDay.global.common.response.message.AppSuccessCode.UPDATE_FCM_TOKEN_SUCCESS;
 
 @Data
 @AllArgsConstructor
@@ -16,7 +17,7 @@ public class UpdateFcmTokenResDto {
 
     public static UpdateFcmTokenResDto of(String deviceId, String newFcmToken) {
         return new UpdateFcmTokenResDto(
-                UPDATE_FCM_TOKEN_SUCCESS,
+                AppSuccessCode.UPDATE_FCM_TOKEN_SUCCESS.getMessage(),
                 newFcmToken,
                 deviceId
         );

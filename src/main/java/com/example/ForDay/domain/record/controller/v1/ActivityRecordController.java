@@ -1,10 +1,13 @@
 package com.example.ForDay.domain.record.controller.v1;
 
+import com.example.ForDay.domain.reaction.service.ReactionService;
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.ReportActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
+import com.example.ForDay.domain.record.service.RecordReportService;
+import com.example.ForDay.domain.record.service.RecordScrapService;
 import com.example.ForDay.domain.record.service.v1.ActivityRecordService;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.StoryFilterType;
@@ -19,6 +22,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/records")
 public class ActivityRecordController implements ActivityRecordControllerDocs {
     private final ActivityRecordService activityRecordService;
+    private final ReactionService reactionService;
+    private final RecordScrapService recordScrapService;
+    private final RecordReportService recordReportService;
 
     @Override
     @GetMapping("/{recordId}")
@@ -43,7 +49,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
                                                                @RequestParam(name = "lastUserId", required = false) String lastUserId,
                                                                @RequestParam(name = "size", required = false, defaultValue = "10") Integer size,
                                                                @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.getRecordReactionUsers(recordId, reactionType, user, lastUserId, size);
+        return reactionService.getRecordReactionUsers(recordId, reactionType, user, lastUserId, size);
     }
 
     @Override
@@ -51,7 +57,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     public ReactToRecordResDto reactToRecord(@PathVariable(name = "recordId") Long recordId,
                                              @RequestBody ReactToRecordReqDto reqDto,
                                              @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.reactToRecord(recordId, reqDto.getReactionType(), user);
+        return reactionService.reactToRecord(recordId, reqDto.getReactionType(), user);
     }
 
     @Override
@@ -61,7 +67,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
             @RequestParam(name = "reactionType") RecordReactionType reactionType,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return activityRecordService.cancelReactToRecord(recordId, reactionType, user);
+        return reactionService.cancelReactToRecord(recordId, reactionType, user);
     }
 
 
@@ -84,14 +90,14 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     @PostMapping("/{recordId}/scrap")
     public AddActivityRecordScrapResDto addActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
                                                                @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.addActivityRecordScrap(recordId, user);
+        return recordScrapService.addActivityRecordScrap(recordId, user);
     }
 
     @Override
     @DeleteMapping("/{recordId}/scrap")
     public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(@PathVariable(value = "recordId") Long recordId,
                                                                      @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.deleteActivityRecordScrap(recordId, user);
+        return recordScrapService.deleteActivityRecordScrap(recordId, user);
     }
 
     @Override
@@ -99,7 +105,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
     public ReportActivityRecordResDto reportActivityRecord(@PathVariable(value = "recordId") Long recordId,
                                                            @RequestBody @Valid ReportActivityRecordReqDto reqDto,
                                                            @AuthenticationPrincipal CustomUserDetails user) {
-        return activityRecordService.reportActivityRecord(recordId, reqDto, user);
+        return recordReportService.reportActivityRecord(recordId, reqDto, user);
     }
 
     @Override

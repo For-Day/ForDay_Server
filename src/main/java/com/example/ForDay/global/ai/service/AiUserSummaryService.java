@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.hobby.service;
+package com.example.ForDay.global.ai.service;
 
 import com.example.ForDay.domain.hobby.dto.request.ActivitySummaryRequest;
 import com.example.ForDay.domain.hobby.dto.response.ActivitySummaryResponse;
@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserSummaryAIService {
+public class AiUserSummaryService {
 
     public static final String AI_USER_SUMMARY_PREFIX = "ai:user:summary:text";
     public static final String AI_USER_SUMMARY_FORMAT = AI_USER_SUMMARY_PREFIX + ":%s:%s";

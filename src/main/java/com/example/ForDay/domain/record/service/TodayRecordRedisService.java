@@ -1,10 +1,13 @@
-package com.example.ForDay.domain.activity.service;
+package com.example.ForDay.domain.record.service;
 
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -12,6 +15,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TodayRecordRedisService {
     public static final String RECORD_KEY_PREFIX = "record";
     public static final String RECORD_KEY_FORMAT = RECORD_KEY_PREFIX + ":%s:%s:%s";
@@ -52,8 +56,22 @@ public class TodayRecordRedisService {
     }
 
     public void markAsRecorded(String userId, Long hobbyId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    executeMarkAsRecorded(userId, hobbyId);
+                }
+            });
+        } else {
+            executeMarkAsRecorded(userId, hobbyId);
+        }
+    }
+
+    private void executeMarkAsRecorded(String userId, Long hobbyId) {
         String key = createRecordKey(userId, hobbyId);
         setDataExpire(key, "recorded");
+        log.info("[Redis] 기록 완료 상태 저장 - Key: {}", key);
     }
 
     public boolean isRecordedToday(String userId, Long hobbyId) {
