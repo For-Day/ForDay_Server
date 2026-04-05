@@ -147,7 +147,6 @@ public class ActivityService {
     @Transactional
     public CollectActivityResDto collectActivity(Long hobbyId, Long activityId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-
         log.info("[Activity Collect] 시작 - 사용자: {}, 취미ID: {}, 활동ID: {}", currentUser.getId(), hobbyId, activityId);
 
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
