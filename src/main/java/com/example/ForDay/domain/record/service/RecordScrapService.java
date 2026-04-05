@@ -30,7 +30,6 @@ public class RecordScrapService {
     @Transactional
     public AddActivityRecordScrapResDto addActivityRecordScrap(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-
         getAccessibleRecordWithUser(recordId, currentUser);
         validateDuplicateScrap(recordId, currentUser.getId());
 
@@ -43,7 +42,6 @@ public class RecordScrapService {
     @Transactional
     public DeleteActivityRecordScrapResDto deleteActivityRecordScrap(Long recordId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-
         Optional<ActivityRecordScrap> scrap = activityRecordScrapRepository.findByActivityRecordIdAndUserId(recordId, currentUser.getId());
 
         if (scrap.isEmpty()) {

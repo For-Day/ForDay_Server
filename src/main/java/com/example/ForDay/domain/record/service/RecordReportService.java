@@ -33,18 +33,10 @@ public class RecordReportService {
     @Transactional
     public ReportActivityRecordResDto reportActivityRecord(Long recordId, ReportActivityRecordReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-
         log.info("[reportActivityRecord] 신고 요청 - recordId={}, reporter={}", recordId, currentUser.getId());
-
-        // 기록 조회 + 접근 권한 검증
         ReportActivityRecordDto record = getAccessibleReportRecord(recordId, currentUser);
-
-        // 중복 신고 방지
         validateDuplicateReport(record.getRecordId(), currentUser.getId());
-
-        // 신고 저장
         saveReport(record, currentUser, reqDto.getReason());
-
         log.info("[reportActivityRecord] 신고 완료 - recordId={}", recordId);
 
         return ReportActivityRecordResDto.from(record);

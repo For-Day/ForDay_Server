@@ -50,12 +50,9 @@ public class ReactionService {
     @Transactional(readOnly = true)
     public ReactionSummaryResDto getReactionSummary(Long recordId, int size, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        ActivityRecord record = activityRecordUtil.getRecord(recordId); // 조회하고자하는 기록 엔티티 조회
-
-        // 감정 갯수 요약 조회 (무한 스크롤 상관없이 전체 조회해야함) -> 이걸 별도의 ReactionCount 테이블 만들어서 관리 그래서 반응 남길 때 lock 거는 로직 필요
+        ActivityRecord record = activityRecordUtil.getRecord(recordId);
         ReactionSummaryResDto.ReactionCountDto reactionCountDto = getReactionCountSummary(record.getId());
 
-        // size에 따른 전체 유저 목록 조회
         Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs = activityRecordReactionRepository.getReactionSummary(recordId, size, currentUser.getId());
         processReactionProfileUrls(tabs);
 
@@ -72,7 +69,6 @@ public class ReactionService {
 
     @Transactional
     public GetRecordReactionUsersResDto getRecordReactionUsers(Long recordId, RecordReactionType type, CustomUserDetails user, String lastUserId, Integer size) {
-        // 엔티티 전체 대신 권한 확인용 DTO만 조회 (Fetch Join 제거 효과)
         RecordDetailQueryDto recordDetail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
@@ -84,11 +80,8 @@ public class ReactionService {
         activityRecordUtil.validateAccess(currentUserId, recordDetail.writerId(), recordDetail.writerDeleted(), recordDetail.visibility());
 
         boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, recordDetail.writerId());
-        // 리포지토리에서 DTO(ReactionUserInfo)로 직접 조회하여 N+1 및 오버페칭 방지
         List<GetRecordReactionUsersResDto.ReactionUserInfo> reactionUsers = recordReactionRepository.findReactionUsersDtoByType(recordId, type, lastUserId, size, isRecordOwner);
 
-
-        // 게시글 주인인 경우에만 벌크 업데이트 실행
         if (isRecordOwner) {
             recordReactionRepository.markAsReadByRecordIdAndType(recordId, type);
         }
@@ -107,12 +100,10 @@ public class ReactionService {
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
-        // 반응 수 증가
         int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
         if (result == 0) {
             recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
         }
-        // 리액션 증가에 따른 랭킹 점수 업데이트
         reactionRankingService.incrementRankingScore(record.getRecordId());
 
         if(!isRecordOwner(currentUser, record)) {
@@ -135,8 +126,6 @@ public class ReactionService {
 
         String key = REACTION_DONE_KEY_FORMAT.formatted(recordId, userId);
         redisTemplate.opsForSet().remove(key, type.name());
-
-        // Redis 점수 차감
         reactionRankingService.decrementRankingScore(recordId);
 
         log.info("[cancelReactToRecord] 리액션 취소 완료 - RecordId: {}, UserId: {}", recordId, userId);
@@ -156,7 +145,6 @@ public class ReactionService {
     }
 
     private ReactionSummaryResDto.ReactionCountDto getReactionCountSummary(Long recordId) {
-        // recordId에 해당하는 ActivityRecordReactionCount 조회
         return activityRecordReactionCountRepository.findById(recordId)
                 .map(ReactionSummaryResDto::from)
                 .orElseGet(ReactionSummaryResDto::empty);

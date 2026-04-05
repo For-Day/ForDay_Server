@@ -60,18 +60,15 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public NicknameCheckResDto nicknameCheck(String nickname) {
-        // 형식 검증 (길이, 허용 문자)
         Optional<String> validationMessage = validateNicknameFormat(nickname);
         if (validationMessage.isPresent()) {
             return new NicknameCheckResDto(nickname, false, validationMessage.get());
         }
 
-        // 중복 검증 (DB 조회)
         if (isExistsByNickname(nickname)) {
             return NicknameCheckResDto.alreadyUsedNickname(nickname);
         }
 
-        // 사용 가능 응답
         return NicknameCheckResDto.canUseNickname(nickname);
     }
 
@@ -94,7 +91,6 @@ public class UserService {
         String targetId;
 
         if (userId != null) {
-            // 다른 사용자 정보 조회시 (차단 관계, 탈퇴한 회원인지 고려)
             User currentUser = userUtil.getCurrentUser(user);
             targetId = userId;
             targetUser = userRepository.findById(targetId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -133,12 +129,8 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetHobbyInProgressResDto getHobbyInProgress(CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
-        // 조회 대상 유저 확정 및 검증
         User targetUser = resolveTargetUser(currentUser, userId);
-        // 취미 리스트 조회
         List<GetHobbyInProgressResDto.HobbyDto> hobbyList = hobbyRepository.findUserTabHobbyList(targetUser);
-
-        // 썸네일 URL 가공 (커버 사이즈용)
         processHobbyThumbnailUrls(hobbyList);
 
         return GetHobbyInProgressResDto.of(targetUser, hobbyList);
@@ -155,18 +147,15 @@ public class UserService {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
 
-        // 조회 대상 유저 및 권한 확정
         TargetUserInfo targetInfo = resolveTargetUserInfo(currentUserId, userId, currentUser);
-        // 전체 개수 조회 (첫 페이지 진입 시에만)
+
         Long totalFeedCount = (lastRecordId == null)
                 ? activityRecordRepository.countRecordByHobbyIds(hobbyIds, targetInfo.user().getId())
                 : null;
 
-        // 피드 목록 조회 (Slice 페이징을 위해 feedSize + 1)
         List<GetUserFeedListResDto.FeedDto> feedList = activityRecordRepository.findUserFeedList(
                 hobbyIds, lastRecordId, feedSize + 1, targetInfo.user().getId(), targetInfo.visibilities(), currentUserId
         );
-        // 썸네일 URL 리사이징 처리
         processFeedThumbnailUrls(feedList);
 
         return GetUserFeedListResDto.of(feedList, totalFeedCount, feedSize);
@@ -175,7 +164,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public GetUserHobbyCardListResDto getUserHobbyCardList(Long lastHobbyCardId, Integer size, CustomUserDetails user, String userId) {
         String currentUserId = user.getUserId();
-        String targetUserId = (userId == null) ? currentUserId : userId; // 조회하고자하는 유저
+        String targetUserId = (userId == null) ? currentUserId : userId;
 
         if (userId != null) {
             User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -191,24 +180,16 @@ public class UserService {
     public GetUserScrapListResDto getUserScrapList(Long lastScrapId, Integer size, CustomUserDetails user, String userId) {
         User currentUser = userUtil.getCurrentUser(user);
         String currentUserId = currentUser.getId();
-
-        // 조회 대상 결정 (본인 또는 타인)
         String targetUserId = (userId == null) ? currentUserId : userId;
         boolean isMyScrap = targetUserId.equals(currentUserId);
 
-        // 노출 권한(Visibility) 리스트 결정
         List<RecordVisibility> visibilities = resolveVisibilities(currentUserId, targetUserId, isMyScrap);
-
-        // 데이터 조회 (Slice 방식 페이징을 위해 size + 1 조회)
         List<GetUserScrapListResDto.ScrapDto> scrapDtos = activityRecordScrapRepository.getScrapList(
                 lastScrapId, size + 1, targetUserId, currentUserId, visibilities
         );
-
-        // 이미지 URL 가공 및 결과 생성
         processThumbnailUrls(scrapDtos);
 
         long totalCount = (lastScrapId == null) ? activityRecordScrapRepository.countByUserId(targetUserId) : 0;
-
         return GetUserScrapListResDto.of(scrapDtos, totalCount, size);
     }
 
@@ -238,21 +219,17 @@ public class UserService {
 
     private List<RecordVisibility> resolveVisibilities(String currentUserId, String targetUserId, boolean isMyScrap) {
         if (isMyScrap) {
-            // 내 스크랩은 모든 권한(PUBLIC, FRIEND, PRIVATE) 조회 가능
             return List.of(RecordVisibility.PUBLIC, RecordVisibility.FRIEND, RecordVisibility.PRIVATE);
         }
 
-        // 타인 조회 시 기본은 PUBLIC
         List<RecordVisibility> visibilities = new ArrayList<>(List.of(RecordVisibility.PUBLIC));
 
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 차단 및 탈퇴 상태 체크
         List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
         activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 
-        // 팔로우 관계라면 FRIEND 권한 추가
         if (friendRelationRepository.existsByFriendship(currentUserId, targetUserId, FriendRelationStatus.FOLLOW)) {
             visibilities.add(RecordVisibility.FRIEND);
         }
@@ -268,11 +245,9 @@ public class UserService {
 
     private TargetUserInfo resolveTargetUserInfo(String currentUserId, String targetUserId, User currentUser) {
         if (targetUserId == null || targetUserId.equals(currentUserId)) {
-            // 내 피드 조회 시 모든 권한 반환
             return new TargetUserInfo(currentUser, List.of(RecordVisibility.PUBLIC, RecordVisibility.FRIEND, RecordVisibility.PRIVATE));
         }
 
-        // 남의 피드 조회 시 검증 및 관계 확인
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         List<FriendRelation> relations = activityRecordUtil.getRelations(currentUserId, targetUserId);
@@ -305,7 +280,6 @@ public class UserService {
 
         User targetUser = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 차단 및 탈퇴 상태 체크
         List<FriendRelation> relations = activityRecordUtil.getRelations(currentUser.getId(), targetUser.getId());
         activityRecordUtil.checkBlockedAndDeletedUser(relations, targetUser.isDeleted());
 

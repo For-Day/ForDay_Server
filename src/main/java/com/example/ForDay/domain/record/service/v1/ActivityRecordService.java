@@ -30,7 +30,6 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.service.S3Service;
 import com.example.ForDay.infra.s3.util.S3Util;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +49,6 @@ public class ActivityRecordService {
     private final ActivityRecordRepository activityRecordRepository;
     private final UserUtil userUtil;
     private final ActivityRecordReactionRepository recordReactionRepository;
-    private final S3Service s3Service;
     private final ActivityRecordUtil activityRecordUtil;
     private final ActivityUtil activityUtil;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
