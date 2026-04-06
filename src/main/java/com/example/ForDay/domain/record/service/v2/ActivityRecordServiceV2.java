@@ -63,14 +63,14 @@ public class ActivityRecordServiceV2 {
             activityRecordUtil.validateAccess(currentUser.getId(), detail.writerId(), detail.writerDeleted(), detail.visibility());
         }
 
-        List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
+        List<ReactionSummary> summaries = recordReactionRepository.findOptimizedSummaries(recordId, currentUser.getId());
 
         Long prevId = activityRecordRepository.findPrevRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
         Long nextId = activityRecordRepository.findNextRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
 
         if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
 
-        return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()));
+        return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()), currentUser.getId());
     }
 
     @Transactional
