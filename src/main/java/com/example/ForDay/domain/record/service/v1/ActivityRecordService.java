@@ -81,7 +81,7 @@ public class ActivityRecordService {
             activityRecordUtil.validateAccess(currentUserId, detail.writerId(), detail.writerDeleted(), detail.visibility());
         }
 
-        List<ReactionSummary> summaries = recordReactionRepository.findReactionSummariesByRecordId(recordId);
+        List<ReactionSummary> summaries = recordReactionRepository.findOptimizedSummaries(recordId, currentUserId);
 
         boolean scraped = activityRecordScrapRepository.existsByScrap(detail.recordId(), currentUserId);
 

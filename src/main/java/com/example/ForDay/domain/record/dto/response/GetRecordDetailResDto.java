@@ -19,7 +19,7 @@ import java.util.List;
 @Builder
 @Schema(description = "기록 상세 조회 응답 DTO")
 public class GetRecordDetailResDto {
-    private Long hobbyId; //
+    private Long hobbyId;
     private String hobbyName;
     private Long activityId;
     private String activityContent;
@@ -29,19 +29,18 @@ public class GetRecordDetailResDto {
     private String createdAt;
     private String memo;
     private boolean recordOwner;
-    private boolean scraped; //
-    private UserInfoDto userInfo; //
+    private boolean scraped;
+    private UserInfoDto userInfo;
     private RecordVisibility visibility;
     private NewReactionDto newReaction;
     private UserReactionDto userReaction;
 
-    public static GetRecordDetailResDto of(
-            RecordDetailQueryDto detail,
-            boolean isOwner,
-            boolean scraped,
-            NewReactionDto newReaction,
-            UserReactionDto userReaction,
-            String profileImageUrl) {
+    public static GetRecordDetailResDto of(RecordDetailQueryDto detail,
+                                           boolean isOwner,
+                                           boolean scraped,
+                                           NewReactionDto newReaction,
+                                           UserReactionDto userReaction,
+                                           String profileImageUrl) {
         return GetRecordDetailResDto.builder()
                 .hobbyId(detail.hobbyId())
                 .hobbyName(detail.hobbyName())
