@@ -24,6 +24,16 @@ public interface ActivityRecordReactionRepository extends JpaRepository <Activit
             "FROM ActivityRecordReaction r WHERE r.activityRecord.id = :recordId")
     List<ReactionSummary> findReactionSummariesByRecordId(@Param("recordId") Long recordId);
 
+    @Query("SELECT new com.example.ForDay.domain.record.dto.ReactionSummary(" +
+            "r.reactionType, r.reactedUser.id, r.readWriter) " +
+            "FROM ActivityRecordReaction r " +
+            "WHERE r.activityRecord.id = :recordId " +
+            "AND (r.reactedUser.id = :readerId OR r.readWriter = false)")
+    List<ReactionSummary> findOptimizedSummaries(
+            @Param("recordId") Long recordId,
+            @Param("readerId") String readerId
+    );
+
     @Query("SELECT new com.example.ForDay.domain.record.dto.ReactionCountDto(r.activityRecord.id, COUNT(r)) " +
             "FROM ActivityRecordReaction r " +
             "WHERE r.createdAt >= :start AND r.createdAt <= :end " +
