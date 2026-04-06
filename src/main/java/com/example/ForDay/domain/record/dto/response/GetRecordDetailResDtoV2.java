@@ -37,12 +37,13 @@ public class GetRecordDetailResDtoV2 {
     private Long nextRecordId;
 
     public static GetRecordDetailResDtoV2 of(RecordDetailQueryDto detail,
-            boolean isRecordOwner,
-            boolean scraped,
-            Long prevId,
-            Long nextId,
-            List<ReactionSummary> summaries,
-            String profileImageUrl) {
+                                             boolean isRecordOwner,
+                                             boolean scraped,
+                                             Long prevId,
+                                             Long nextId,
+                                             List<ReactionSummary> summaries,
+                                             String profileImageUrl,
+                                             String readerId) {
         return GetRecordDetailResDtoV2.builder()
                 .hobbyId(detail.hobbyId())
                 .hobbyName(detail.hobbyName())
@@ -58,7 +59,7 @@ public class GetRecordDetailResDtoV2 {
                 .userInfo(UserInfoDto.of(detail, profileImageUrl))
                 .visibility(detail.visibility())
                 .newReaction(NewReactionDto.of(summaries, isRecordOwner))
-                .userReaction(UserReactionDto.of(summaries, detail.writerId()))
+                .userReaction(UserReactionDto.of(summaries, readerId))
                 .prevRecordId(prevId)
                 .nextRecordId(nextId)
                 .build();
@@ -80,6 +81,7 @@ public class GetRecordDetailResDtoV2 {
             List<RecordReactionType> unreadTypes = summaries.stream()
                     .filter(s -> !s.readWriter())
                     .map(ReactionSummary::type)
+                    .distinct()
                     .toList();
             return new NewReactionDto(
                     unreadTypes.contains(RecordReactionType.AWESOME),
@@ -107,9 +109,9 @@ public class GetRecordDetailResDtoV2 {
         @Schema(description = "Fighting 리액션 클릭 여부", example = "true")
         private boolean pressedFighting;
 
-        public static UserReactionDto of(List<ReactionSummary> summaries, String userId) {
+        public static UserReactionDto of(List<ReactionSummary> summaries, String readerId) {
             List<RecordReactionType> myTypes = summaries.stream()
-                    .filter(s -> s.reactedUserId().equals(userId))
+                    .filter(s -> s.reactedUserId().equals(readerId))
                     .map(ReactionSummary::type)
                     .toList();
             return new UserReactionDto(
