@@ -104,7 +104,7 @@ jobs:
               --network forday-net \
               -e SPRING_PROFILES_ACTIVE=$TARGET \
               -p $TARGET_PORT:8080 \
-              -e SPRING_DATA_REDIS_HOST=172.17.0.1 \
+              -e SPRING_DATA_REDIS_HOST=redis \
               -e SPRING_DATA_REDIS_PORT=6379 \
               -e SPRING_RABBITMQ_HOST=rabbitmq \
               -e SPRING_RABBITMQ_USERNAME=guest \
