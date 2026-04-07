@@ -59,6 +59,13 @@ public class FcmTokenService {
     public String registerFcmToken(User user, String fcmToken, String deviceId, DeviceType deviceType) {
         if (fcmToken == null || deviceId == null) return null;
 
+        fcmTokenRepository.findByFcmToken(fcmToken).ifPresent(existingToken -> {
+            if (!existingToken.getUser().getId().equals(user.getId())) {
+                fcmTokenRepository.delete(existingToken);
+                fcmTokenRepository.flush();
+            }
+        });
+
         FcmToken savedToken = fcmTokenRepository
                 .findByUserIdAndDeviceId(user.getId(), deviceId)
                 .map(token -> {
@@ -70,6 +77,7 @@ public class FcmTokenService {
                 .orElseGet(() ->
                         fcmTokenRepository.save(FcmToken.createFcmToken(deviceId, user, fcmToken, deviceType))
                 );
+
         return savedToken.getFcmToken();
     }
 
