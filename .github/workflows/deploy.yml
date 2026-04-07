@@ -101,6 +101,7 @@ jobs:
              docker run -d \
               --name $TARGET \
               --restart=always \
+              --network forday-net \
               -e SPRING_PROFILES_ACTIVE=$TARGET \
               -p $TARGET_PORT:8080 \
               -e SPRING_DATA_REDIS_HOST=172.17.0.1 \
