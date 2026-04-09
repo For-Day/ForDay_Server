@@ -55,6 +55,7 @@ public class ReactionService {
 
         Map<String, ReactionSummaryResDto.ReactionSliceDto> tabs = activityRecordReactionRepository.getReactionSummary(recordId, size, currentUser.getId());
         processReactionProfileUrls(tabs);
+        tabs.values().forEach(slice -> processWithdrawnUsers(slice.getUsers()));
 
         return ReactionSummaryResDto.of(record.getId(), reactionCountDto, tabs);
     }
@@ -64,7 +65,13 @@ public class ReactionService {
         User currentUser = userUtil.getCurrentUser(user);
         ActivityRecord record = activityRecordUtil.getRecord(recordId);
 
-        return activityRecordReactionRepository.getReactionTabScroll(record.getId(), type, lastReactionId, size, currentUser.getId());
+        ReactionTabScrollResDto response = activityRecordReactionRepository.getReactionTabScroll(record.getId(), type, lastReactionId, size, currentUser.getId());
+
+        if (response != null && response.getTabs() != null) {
+            response.getTabs().values().forEach(slice -> processWithdrawnUsers(slice.getUsers()));
+        }
+
+        return response;
     }
 
     @Transactional
@@ -158,5 +165,14 @@ public class ReactionService {
         if (recordReactionRepository.existsByRecordIdAndUserIdAndType(recordId, userId, type)) {
             throw new CustomException(ErrorCode.DUPLICATE_REACTION);
         }
+    }
+
+    private void processWithdrawnUsers(List<ReactionSummaryResDto.ReactionUserDto> users) {
+        if (users == null) return;
+        users.forEach(userDto -> {
+            if (userDto.getNickname() != null && userDto.getNickname().startsWith("WITHDRAWN")) {
+                userDto.setNickname("탈퇴한 사용자");
+            }
+        });
     }
 }
