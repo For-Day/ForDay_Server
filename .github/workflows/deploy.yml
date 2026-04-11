@@ -20,7 +20,7 @@ jobs:
 
       - name: Create firebase.json
         run: |
-          cat << 'EOF' > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-a074ad2c40.json
+          cat << 'EOF' > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
           ${{ secrets.FIREBASE_JSON }}
           EOF
 
