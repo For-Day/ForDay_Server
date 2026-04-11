@@ -103,6 +103,8 @@ jobs:
               --name $TARGET \
               --restart=always \
               --network forday-net \
+              -v /etc/localtime:/etc/localtime:ro \
+              -e TZ=Asia/Seoul \
               -e SPRING_PROFILES_ACTIVE=$TARGET \
               -p $TARGET_PORT:8080 \
               -e SPRING_DATA_REDIS_HOST=redis \
