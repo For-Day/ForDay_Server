@@ -18,8 +18,12 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Create firebase.json
-        run: echo '${{ secrets.FIREBASE_JSON_BASE64 }}' | base64 --decode > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
+      - name: Create Firebase JSON
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json"
+          json: ${{ secrets.FIREBASE_JSON }}
+          dir: "src/main/resources/"
 
       - name: Create application.yml
         run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
