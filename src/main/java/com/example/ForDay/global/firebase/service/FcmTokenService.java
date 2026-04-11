@@ -28,7 +28,7 @@ public class FcmTokenService {
     private final FirebaseMessaging firebaseMessaging;
     private final FcmTokenRepository fcmTokenRepository;
 
-    public String sendNotificationByToken(FcmNotificationReqDto reqDto) {
+    public void sendNotificationByToken(FcmNotificationReqDto reqDto) {
         if (existsFcmToken(reqDto.getFcmToken())) {
             Notification notification = Notification.builder()
                     .setTitle(reqDto.getTitle())
@@ -44,13 +44,15 @@ public class FcmTokenService {
 
             try {
                 firebaseMessaging.send(message);
-                return "알림을 성공적으로 전송했습니다. fcmToken= " + reqDto.getFcmToken();
+                log.info("알림을 성공적으로 전송했습니다. fcmToken= {}", reqDto.getFcmToken());
             } catch (FirebaseMessagingException e) {
-                log.error(e.getMessage());
-                return "알림 보내기를 실패하였습니다. fcmToken= " + reqDto.getFcmToken();
+                log.error("FCM 전송 실패 에러 코드: {}", e.getMessagingErrorCode()); // 구체적인 에러 코드
+                log.error("FCM 에러 메시지: {}", e.getMessage());
+                log.error("HTTP 응답 상태: {}", e.getHttpResponse() != null ? e.getHttpResponse().getStatusCode() : "N/A");
+                log.error("알림 보내기를 실패하였습니다. fcmToken= {}", reqDto.getFcmToken());
             }
         } else {
-            return "서버에 저장된 유저의 FirebaseToken이 존재하지 않습니다. fcmToken= " + reqDto.getFcmToken();
+            log.warn("서버에 저장된 유저의 FirebaseToken이 존재하지 않습니다. fcmToken= {}", reqDto.getFcmToken());
         }
     }
 
