@@ -9,7 +9,7 @@ export const options = {
 
 const reactionTypes = ['AWESOME', 'GREAT', 'AMAZING', 'FIGHTING'];
 
-// 게스트 로그인해서 토큰 받아오기
+// 게스트 로그인해서 토큰 받아오기a
 export function setup() {
   const loginRes = http.post(
       'http://localhost:8080/auth/guest',
