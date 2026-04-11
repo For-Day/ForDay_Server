@@ -20,7 +20,9 @@ jobs:
 
       - name: Create firebase.json
         run: |
-          echo "${{ secrets.FIREBASE_JSON }}" | base64 --decode > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-a074ad2c40.json
+          cat << 'EOF' > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-a074ad2c40.json
+          ${{ secrets.FIREBASE_JSON }}
+          EOF
 
       - name: Create application.yml
         run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
