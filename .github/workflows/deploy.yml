@@ -19,10 +19,7 @@ jobs:
           java-version: 17
 
       - name: Create firebase.json
-        run: |
-          cat << 'EOF' > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
-          ${{ secrets.FIREBASE_JSON }}
-          EOF
+        run: echo '${{ secrets.FIREBASE_JSON }}' > ./src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
 
       - name: Create application.yml
         run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
