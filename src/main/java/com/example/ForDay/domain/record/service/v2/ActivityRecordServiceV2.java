@@ -55,9 +55,10 @@ public class ActivityRecordServiceV2 {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
 
-        if (detail.recordDeleted()) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
-
         boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUser.getId(), detail.writerId());
+        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
+
+        if (detail.recordDeleted()) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
 
         if (!isRecordOwner) {
             activityRecordUtil.validateAccess(currentUser.getId(), detail.writerId(), detail.writerDeleted(), detail.visibility());
@@ -67,8 +68,6 @@ public class ActivityRecordServiceV2 {
 
         Long prevId = activityRecordRepository.findPrevRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
         Long nextId = activityRecordRepository.findNextRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
-
-        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
 
         return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()), currentUser.getId());
     }
