@@ -69,11 +69,13 @@ public class ActivityRecordService {
     public GetRecordDetailResDto getRecordDetail(Long recordId, CustomUserDetails user, Long notificationId) {
         RecordDetailQueryDto detail = activityRecordRepository.findDetailDtoById(recordId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
+        String currentUserId = userUtil.getCurrentUser(user).getId();
+
+        boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, detail.writerId());
+        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
 
         if (detail.recordDeleted()) throw new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND);
 
-        String currentUserId = userUtil.getCurrentUser(user).getId();
-        boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUserId, detail.writerId());
         log.info("[getRecordDetail] 권한 확인 - WriterId: {}, IsOwner: {}", detail.writerId(), isRecordOwner);
 
         if (!isRecordOwner) {
@@ -89,8 +91,6 @@ public class ActivityRecordService {
                 recordId, detail.writerId(), summaries.size(), scraped);
 
         String profileImageUrl = s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl());
-
-        if(isRecordOwner) notificationService.markAsReadIfUnread(notificationId);
 
         return GetRecordDetailResDto.of(detail, isRecordOwner, scraped, GetRecordDetailResDto.NewReactionDto.of(summaries, isRecordOwner), GetRecordDetailResDto.UserReactionDto.of(summaries, currentUserId), profileImageUrl);
     }

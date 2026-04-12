@@ -47,7 +47,7 @@ public class ReactionService {
     private final RedisTemplate<String, String> redisTemplate;
     private final NotificationService notificationService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ReactionSummaryResDto getReactionSummary(Long recordId, int size, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         ActivityRecord record = activityRecordUtil.getRecord(recordId);
@@ -57,10 +57,16 @@ public class ReactionService {
         processReactionProfileUrls(tabs);
         tabs.values().forEach(slice -> processWithdrawnUsers(slice.getUsers()));
 
+        boolean isRecordOwner = activityRecordUtil.isRecordOwner(currentUser.getId(), record.getUser().getId());
+
+        if (isRecordOwner) {
+            recordReactionRepository.markAsReadByRecordId(recordId);
+        }
+
         return ReactionSummaryResDto.of(record.getId(), reactionCountDto, tabs);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ReactionTabScrollResDto getReactionTabScroll(Long recordId, RecordReactionType type, Long lastReactionId, int size, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
         ActivityRecord record = activityRecordUtil.getRecord(recordId);

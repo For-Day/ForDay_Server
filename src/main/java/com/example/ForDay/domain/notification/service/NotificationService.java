@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -148,6 +149,7 @@ public class NotificationService {
         return Objects.equals(pushEnabled, active);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markAsReadIfUnread(Long notificationId) {
         log.info("읽음 표시 시작");
         if (notificationId != null) {
