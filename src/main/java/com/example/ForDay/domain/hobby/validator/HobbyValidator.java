@@ -54,7 +54,7 @@ public class HobbyValidator {
         // 현재 진행 중인 취미 갯수 + 새로 추가하는 취미 갯수 > 10 이면 예외 발생
         long inProgressHobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, currentUser);
         if(inProgressHobbyCount + addHobbyCount > 10) {
-            throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
+            throw new CustomException(ErrorCode.MAX_HOBBY_EXCEEDED);
         }
 
     }

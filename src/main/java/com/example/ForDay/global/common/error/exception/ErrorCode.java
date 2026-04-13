@@ -44,6 +44,8 @@ public enum ErrorCode {
     HOBBY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미입니다."),
     NOT_HOBBY_OWNER(HttpStatus.FORBIDDEN, "취미 소유자가 아닙니다."),
     MAX_IN_PROGRESS_HOBBY_EXCEEDED(HttpStatus.BAD_REQUEST, "이미 진행 중인 취미는 최대 2개까지 등록할 수 있습니다."),
+
+    MAX_HOBBY_EXCEEDED(HttpStatus.BAD_REQUEST, "취미는 최대 10개까지 등록할 수 있습니다."),
     INVALID_HOBBY_STATUS(HttpStatus.BAD_REQUEST, "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."),
     STICKER_COMPLETION_REACHED(HttpStatus.BAD_REQUEST, "해당 취미의 스티커 수가 이미 최대치에 도달했습니다."),
     INVALID_HOBBY_EXTENSION_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 취미 기간 설정 타입입니다."),

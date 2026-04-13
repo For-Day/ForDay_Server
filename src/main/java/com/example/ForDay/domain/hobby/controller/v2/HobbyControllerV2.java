@@ -13,9 +13,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v2/hobbies")
-public class HobbyControllerV2  {
+public class HobbyControllerV2 implements HobbyControllerV2Docs{
     private final HobbyServiceV2 hobbyServiceV2;
 
+    @Override
     @PostMapping("/create")
     public HobbyCreateResDtoV2 hobbyCreate(@RequestBody @Valid HobbyCreateReqDtoV2 reqDto,
                                            @AuthenticationPrincipal CustomUserDetails user) {
