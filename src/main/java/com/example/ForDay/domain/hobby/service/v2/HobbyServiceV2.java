@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -50,8 +51,23 @@ public class HobbyServiceV2 {
         return HobbyCreateResDtoV2.from(savedHobbies);
     }
 
+    @Transactional(readOnly = true)
     public MyHobbySettingResDtoV2 myHobbySetting(User currentUser) {
-        return null;
+        List<Hobby> allHobbies = hobbyRepository.findAllByUser(currentUser);
+
+        List<MyHobbySettingResDtoV2.ProgressHobbyList> progressList = allHobbies.stream()
+                .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
+                .sorted(Comparator.comparing(Hobby::getSequence, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(MyHobbySettingResDtoV2.ProgressHobbyList::from)
+                .toList();
+
+        List<MyHobbySettingResDtoV2.HiddenHobbyList> hiddenList = allHobbies.stream()
+                .filter(h -> h.getStatus() == HobbyStatus.ARCHIVED)
+                .sorted(Comparator.comparing(Hobby::getCreatedAt).reversed())
+                .map(MyHobbySettingResDtoV2.HiddenHobbyList::from)
+                .toList();
+
+        return new MyHobbySettingResDtoV2(progressList, hiddenList);
     }
 
     private int getNextStartSequence(User user) {

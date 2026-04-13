@@ -51,4 +51,6 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
             @Param("user") User user,
             @Param("status") HobbyStatus status
     );
+
+    List<Hobby> findAllByUser(User user);
 }

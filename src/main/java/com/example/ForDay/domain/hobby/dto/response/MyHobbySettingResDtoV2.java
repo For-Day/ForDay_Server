@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
+import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -21,7 +22,14 @@ public class MyHobbySettingResDtoV2 {
         private Long hobbyId;
         private String hobbyName;
         private HobbyStatus status;
-        private int sequence;
+
+        public static ProgressHobbyList from(Hobby hobby) {
+            return new ProgressHobbyList(
+                    hobby.getId(),
+                    hobby.getHobbyName(),
+                    hobby.getStatus()
+            );
+        }
     }
 
     @Data
@@ -31,6 +39,13 @@ public class MyHobbySettingResDtoV2 {
         private Long hobbyId;
         private String hobbyName;
         private HobbyStatus status;
-        private int sequence;
+
+        public static HiddenHobbyList from(Hobby hobby) {
+            return new HiddenHobbyList(
+                    hobby.getId(),
+                    hobby.getHobbyName(),
+                    hobby.getStatus()
+            );
+        }
     }
 }
