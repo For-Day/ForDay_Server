@@ -44,4 +44,7 @@ public class HobbyServiceV2 {
 
         return HobbyCreateResDtoV2.from(savedHobbies);
     }
+
+    public MyHobbySettingResDtoV2 myHobbySetting(User currentUser) {
+    }
 }

@@ -71,6 +71,9 @@ public class Hobby extends BaseTimeEntity {
     @Builder.Default
     private String coverImageUrl = null;
 
+    @Column(name = "sequence", nullable = false)
+    private Integer sequence;
+
     public void record() {
         this.currentStickerNum++;
     }
@@ -169,4 +172,8 @@ public class Hobby extends BaseTimeEntity {
                 .build();
     }
 
+    public void updateOrderAndStatus(Integer sequence, HobbyStatus status) {
+        this.sequence = sequence;
+        this.status = status;
+    }
 }
