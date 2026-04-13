@@ -71,7 +71,7 @@ public class Hobby extends BaseTimeEntity {
     @Builder.Default
     private String coverImageUrl = null;
 
-    @Column(name = "sequence", nullable = false)
+    @Column(name = "sequence")
     private Integer sequence;
 
     public void record() {
@@ -163,12 +163,13 @@ public class Hobby extends BaseTimeEntity {
                 .build();
     }
 
-    public static Hobby createNewHobbyV2(User currentUser, HobbyCreateReqDtoV2.HobbyInfo info) {
+    public static Hobby createNewHobbyV2(User currentUser, HobbyCreateReqDtoV2.HobbyInfo info, int sequence) {
         return Hobby.builder()
                 .user(currentUser)
                 .hobbyInfoId(info.getHobbyInfoId())
                 .hobbyName(info.getHobbyName())
                 .status(HobbyStatus.IN_PROGRESS)
+                .sequence(sequence)
                 .build();
     }
 

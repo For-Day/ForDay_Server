@@ -4,6 +4,7 @@ import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.validator.HobbyValidator;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -31,9 +33,12 @@ public class HobbyServiceV2 {
         hobbyValidator.validateMaxInProgressHobbiesV2(currentUser, reqDto.getHobbyList().size());
         hobbyValidator.validateDuplicateHobbyV2(reqDto.getHobbyList(), currentUser);
 
-        List<Hobby> hobbies = reqDto.getHobbyList().stream()
-                .map(info -> Hobby.createNewHobbyV2(currentUser, info))
-                .toList();
+        int nextStartSeq = getNextStartSequence(currentUser);
+
+        List<Hobby> hobbies = new ArrayList<>();
+        for (int i = 0; i < reqDto.getHobbyList().size(); i++) {
+            hobbies.add(Hobby.createNewHobbyV2(currentUser, reqDto.getHobbyList().get(i), nextStartSeq + i));
+        }
 
         List<Hobby> savedHobbies = hobbyRepository.saveAll(hobbies);
 
@@ -46,5 +51,11 @@ public class HobbyServiceV2 {
     }
 
     public MyHobbySettingResDtoV2 myHobbySetting(User currentUser) {
+        return null;
+    }
+
+    private int getNextStartSequence(User user) {
+        Integer maxSeq = hobbyRepository.findMaxSequenceByUserAndStatus(user, HobbyStatus.IN_PROGRESS);
+        return (maxSeq == null) ? 1 : maxSeq + 1;
     }
 }
