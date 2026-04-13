@@ -1,10 +1,10 @@
-package com.example.ForDay.domain.hobby.controller;
+package com.example.ForDay.domain.hobby.controller.v1;
 
 import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.domain.activity.service.OtherActivityService;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
-import com.example.ForDay.domain.hobby.service.HobbyService;
+import com.example.ForDay.domain.hobby.service.v1.HobbyService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -23,8 +23,8 @@ public class HobbyController implements HobbyControllerDocs {
 
     @Override
     @PostMapping("/create")
-    public ActivityCreateResDto hobbyCreate(@RequestBody @Valid ActivityCreateReqDto reqDto,
-                                            @AuthenticationPrincipal CustomUserDetails user) {
+    public HobbyCreateResDto hobbyCreate(@RequestBody @Valid HobbyCreateReqDto reqDto,
+                                         @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.hobbyCreate(reqDto, user);
     }
 

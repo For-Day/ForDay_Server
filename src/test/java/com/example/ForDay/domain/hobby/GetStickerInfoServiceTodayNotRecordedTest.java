@@ -8,7 +8,7 @@ import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
-import com.example.ForDay.domain.hobby.service.HobbyService;
+import com.example.ForDay.domain.hobby.service.v1.HobbyService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;

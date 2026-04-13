@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ActivityCreateReqDto {
+public class HobbyCreateReqDto {
 
     private Long hobbyInfoId;
 

@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.hobby.service;
+package com.example.ForDay.domain.hobby.service.v1;
 
 import com.example.ForDay.domain.activity.entity.ActivityRecommendItem;
 import com.example.ForDay.domain.activity.repository.ActivityRecommendItemRepository;
@@ -11,9 +11,11 @@ import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.service.HobbyAiInsightService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.type.StickerCover;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
+import com.example.ForDay.domain.hobby.validator.HobbyValidator;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -71,32 +73,33 @@ public class HobbyService {
     private final StickerInfoCacheService stickerInfoCacheService;
     private final ActivityCacheService activityCacheService;
     private final NotificationService notificationService;
+    private final HobbyValidator hobbyValidator;
 
     @Transactional
-    public ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails userDetails) {
+    public HobbyCreateResDto hobbyCreate(HobbyCreateReqDto reqDto, CustomUserDetails userDetails) {
         User currentUser = userUtil.getCurrentUser(userDetails);
-        log.info("[ActivityCreate] Start - userId={}, hobbyId={}, hobbyName={}", currentUser.getId(), reqDto.getHobbyInfoId(), reqDto.getHobbyName());
+        log.info("[HobbyCreate] Start - userId={}, hobbyId={}, hobbyName={}", currentUser.getId(), reqDto.getHobbyInfoId(), reqDto.getHobbyName());
 
         if (currentUser.isOnboardingCompleted() && !currentUser.isNicknameSet()) {
             throw new CustomException(ErrorCode.DUPLICATE_HOBBY_REQUEST);
         }
 
-        validateMaxInProgressHobbies(currentUser);
-        validateDuplicateHobby(reqDto, currentUser);
+        hobbyValidator.validateMaxInProgressHobbies(currentUser);
+        hobbyValidator.validateDuplicateHobby(reqDto, currentUser);
         Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, reqDto, DEFAULT_GOAL_DAYS));
 
         if (!currentUser.isOnboardingCompleted()) {
             currentUser.completeOnboarding();
-            log.info("[ActivityCreate] User onboarding marked as completed: userId={}", currentUser.getId());
+            log.info("[HobbyCreate] User onboarding marked as completed: userId={}", currentUser.getId());
         }
 
-        return ActivityCreateResDto.of(savedHobby.getId());
+        return HobbyCreateResDto.of(savedHobby.getId());
     }
 
     @Transactional
     public ActivityAIRecommendResDto activityAiRecommend(Long hobbyId, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
-        Hobby hobby = validateHobbyAccess(hobbyId, currentUser);
+        Hobby hobby = hobbyValidator.validateHobbyAccess(hobbyId, currentUser);
 
         int currentCount = aiCallCountService.increaseAndGet(currentUser.getSocialId(), hobbyId);
 
@@ -318,7 +321,7 @@ public class HobbyService {
         User currentUser = userUtil.getCurrentUser(user);
 
         Hobby hobby = resolveHobby(hobbyId, currentUser);
-        validateHobbyAccess(hobby.getId(), currentUser);
+        hobbyValidator.validateHobbyAccess(hobby.getId(), currentUser);
 
         boolean recordedToday = todayRecordRedisService.hasKey(todayRecordRedisService.createRecordKey(currentUser.getId(), hobby.getId()));
 
@@ -494,26 +497,6 @@ public class HobbyService {
         invoker.invokeSync(payload);
     }
 
-    private void validateMaxInProgressHobbies(User user) {
-        long hobbyCount = hobbyRepository.countByStatusAndUser(HobbyStatus.IN_PROGRESS, user);
-        if (hobbyCount >= 2) {
-            throw new CustomException(ErrorCode.MAX_IN_PROGRESS_HOBBY_EXCEEDED);
-        }
-    }
-
-    private void validateDuplicateHobby(ActivityCreateReqDto reqDto, User user) {
-        if (reqDto.getHobbyInfoId() != null && reqDto.getHobbyInfoId() >= 1) {
-            if (hobbyRepository.existsByHobbyInfoIdAndUserId(reqDto.getHobbyInfoId(), user.getId())) {
-                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
-            }
-        }
-        if (StringUtils.hasText(reqDto.getHobbyName())) {
-            if (hobbyRepository.existsByHobbyNameAndUserId(reqDto.getHobbyName(), user.getId())) {
-                throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
-            }
-        }
-    }
-
     private void saveRecommendItems(Hobby hobby, FastAPIRecommendResDto response) {
         List<ActivityRecommendItem> items = response.getActivities().stream()
                 .map(item -> ActivityRecommendItem.builder()
@@ -531,12 +514,5 @@ public class HobbyService {
             return hobbyRepository.findByIdAndUserId(hobbyId, user.getId()).orElseThrow(() -> new CustomException(ErrorCode.NOT_HOBBY_OWNER));
         }
         return getLatestInProgressHobby(user);
-    }
-
-    private Hobby validateHobbyAccess(Long hobbyId, User user) {
-        Hobby hobby = hobbyUtil.getHobby(hobbyId);
-        hobbyUtil.verifyHobbyOwner(hobby, user);
-        hobby.validateInProgress();
-        return hobby;
     }
 }
