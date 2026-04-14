@@ -37,6 +37,6 @@ public class HobbyControllerV2 implements HobbyControllerV2Docs {
     @PutMapping("/setting")
     public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(@RequestBody @Valid UpdateMyHobbySettingReqDtoV2 reqDto,
                                                              @AuthenticationPrincipal CustomUserDetails user) {
-        return hobbyServiceV2.updateMyHobbySetting(user.getUser());
+        return hobbyServiceV2.updateMyHobbySetting(reqDto, user.getUser());
     }
 }

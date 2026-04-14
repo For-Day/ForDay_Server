@@ -7,10 +7,7 @@ import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.validator.HobbyValidator;
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.global.common.error.exception.CustomException;
-import com.example.ForDay.global.common.error.exception.ErrorCode;
-import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.UserUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -71,7 +68,7 @@ public class HobbyServiceV2 {
     }
 
     @Transactional
-    public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(User currentUser) {
+    public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(@Valid UpdateMyHobbySettingReqDtoV2 reqDto, User currentUser) {
         return null;
     }
 
