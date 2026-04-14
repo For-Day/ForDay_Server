@@ -20,6 +20,8 @@ public class UpdateMyHobbySettingReqDtoV2 {
     private List<HiddenUpdateInfo> hiddenHobbyList;
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class ProgressUpdateInfo {
         @NotNull
         private Long hobbyId;
@@ -28,6 +30,8 @@ public class UpdateMyHobbySettingReqDtoV2 {
     }
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class HiddenUpdateInfo {
         @NotNull
         private Long hobbyId;

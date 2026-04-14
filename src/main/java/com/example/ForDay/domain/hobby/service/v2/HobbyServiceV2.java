@@ -7,6 +7,8 @@ import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.hobby.validator.HobbyValidator;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.common.error.exception.CustomException;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -68,8 +72,29 @@ public class HobbyServiceV2 {
     }
 
     @Transactional
-    public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(@Valid UpdateMyHobbySettingReqDtoV2 reqDto, User currentUser) {
-        return null;
+    public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(UpdateMyHobbySettingReqDtoV2 reqDto, User currentUser) {
+        List<Hobby> userHobbies = hobbyRepository.findAllByUser(currentUser);
+        Map<Long, Hobby> hobbyMap = userHobbies.stream().collect(Collectors.toMap(Hobby::getId, h -> h));
+
+        if (reqDto.getProgressHobbyList() != null) {
+            for (UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo info : reqDto.getProgressHobbyList()) {
+                Hobby hobby = hobbyMap.get(info.getHobbyId());
+                if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
+
+                hobby.updateStatusAndSequence(info.getSequence(), HobbyStatus.IN_PROGRESS);
+            }
+        }
+
+        if (reqDto.getHiddenHobbyList() != null) {
+            for (UpdateMyHobbySettingReqDtoV2.HiddenUpdateInfo info : reqDto.getHiddenHobbyList()) {
+                Hobby hobby = hobbyMap.get(info.getHobbyId());
+                if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
+
+                hobby.updateStatusAndSequence(null, HobbyStatus.ARCHIVED);
+            }
+        }
+
+        return UpdateMyHobbySettingResDtoV2.from(userHobbies);
     }
 
     private int getNextStartSequence(User user) {

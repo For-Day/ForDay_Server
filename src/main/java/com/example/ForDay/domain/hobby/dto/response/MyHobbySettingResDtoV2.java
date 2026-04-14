@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -16,7 +15,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MyHobbySettingResDtoV2 {
+    // 진행 중은 사용자가 지정한 sequence 순서에 따라
     List<ProgressHobbyList> progressHobbyList;
+    // 숨김은 최신순으로
     List<HiddenHobbyList> hiddenHobbyList;
 
     @Data

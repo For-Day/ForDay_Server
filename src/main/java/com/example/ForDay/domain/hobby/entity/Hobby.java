@@ -9,6 +9,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
 
@@ -173,8 +174,8 @@ public class Hobby extends BaseTimeEntity {
                 .build();
     }
 
-    public void updateOrderAndStatus(Integer sequence, HobbyStatus status) {
+    public void updateStatusAndSequence(@NotNull Integer sequence, HobbyStatus hobbyStatus) {
         this.sequence = sequence;
-        this.status = status;
+        this.status = hobbyStatus;
     }
 }
