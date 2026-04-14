@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.hobby.entity;
 
-import com.example.ForDay.domain.hobby.dto.request.ActivityCreateReqDto;
+import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDto;
+import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDtoV2;
 import com.example.ForDay.domain.hobby.dto.request.UpdateHobbyReqDto;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
@@ -8,6 +9,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
 
@@ -46,13 +48,13 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "hobby_name", nullable = false, length = 20)
     private String hobbyName;
 
-    @Column(name = "hobbyPurpose", nullable = false, length = 50)
+    @Column(name = "hobbyPurpose", length = 50)
     private String hobbyPurpose;
 
-    @Column(name = "hobby_time_minutes", nullable = false)
+    @Column(name = "hobby_time_minutes")
     private Integer hobbyTimeMinutes;
 
-    @Column(name = "execution_count", nullable = false)
+    @Column(name = "execution_count")
     private Integer executionCount;
 
     @Column(name = "current_sticker_num")
@@ -70,6 +72,8 @@ public class Hobby extends BaseTimeEntity {
     @Builder.Default
     private String coverImageUrl = null;
 
+    @Column(name = "sequence")
+    private Integer sequence;
 
     public void record() {
         this.currentStickerNum++;
@@ -147,7 +151,7 @@ public class Hobby extends BaseTimeEntity {
         }
     }
 
-    public static Hobby createNewHobby(User user, ActivityCreateReqDto reqDto, Integer defaultGoalDays) {
+    public static Hobby createNewHobby(User user, HobbyCreateReqDto reqDto, Integer defaultGoalDays) {
         return Hobby.builder()
                 .user(user)
                 .hobbyInfoId(reqDto.getHobbyInfoId())
@@ -156,7 +160,22 @@ public class Hobby extends BaseTimeEntity {
                 .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
                 .executionCount(reqDto.getExecutionCount())
                 .goalDays(reqDto.getIsDurationSet() ? defaultGoalDays : null)
-                .status(HobbyStatus.IN_PROGRESS) // 생성 시 기본 상태 강제
+                .status(HobbyStatus.IN_PROGRESS)
                 .build();
+    }
+
+    public static Hobby createNewHobbyV2(User currentUser, HobbyCreateReqDtoV2.HobbyInfo info, int sequence) {
+        return Hobby.builder()
+                .user(currentUser)
+                .hobbyInfoId(info.getHobbyInfoId())
+                .hobbyName(info.getHobbyName())
+                .status(HobbyStatus.IN_PROGRESS)
+                .sequence(sequence)
+                .build();
+    }
+
+    public void updateStatusAndSequence(@NotNull Integer sequence, HobbyStatus hobbyStatus) {
+        this.sequence = sequence;
+        this.status = hobbyStatus;
     }
 }

@@ -39,7 +39,6 @@ public class ActivityRecordServiceV2 {
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final S3Util s3Util;
     private final ReactionRankingService reactionRankingService;
-    private final RedisTemplate<String, String> redisTemplate;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
     private final ReactionRedisLockService reactionRedisLockService;

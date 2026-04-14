@@ -1,9 +1,8 @@
-package com.example.ForDay.domain.hobby.controller;
+package com.example.ForDay.domain.hobby.controller.v1;
 
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,7 +69,7 @@ public interface HobbyControllerDocs {
             )
 
     })
-    ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user);
+    HobbyCreateResDto hobbyCreate(HobbyCreateReqDto reqDto, CustomUserDetails user);
 
     @Operation(
             summary = "AI 기반 취미 활동 추천",
