@@ -70,6 +70,11 @@ public class HobbyServiceV2 {
         return new MyHobbySettingResDtoV2(progressList, hiddenList);
     }
 
+    @Transactional
+    public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(User currentUser) {
+        return null;
+    }
+
     private int getNextStartSequence(User user) {
         Integer maxSeq = hobbyRepository.findMaxSequenceByUserAndStatus(user, HobbyStatus.IN_PROGRESS);
         return (maxSeq == null) ? 1 : maxSeq + 1;

@@ -1,6 +1,8 @@
 package com.example.ForDay.domain.hobby.dto.response;
 
 import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.utils.HobbyUtil;
+import com.example.ForDay.domain.user.type.HobbyInfoImageIcon;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
