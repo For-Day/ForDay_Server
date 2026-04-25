@@ -186,15 +186,15 @@ public class AuthService {
     }
 
     @Transactional
-    public MessageResDto logout(CustomUserDetails user, String fcmToken) {
+    public MessageResDto logout(CustomUserDetails user, String deviceId) {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[logout] 로그아웃 요청 - SocialId: {}", currentUser.getSocialId());
 
         refreshTokenRepository.deleteById(currentUser.getSocialId());
 
-        if (fcmToken != null && !fcmToken.isBlank()) {
-            fcmTokenRepository.deleteByUserAndFcmToken(currentUser, fcmToken);
-            log.info("[logout] 특정 FCM 토큰 삭제 완료 - Token: {}", fcmToken);
+        if (deviceId != null && !deviceId.isBlank()) {
+            fcmTokenRepository.deleteByUserAndDeviceId(currentUser, deviceId);
+            log.info("[logout] 특정 FCM 토큰 삭제 완료 - deviceId: {}", deviceId);
         }
 
         log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", currentUser.getSocialId());

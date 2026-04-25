@@ -46,10 +46,10 @@ public class AuthController implements AuthControllerDocs {
 
     @Override
     @DeleteMapping("/logout")
-    public MessageResDto logout(@RequestParam(name = "fcmToken", required = false) String fcmToken,
+    public MessageResDto logout(@RequestParam(name = "fcmToken", required = false) String deviceId,
                                 @AuthenticationPrincipal CustomUserDetails user) {
         log.info("[LOGOUT] 사용자={}", user.getUsername());
-        return authService.logout(user, fcmToken);
+        return authService.logout(user, deviceId);
     }
 
     @Override
