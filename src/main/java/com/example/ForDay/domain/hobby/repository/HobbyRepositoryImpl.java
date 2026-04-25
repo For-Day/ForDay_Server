@@ -177,4 +177,43 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 ))
                 .fetch();
     }
+
+    @Override
+    public GetHomeHobbyInfoResDto getHomeHobbyInfoV2(Long targetHobbyId, User currentUser) {
+        List<GetHomeHobbyInfoResDto.InProgressHobbyDto> hobbyList = queryFactory
+                .select(Projections.constructor(GetHomeHobbyInfoResDto.InProgressHobbyDto.class,
+                        hobby.id,
+                        hobby.hobbyName,
+                        hobby.id.eq(targetHobbyId)
+                ))
+                .from(hobby)
+                .where(hobby.user.eq(currentUser),
+                        hobby.status.eq(HobbyStatus.IN_PROGRESS))
+                .orderBy(
+                        hobby.createdAt.desc())
+                .fetch();
+
+        if (hobbyList.isEmpty()) return null;
+
+        GetHomeHobbyInfoResDto.ActivityPreviewDto activityPreview = queryFactory
+                .select(Projections.constructor(GetHomeHobbyInfoResDto.ActivityPreviewDto.class,
+                        activity.id,
+                        activity.content,
+                        activity.aiRecommended
+                ))
+                .from(activity)
+                .where(activity.hobby.id.eq(targetHobbyId))
+                .orderBy(
+                        activity.createdAt.desc(),
+                        activity.lastRecordedAt.desc().nullsLast(),
+                        activity.collectedStickerNum.desc(),
+                        activity.content.asc()
+                )
+                .fetchFirst();
+
+        return GetHomeHobbyInfoResDto.builder()
+                .inProgressHobbies(hobbyList)
+                .activityPreview(activityPreview)
+                .build();
+    }
 }

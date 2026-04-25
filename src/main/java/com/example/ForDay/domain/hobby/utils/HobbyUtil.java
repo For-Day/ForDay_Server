@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.utils;
 
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.type.HobbyInfoImageIcon;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -60,5 +61,14 @@ public class HobbyUtil {
 
             default -> HobbyInfoImageIcon.DEFAULT_ICON;
         };
+    }
+
+    public Hobby getLatestInProgressHobby(User user) {
+        return hobbyRepository
+                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
+                        user.getId(),
+                        HobbyStatus.IN_PROGRESS
+                )
+                .orElse(null);
     }
 }

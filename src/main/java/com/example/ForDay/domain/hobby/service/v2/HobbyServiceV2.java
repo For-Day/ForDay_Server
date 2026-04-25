@@ -1,14 +1,20 @@
 package com.example.ForDay.domain.hobby.service.v2;
 
+import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.service.HobbyAiInsightService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.hobby.validator.HobbyValidator;
+import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.global.util.UserUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +33,10 @@ import java.util.stream.Collectors;
 public class HobbyServiceV2 {
     private final HobbyRepository hobbyRepository;
     private final HobbyValidator hobbyValidator;
+    private final UserUtil userUtil;
+    private final HobbyUtil hobbyUtil;
+    private final NotificationService notificationService;
+    private final HobbyAiInsightService hobbyAiInsightService;
 
     @Transactional
     public HobbyCreateResDtoV2 hobbyCreate(HobbyCreateReqDtoV2 reqDto, User currentUser) {
@@ -95,6 +105,28 @@ public class HobbyServiceV2 {
         }
 
         return UpdateMyHobbySettingResDtoV2.from(userHobbies);
+    }
+
+    @Transactional(readOnly = true)
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, User currentUser) {
+        log.info("[GetHomeHobbyInfoV2] Dashboard inquiry - UserId: {}, TargetHobbyId: {}", currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
+
+        Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : hobbyUtil.getLatestInProgressHobby(currentUser);
+
+        if (targetHobby == null) {
+            return GetHomeHobbyInfoResDto.ofDefault(currentUser.getNickname());
+        }
+
+        GetHomeHobbyInfoResDto response = hobbyRepository.getHomeHobbyInfoV2(targetHobby.getId(), currentUser);
+        if (response == null) {
+            log.warn("[GetHomeHobbyInfoV2] Failed to fetch hobby data - HobbyId: {}", targetHobby.getId());
+            return GetHomeHobbyInfoResDto.ofDefault(currentUser.getNickname());
+        }
+
+        AiInsightResult aiInsight = hobbyAiInsightService.resolveInsight(currentUser, targetHobby);
+        log.info("[GetHomeHobbyInfoV2] Completion - UserId: {}, Hobby: {}, AI Success: {}", currentUser.getId(), targetHobby.getHobbyName(), !aiInsight.summaryText().isEmpty());
+
+        return GetHomeHobbyInfoResDto.of(notificationService.unreadNotificationExists(currentUser), response, currentUser.getNickname(), aiInsight);
     }
 
     private int getNextStartSequence(User user) {

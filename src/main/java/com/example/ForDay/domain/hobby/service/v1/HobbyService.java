@@ -176,7 +176,7 @@ public class HobbyService {
         log.info("[GetHomeHobbyInfo] Dashboard inquiry - UserId: {}, TargetHobbyId: {}",
                 currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
 
-        Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : getLatestInProgressHobby(currentUser);
+        Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : hobbyUtil.getLatestInProgressHobby(currentUser);
 
         if (targetHobby == null) {
             return GetHomeHobbyInfoResDto.ofDefault(currentUser.getNickname());
@@ -410,15 +410,6 @@ public class HobbyService {
         return todayRecordRedisService.hasKey(key);
     }
 
-    private Hobby getLatestInProgressHobby(User user) {
-        return hobbyRepository
-                .findTopByUserIdAndStatusOrderByCreatedAtDesc(
-                        user.getId(),
-                        HobbyStatus.IN_PROGRESS
-                )
-                .orElse(null);
-    }
-
     private boolean isDirectUploadCase(SetHobbyCoverImageReqDto reqDto) {
         return reqDto.getHobbyId() != null && StringUtils.hasText(reqDto.getCoverImageUrl());
     }
@@ -513,6 +504,6 @@ public class HobbyService {
         if (hobbyId != null) {
             return hobbyRepository.findByIdAndUserId(hobbyId, user.getId()).orElseThrow(() -> new CustomException(ErrorCode.NOT_HOBBY_OWNER));
         }
-        return getLatestInProgressHobby(user);
+        return hobbyUtil.getLatestInProgressHobby(user);
     }
 }
