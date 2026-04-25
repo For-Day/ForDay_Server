@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.util.Objects;
 
@@ -31,6 +32,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Builder
 @DynamicUpdate
+@SQLRestriction("deleted = false")
 public class Hobby extends BaseTimeEntity {
 
     @Id

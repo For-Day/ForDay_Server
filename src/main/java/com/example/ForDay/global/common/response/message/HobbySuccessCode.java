@@ -19,7 +19,9 @@ public enum HobbySuccessCode {
     SET_HOBBY_COVER_IMAGE_SUCCESS("대표사진 설정 완료!"),
 
     // 상태 관련
-    ALREADY_HOBBY_STATUS("이미 해당 상태입니다.");
+    ALREADY_HOBBY_STATUS("이미 해당 상태입니다."),
+
+    DELETE_HOBBY_SUCCESS("취미가 정상적으로 삭제되었습니다.");
 
     private final String message;
 }

@@ -1,8 +1,12 @@
 package com.example.ForDay.domain.hobby.service.v2;
 
 import com.example.ForDay.domain.hobby.dto.AiInsightResult;
-import com.example.ForDay.domain.hobby.dto.request.*;
-import com.example.ForDay.domain.hobby.dto.response.*;
+import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDtoV2;
+import com.example.ForDay.domain.hobby.dto.request.UpdateMyHobbySettingReqDtoV2;
+import com.example.ForDay.domain.hobby.dto.response.GetHomeHobbyInfoResDto;
+import com.example.ForDay.domain.hobby.dto.response.HobbyCreateResDtoV2;
+import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDtoV2;
+import com.example.ForDay.domain.hobby.dto.response.UpdateMyHobbySettingResDtoV2;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.service.HobbyAiInsightService;
@@ -13,9 +17,6 @@ import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
-import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.util.UserUtil;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,6 @@ import java.util.stream.Collectors;
 public class HobbyServiceV2 {
     private final HobbyRepository hobbyRepository;
     private final HobbyValidator hobbyValidator;
-    private final UserUtil userUtil;
     private final HobbyUtil hobbyUtil;
     private final NotificationService notificationService;
     private final HobbyAiInsightService hobbyAiInsightService;

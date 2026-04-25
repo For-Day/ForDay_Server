@@ -394,9 +394,11 @@ public class HobbyService {
 
     @Transactional
     public DeleteHobbyResDto deleteHobby(Long hobbyId, User user) {
-        // 취미는 deleted = true 처리
+        Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, user);
+        hobby.deleteHobby();
 
-        // 해당 취미에 대한 모든 기록에 대한 deleted도 true로 처리
+        activityRecordRepository.bulkDeleteByHobby(hobby);
+        return DeleteHobbyResDto.of(hobby.getId());
     }
 
     private List<Hobby> getHobbiesByStatus(String userId, HobbyStatus status) {
