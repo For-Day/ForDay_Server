@@ -197,4 +197,10 @@ public class HobbyController implements HobbyControllerDocs {
                                                        @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyService.getHobbyListByChip(status, user);
     }
+
+    @DeleteMapping("/{hobbyId}")
+    public DeleteHobbyResDto deleteHobby(@PathVariable(name = "hobbyId") Long hobbyId,
+                                         @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyService.deleteHobby(hobbyId, user.getUser());
+    }
 }

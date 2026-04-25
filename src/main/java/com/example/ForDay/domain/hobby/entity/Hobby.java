@@ -75,6 +75,9 @@ public class Hobby extends BaseTimeEntity {
     @Column(name = "sequence")
     private Integer sequence;
 
+    @Builder.Default
+    private boolean deleted = false;
+
     public void record() {
         this.currentStickerNum++;
     }
@@ -177,5 +180,9 @@ public class Hobby extends BaseTimeEntity {
     public void updateStatusAndSequence(@NotNull Integer sequence, HobbyStatus hobbyStatus) {
         this.sequence = sequence;
         this.status = hobbyStatus;
+    }
+
+    public void deleteHobby() {
+        this.deleted = true;
     }
 }

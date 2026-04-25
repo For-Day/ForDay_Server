@@ -392,6 +392,13 @@ public class HobbyService {
         return new GetHobbyListByChipResDto(hobbyInfos);
     }
 
+    @Transactional
+    public DeleteHobbyResDto deleteHobby(Long hobbyId, User user) {
+        // 취미는 deleted = true 처리
+
+        // 해당 취미에 대한 모든 기록에 대한 deleted도 true로 처리
+    }
+
     private List<Hobby> getHobbiesByStatus(String userId, HobbyStatus status) {
         if (status == HobbyStatus.ALL) {
             return hobbyRepository.findAllByUserIdOrderByIdDesc(userId);
