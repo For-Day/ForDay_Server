@@ -98,6 +98,26 @@ public interface HobbyControllerV2Docs {
                             name = "HOBBY_NOT_FOUND",
                             value = "{\"status\": 404, \"message\": \"해당 취미를 찾을 수 없습니다.\"}"
                     ))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "순서 중복 오류 (요청된 progressHobbyList 내에 동일한 sequence 값이 존재할 때)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "DUPLICATE_SEQUENCE",
+                                    value = """
+                                {
+                                  "status": 409,
+                                  "success": false,
+                                  "data": {
+                                    "errorClassName": "DUPLICATE_SEQUENCE",
+                                    "message": "요청 내에 중복된 순서가 존재합니다."
+                                  }
+                                }
+                                """
+                            )
+                    )
             )
     })
     UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(
