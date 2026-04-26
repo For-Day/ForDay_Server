@@ -111,7 +111,7 @@ public class HobbyServiceV2 {
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(Long hobbyId, User currentUser) {
         log.info("[GetHomeHobbyInfoV2] Dashboard inquiry - UserId: {}, TargetHobbyId: {}", currentUser.getId(), hobbyId == null ? "DEFAULT(Latest)" : hobbyId);
 
-        Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : hobbyUtil.getLatestInProgressHobby(currentUser);
+        Hobby targetHobby = (hobbyId != null) ? hobbyUtil.getHobby(hobbyId) : hobbyUtil.getFirstHobby(currentUser);
 
         if (targetHobby == null) {
             return GetHomeHobbyInfoResDto.ofDefault(currentUser.getNickname());

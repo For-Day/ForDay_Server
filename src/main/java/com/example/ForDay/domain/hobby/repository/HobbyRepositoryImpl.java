@@ -190,6 +190,7 @@ public class HobbyRepositoryImpl implements HobbyRepositoryCustom {
                 .where(hobby.user.eq(currentUser),
                         hobby.status.eq(HobbyStatus.IN_PROGRESS))
                 .orderBy(
+                        hobby.sequence.asc(),
                         hobby.createdAt.desc())
                 .fetch();
 

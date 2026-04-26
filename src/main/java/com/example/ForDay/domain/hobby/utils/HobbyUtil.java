@@ -71,4 +71,9 @@ public class HobbyUtil {
                 )
                 .orElse(null);
     }
+
+    public Hobby getFirstHobby(User user) {
+        return hobbyRepository.findByUserAndStatusAndSequence(user, HobbyStatus.IN_PROGRESS, 1)
+                .orElse(null);
+    }
 }
