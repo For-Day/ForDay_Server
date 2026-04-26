@@ -396,6 +396,7 @@ public class HobbyService {
     public DeleteHobbyResDto deleteHobby(Long hobbyId, User user) {
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, user);
         hobby.deleteHobby();
+        hobbyRepository.saveAndFlush(hobby);
 
         activityRecordRepository.bulkDeleteByHobby(hobby);
         return DeleteHobbyResDto.of(hobby.getId());

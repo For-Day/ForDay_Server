@@ -38,6 +38,7 @@ public class HobbyControllerV2 implements HobbyControllerV2Docs {
         return hobbyServiceV2.updateMyHobbySetting(reqDto, user.getUser());
     }
 
+    @Override
     @GetMapping("/home")
     public GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId,
                                                    @AuthenticationPrincipal CustomUserDetails user) {
