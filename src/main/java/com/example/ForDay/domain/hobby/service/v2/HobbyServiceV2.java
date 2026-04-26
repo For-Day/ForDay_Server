@@ -87,6 +87,7 @@ public class HobbyServiceV2 {
         Map<Long, Hobby> hobbyMap = userHobbies.stream().collect(Collectors.toMap(Hobby::getId, h -> h));
 
         if (reqDto.getProgressHobbyList() != null) {
+            hobbyValidator.validateDuplicateSequence(reqDto.getProgressHobbyList());
             for (UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo info : reqDto.getProgressHobbyList()) {
                 Hobby hobby = hobbyMap.get(info.getHobbyId());
                 if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
