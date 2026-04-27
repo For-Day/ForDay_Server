@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.util.Objects;
 
@@ -31,6 +32,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Builder
 @DynamicUpdate
+@SQLRestriction("deleted = false")
 public class Hobby extends BaseTimeEntity {
 
     @Id
@@ -74,6 +76,9 @@ public class Hobby extends BaseTimeEntity {
 
     @Column(name = "sequence")
     private Integer sequence;
+
+    @Builder.Default
+    private boolean deleted = false;
 
     public void record() {
         this.currentStickerNum++;
@@ -177,5 +182,9 @@ public class Hobby extends BaseTimeEntity {
     public void updateStatusAndSequence(@NotNull Integer sequence, HobbyStatus hobbyStatus) {
         this.sequence = sequence;
         this.status = hobbyStatus;
+    }
+
+    public void deleteHobby() {
+        this.deleted = true;
     }
 }

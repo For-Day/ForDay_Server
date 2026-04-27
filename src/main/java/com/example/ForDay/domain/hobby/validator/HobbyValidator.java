@@ -2,6 +2,7 @@ package com.example.ForDay.domain.hobby.validator;
 
 import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDto;
 import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDtoV2;
+import com.example.ForDay.domain.hobby.dto.request.UpdateMyHobbySettingReqDtoV2;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -9,12 +10,14 @@ import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Component
@@ -88,6 +91,25 @@ public class HobbyValidator {
             if (hobbyRepository.existsByUserIdAndHobbyNameIn(userId, hobbyNames)) {
                 throw new CustomException(ErrorCode.ALREADY_HAVE_HOBBY);
             }
+        }
+    }
+
+    public void validateDuplicateSequence(List<?> updateList) {
+        long distinctCount = updateList.stream()
+                .map(info -> {
+                    if (info instanceof UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo) {
+                        return ((UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo) info).getSequence();
+                    } else if (info instanceof UpdateMyHobbySettingReqDtoV2.HiddenUpdateInfo) {
+                        return ((UpdateMyHobbySettingReqDtoV2.HiddenUpdateInfo) info).getSequence();
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        if (distinctCount != updateList.size()) {
+            throw new CustomException(ErrorCode.DUPLICATE_SEQUENCE);
         }
     }
 }

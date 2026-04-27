@@ -2,10 +2,7 @@ package com.example.ForDay.domain.hobby.controller.v2;
 
 import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDtoV2;
 import com.example.ForDay.domain.hobby.dto.request.UpdateMyHobbySettingReqDtoV2;
-import com.example.ForDay.domain.hobby.dto.response.HobbyCreateResDtoV2;
-import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDto;
-import com.example.ForDay.domain.hobby.dto.response.MyHobbySettingResDtoV2;
-import com.example.ForDay.domain.hobby.dto.response.UpdateMyHobbySettingResDtoV2;
+import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.service.v1.HobbyService;
 import com.example.ForDay.domain.hobby.service.v2.HobbyServiceV2;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
@@ -39,5 +36,12 @@ public class HobbyControllerV2 implements HobbyControllerV2Docs {
     public UpdateMyHobbySettingResDtoV2 updateMyHobbySetting(@RequestBody @Valid UpdateMyHobbySettingReqDtoV2 reqDto,
                                                              @AuthenticationPrincipal CustomUserDetails user) {
         return hobbyServiceV2.updateMyHobbySetting(reqDto, user.getUser());
+    }
+
+    @Override
+    @GetMapping("/home")
+    public GetHomeHobbyInfoResDto getHomeHobbyInfo(@RequestParam(value = "hobbyId", required = false) Long hobbyId,
+                                                   @AuthenticationPrincipal CustomUserDetails user) {
+        return hobbyServiceV2.getHomeHobbyInfo(hobbyId, user.getUser());
     }
 }
