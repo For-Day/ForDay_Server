@@ -44,6 +44,8 @@ public enum ErrorCode {
     HOBBY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 취미입니다."),
     NOT_HOBBY_OWNER(HttpStatus.FORBIDDEN, "취미 소유자가 아닙니다."),
     MAX_IN_PROGRESS_HOBBY_EXCEEDED(HttpStatus.BAD_REQUEST, "이미 진행 중인 취미는 최대 2개까지 등록할 수 있습니다."),
+
+    MAX_HOBBY_EXCEEDED(HttpStatus.BAD_REQUEST, "취미는 최대 10개까지 등록할 수 있습니다."),
     INVALID_HOBBY_STATUS(HttpStatus.BAD_REQUEST, "현재 취미 상태에서는 해당 작업을 수행할 수 없습니다."),
     STICKER_COMPLETION_REACHED(HttpStatus.BAD_REQUEST, "해당 취미의 스티커 수가 이미 최대치에 도달했습니다."),
     INVALID_HOBBY_EXTENSION_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 취미 기간 설정 타입입니다."),
@@ -51,6 +53,7 @@ public enum ErrorCode {
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "입력 값이 유효하지 않습니다."),
     ALREADY_HAVE_HOBBY(HttpStatus.CONFLICT, "이미 가지고 있는 취미입니다."),
     HOBBY_ID_REQUIRED(HttpStatus.BAD_REQUEST, "특정 취미 소식 조회 시 취미 ID는 필수입니다."),
+    DUPLICATE_SEQUENCE(HttpStatus.CONFLICT, "요청 내에 중복된 순서가 존재합니다."),
 
     // 활동 관련
     ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 활동입니다."),

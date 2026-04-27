@@ -41,4 +41,18 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
     boolean existsByHobbyNameAndUserId(String hobbyName, String id);
 
     List<Hobby> findAllByUserIdOrderByIdDesc(String userId);
+
+    boolean existsByUserIdAndHobbyInfoIdIn(String userId, List<Long> hobbyInfoIds);
+
+    boolean existsByUserIdAndHobbyNameIn(String userId, List<String> hobbyNames);
+
+    @Query("SELECT MAX(h.sequence) FROM Hobby h WHERE h.user = :user AND h.status = :status")
+    Integer findMaxSequenceByUserAndStatus(
+            @Param("user") User user,
+            @Param("status") HobbyStatus status
+    );
+
+    List<Hobby> findAllByUser(User user);
+
+    Optional<Hobby> findByUserAndStatusAndSequence(User user, HobbyStatus status, int sequence);
 }

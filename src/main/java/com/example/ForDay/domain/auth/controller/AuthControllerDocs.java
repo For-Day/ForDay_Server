@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Auth", description = "인증 / 로그인 API")
 public interface AuthControllerDocs {
@@ -197,7 +198,7 @@ public interface AuthControllerDocs {
             description = "로그아웃 성공",
             content = @Content(examples = @ExampleObject(value = "{\"status\": 200, \"success\": true, \"data\": {\"message\": \"성공적으로 로그아웃 되었습니다.\"}}"))
     )
-    MessageResDto logout(CustomUserDetails user);
+    MessageResDto logout(@RequestParam(name = "fcmToken", required = false) String fcmToken, CustomUserDetails user);
 
 
     @Operation(

@@ -1,5 +1,6 @@
 package com.example.ForDay.global.firebase.repository;
 
+import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.firebase.entity.FcmToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,4 +12,6 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
     List<FcmToken> findByUserId(String userId);
 
     Optional<FcmToken> findByFcmToken(String fcmToken);
+
+    void deleteByUserAndDeviceId(User user, String deviceId);
 }

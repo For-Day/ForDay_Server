@@ -14,6 +14,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.AuthSuccessCode;
+import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
 import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.JwtUtil;
@@ -27,8 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.UUID;
-
-import static com.example.ForDay.global.common.response.message.AuthSuccessCode.LOGOUT_SUCCESS;
 
 @Slf4j
 @Service
@@ -45,6 +44,7 @@ public class AuthService {
     private final HobbyRepository hobbyRepository;
     private final UserUtil userUtil;
     private final FcmTokenService fcmTokenService;
+    private final FcmTokenRepository fcmTokenRepository;
 
     @Transactional
     public LoginResDto kakaoLogin(KakaoLoginReqDto reqDto) {
@@ -186,11 +186,16 @@ public class AuthService {
     }
 
     @Transactional
-    public MessageResDto logout(CustomUserDetails user) {
+    public MessageResDto logout(CustomUserDetails user, String deviceId) {
         User currentUser = userUtil.getCurrentUser(user);
         log.info("[logout] 로그아웃 요청 - SocialId: {}", currentUser.getSocialId());
 
         refreshTokenRepository.deleteById(currentUser.getSocialId());
+
+        if (deviceId != null && !deviceId.isBlank()) {
+            fcmTokenRepository.deleteByUserAndDeviceId(currentUser, deviceId);
+            log.info("[logout] 특정 FCM 토큰 삭제 완료 - deviceId: {}", deviceId);
+        }
 
         log.info("[logout] 로그아웃 처리 완료(RT 삭제됨) - SocialId: {}", currentUser.getSocialId());
         return new MessageResDto(AuthSuccessCode.LOGOUT_SUCCESS.getMessage());

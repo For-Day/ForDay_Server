@@ -8,11 +8,14 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ActivityCreateResDto {
-    private String message;
+public class DeleteHobbyResDto {
     private Long hobbyId;
+    private String message;
 
-    public static ActivityCreateResDto of(Long hobbyId) {
-        return new ActivityCreateResDto(HobbySuccessCode.CREATE_HOBBY_SUCCESS.getMessage(), hobbyId);
+    public static DeleteHobbyResDto of(Long hobbyId) {
+        return new DeleteHobbyResDto(
+                hobbyId,
+                HobbySuccessCode.DELETE_HOBBY_SUCCESS.getMessage()
+        );
     }
 }

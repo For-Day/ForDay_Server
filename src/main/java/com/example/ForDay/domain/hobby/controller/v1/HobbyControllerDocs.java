@@ -1,9 +1,8 @@
-package com.example.ForDay.domain.hobby.controller;
+package com.example.ForDay.domain.hobby.controller.v1;
 
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,7 +69,7 @@ public interface HobbyControllerDocs {
             )
 
     })
-    ActivityCreateResDto hobbyCreate(ActivityCreateReqDto reqDto, CustomUserDetails user);
+    HobbyCreateResDto hobbyCreate(HobbyCreateReqDto reqDto, CustomUserDetails user);
 
     @Operation(
             summary = "AI 기반 취미 활동 추천",
@@ -1349,6 +1348,37 @@ public interface HobbyControllerDocs {
             )
             @RequestParam(value = "status") HobbyStatus status,
 
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "취미 삭제 (Soft Delete)",
+            description = "특정 취미를 삭제 처리합니다. 취미와 관련된 활동 기록(ActivityRecord)도 함께 삭제(deleted=true)됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "삭제 성공",
+                    content = @Content(schema = @Schema(implementation = DeleteHobbyResDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "삭제 실패 (해당 ID의 취미가 존재하지 않음)",
+                    content = @Content(examples = @ExampleObject(
+                            name = "HOBBY_NOT_FOUND",
+                            value = """
+                {
+                  "status": 404,
+                  "success": false,
+                  "message": "해당 취미를 찾을 수 없습니다."
+                }
+                """
+                    ))
+            )
+    })
+    DeleteHobbyResDto deleteHobby(
+            @Parameter(description = "삭제할 취미 ID", example = "38")
+            @PathVariable(name = "hobbyId") Long hobbyId,
             @AuthenticationPrincipal CustomUserDetails user
     );
 }
