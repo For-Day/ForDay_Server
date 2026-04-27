@@ -35,5 +35,7 @@ public class UpdateMyHobbySettingReqDtoV2 {
     public static class HiddenUpdateInfo {
         @NotNull
         private Long hobbyId;
+        @NotNull
+        private Integer sequence;
     }
 }

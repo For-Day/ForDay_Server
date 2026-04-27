@@ -97,11 +97,12 @@ public class HobbyServiceV2 {
         }
 
         if (reqDto.getHiddenHobbyList() != null) {
+            hobbyValidator.validateDuplicateSequence(reqDto.getHiddenHobbyList());
             for (UpdateMyHobbySettingReqDtoV2.HiddenUpdateInfo info : reqDto.getHiddenHobbyList()) {
                 Hobby hobby = hobbyMap.get(info.getHobbyId());
                 if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
 
-                hobby.updateStatusAndSequence(null, HobbyStatus.ARCHIVED);
+                hobby.updateStatusAndSequence(info.getSequence(), HobbyStatus.ARCHIVED);
             }
         }
 

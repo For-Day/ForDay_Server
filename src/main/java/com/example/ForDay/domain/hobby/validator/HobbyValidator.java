@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Component
@@ -93,13 +94,21 @@ public class HobbyValidator {
         }
     }
 
-    public void validateDuplicateSequence(List<UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo> progressList) {
-        long distinctCount = progressList.stream()
-                .map(UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo::getSequence)
+    public void validateDuplicateSequence(List<?> updateList) {
+        long distinctCount = updateList.stream()
+                .map(info -> {
+                    if (info instanceof UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo) {
+                        return ((UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo) info).getSequence();
+                    } else if (info instanceof UpdateMyHobbySettingReqDtoV2.HiddenUpdateInfo) {
+                        return ((UpdateMyHobbySettingReqDtoV2.HiddenUpdateInfo) info).getSequence();
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
                 .distinct()
                 .count();
 
-        if (distinctCount != progressList.size()) {
+        if (distinctCount != updateList.size()) {
             throw new CustomException(ErrorCode.DUPLICATE_SEQUENCE);
         }
     }
