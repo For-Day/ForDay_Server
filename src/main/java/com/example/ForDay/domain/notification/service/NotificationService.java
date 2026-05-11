@@ -21,12 +21,10 @@ import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
 import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -100,6 +98,41 @@ public class NotificationService {
                     pushReactionBody,
                     createDataForReaction(recordId, savedNotification.getId())
             ));
+        }
+    }
+
+    public void testProcessReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
+        String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription());
+        String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription());
+
+        ReactionNotification savedNotification =
+                notificationRepository.save(
+                        ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
+                );
+
+        List<String> tokens = findActiveRecordDeviceToken(receiver);
+
+        if (!tokens.isEmpty()) {
+            log.info("[FCM-Sync] 동기 발송 시작 - 유저 ID: {}, 토큰 개수: {}개", receiver.getId(), tokens.size());
+
+            Map<String, String> data = createDataForReaction(recordId, savedNotification.getId());
+
+            for (String token : tokens) {
+                try {
+                    FcmNotificationReqDto reqDto = new FcmNotificationReqDto(
+                            token,
+                            sender.getNickname(),
+                            pushReactionBody,
+                            null,
+                            data
+                    );
+
+                    fcmTokenService.sendNotificationByToken(reqDto);
+                    log.info("[FCM-Sync] 동기 전송 성공 - Token: {}", token);
+                } catch (Exception e) {
+                    log.error("[FCM-Sync] 동기 전송 중 에러 발생 - Token: {}, Error: {}", token, e.getMessage());
+                }
+            }
         }
     }
 
