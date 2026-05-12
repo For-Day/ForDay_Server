@@ -59,13 +59,13 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public NicknameCheckResDto nicknameCheck(String nickname) {
+    public NicknameCheckResDto nicknameCheck(String nickname, User user) {
         Optional<String> validationMessage = validateNicknameFormat(nickname);
         if (validationMessage.isPresent()) {
             return new NicknameCheckResDto(nickname, false, validationMessage.get());
         }
 
-        if (isExistsByNickname(nickname)) {
+        if (isExistsByNickname(nickname, user)) {
             return NicknameCheckResDto.alreadyUsedNickname(nickname);
         }
 
@@ -74,11 +74,12 @@ public class UserService {
 
     @Transactional
     public NicknameRegisterResDto nicknameRegister(String nickname, CustomUserDetails user) {
-        if (isExistsByNickname(nickname)) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        if (isExistsByNickname(nickname, currentUser)) {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
-        User currentUser = userUtil.getCurrentUser(user);
         currentUser.changeNickname(nickname);
         userRepository.save(currentUser);
 
@@ -197,8 +198,8 @@ public class UserService {
         return Objects.equals(oldImageUrl, newImageUrl);
     }
 
-    private boolean isExistsByNickname(String nickname) {
-        return userRepository.existsByNickname(nickname);
+    private boolean isExistsByNickname(String nickname, User currentUser) {
+        return userRepository.existsByNicknameAndIdNot(nickname, currentUser.getId());
     }
 
     private Optional<String> validateNicknameFormat(String nickname) {
