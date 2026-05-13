@@ -66,10 +66,15 @@ public class HobbyServiceV2 {
     public MyHobbySettingResDtoV2 myHobbySetting(User currentUser) {
         List<Hobby> allHobbies = hobbyRepository.findAllByUser(currentUser);
 
-        List<MyHobbySettingResDtoV2.ProgressHobbyList> progressList = allHobbies.stream()
+        List<Hobby> progressHobbies = allHobbies.stream()
                 .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
                 .sorted(Comparator.comparing(Hobby::getSequence, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(MyHobbySettingResDtoV2.ProgressHobbyList::from)
+                .toList();
+
+        boolean isProgressDeletable = progressHobbies.size() > 1;
+
+        List<MyHobbySettingResDtoV2.ProgressHobbyList> progressList = progressHobbies.stream()
+                .map(h -> MyHobbySettingResDtoV2.ProgressHobbyList.from(h, isProgressDeletable))
                 .toList();
 
         List<MyHobbySettingResDtoV2.HiddenHobbyList> hiddenList = allHobbies.stream()
