@@ -66,10 +66,15 @@ public class HobbyServiceV2 {
     public MyHobbySettingResDtoV2 myHobbySetting(User currentUser) {
         List<Hobby> allHobbies = hobbyRepository.findAllByUser(currentUser);
 
-        List<MyHobbySettingResDtoV2.ProgressHobbyList> progressList = allHobbies.stream()
+        List<Hobby> progressHobbies = allHobbies.stream()
                 .filter(h -> h.getStatus() == HobbyStatus.IN_PROGRESS)
                 .sorted(Comparator.comparing(Hobby::getSequence, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(MyHobbySettingResDtoV2.ProgressHobbyList::from)
+                .toList();
+
+        boolean isProgressDeletable = progressHobbies.size() > 1;
+
+        List<MyHobbySettingResDtoV2.ProgressHobbyList> progressList = progressHobbies.stream()
+                .map(h -> MyHobbySettingResDtoV2.ProgressHobbyList.from(h, isProgressDeletable))
                 .toList();
 
         List<MyHobbySettingResDtoV2.HiddenHobbyList> hiddenList = allHobbies.stream()
@@ -86,14 +91,12 @@ public class HobbyServiceV2 {
         List<Hobby> userHobbies = hobbyRepository.findAllByUser(currentUser);
         Map<Long, Hobby> hobbyMap = userHobbies.stream().collect(Collectors.toMap(Hobby::getId, h -> h));
 
-        if (reqDto.getProgressHobbyList() != null) {
-            hobbyValidator.validateDuplicateSequence(reqDto.getProgressHobbyList());
-            for (UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo info : reqDto.getProgressHobbyList()) {
-                Hobby hobby = hobbyMap.get(info.getHobbyId());
-                if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
+        hobbyValidator.validateDuplicateSequence(reqDto.getProgressHobbyList());
+        for (UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo info : reqDto.getProgressHobbyList()) {
+            Hobby hobby = hobbyMap.get(info.getHobbyId());
+            if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
 
-                hobby.updateStatusAndSequence(info.getSequence(), HobbyStatus.IN_PROGRESS);
-            }
+            hobby.updateStatusAndSequence(info.getSequence(), HobbyStatus.IN_PROGRESS);
         }
 
         if (reqDto.getHiddenHobbyList() != null) {

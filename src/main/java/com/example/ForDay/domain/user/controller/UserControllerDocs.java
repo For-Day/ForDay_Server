@@ -44,7 +44,8 @@ public interface UserControllerDocs {
             )
     })
     NicknameCheckResDto nicknameCheck(
-            @Parameter(description = "중복 확인할 닉네임", example = "포비123") String nickname
+            @Parameter(description = "중복 확인할 닉네임", example = "포비123") String nickname,
+            @AuthenticationPrincipal CustomUserDetails user
     );
 
     @Operation(
