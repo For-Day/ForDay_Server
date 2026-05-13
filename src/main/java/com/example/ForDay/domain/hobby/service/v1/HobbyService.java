@@ -395,6 +395,15 @@ public class HobbyService {
     @Transactional
     public DeleteHobbyResDto deleteHobby(Long hobbyId, User user) {
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, user);
+
+        if (hobby.isProgressed()) {
+            long progressHobbyCount = hobbyRepository.countByUserAndStatus(user, HobbyStatus.IN_PROGRESS);
+
+            if (progressHobbyCount <= 1) {
+                throw new CustomException(ErrorCode.MINIMUM_PROGRESS_HOBBY_REQUIRED);
+            }
+        }
+
         hobby.deleteHobby();
         hobbyRepository.saveAndFlush(hobby);
 

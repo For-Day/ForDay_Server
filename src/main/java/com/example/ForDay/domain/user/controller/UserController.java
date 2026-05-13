@@ -20,8 +20,9 @@ public class UserController implements UserControllerDocs {
 
     @Override
     @GetMapping("/nickname/availability")
-    public NicknameCheckResDto nicknameCheck(@RequestParam String nickname) {
-        return userService.nicknameCheck(nickname);
+    public NicknameCheckResDto nicknameCheck(@RequestParam String nickname,
+                                             @AuthenticationPrincipal CustomUserDetails user) {
+        return userService.nicknameCheck(nickname, user.getUser());
     }
 
     @Override
@@ -72,9 +73,9 @@ public class UserController implements UserControllerDocs {
 
     @GetMapping("/scraps")
     public GetUserScrapListResDto getUserScrapList(@RequestParam(name = "lastScrapId", required = false) Long lastScrapId,
-                                                           @RequestParam(name = "size", required = false, defaultValue = "24") Integer size,
-                                                           @AuthenticationPrincipal CustomUserDetails user,
-                                                           @RequestParam(name = "userId", required = false) String userId) {
+                                                   @RequestParam(name = "size", required = false, defaultValue = "24") Integer size,
+                                                   @AuthenticationPrincipal CustomUserDetails user,
+                                                   @RequestParam(name = "userId", required = false) String userId) {
         return userService.getUserScrapList(lastScrapId, size, user, userId);
     }
 

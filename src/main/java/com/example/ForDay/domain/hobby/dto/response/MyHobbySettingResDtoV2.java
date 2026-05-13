@@ -15,10 +15,8 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MyHobbySettingResDtoV2 {
-    // 진행 중은 사용자가 지정한 sequence 순서에 따라
-    List<ProgressHobbyList> progressHobbyList;
-    // 숨김은 최신순으로
-    List<HiddenHobbyList> hiddenHobbyList;
+    private List<ProgressHobbyList> progressHobbyList;
+    private List<HiddenHobbyList> hiddenHobbyList;
 
     @Data
     @AllArgsConstructor
@@ -29,14 +27,16 @@ public class MyHobbySettingResDtoV2 {
         private HobbyStatus status;
         private HobbyInfoImageIcon imageIcon;
         private LocalDateTime createdAt;
+        private boolean deletable;
 
-        public static ProgressHobbyList from(Hobby hobby) {
+        public static ProgressHobbyList from(Hobby hobby, boolean deletable) {
             return new ProgressHobbyList(
                     hobby.getId(),
                     hobby.getHobbyName(),
                     hobby.getStatus(),
                     HobbyUtil.mapImageCode(hobby.getHobbyInfoId()),
-                    hobby.getCreatedAt()
+                    hobby.getCreatedAt(),
+                    deletable
             );
         }
     }
@@ -50,6 +50,7 @@ public class MyHobbySettingResDtoV2 {
         private HobbyStatus status;
         private HobbyInfoImageIcon imageIcon;
         private LocalDateTime createdAt;
+        private boolean deletable;
 
         public static HiddenHobbyList from(Hobby hobby) {
             return new HiddenHobbyList(
@@ -57,7 +58,8 @@ public class MyHobbySettingResDtoV2 {
                     hobby.getHobbyName(),
                     hobby.getStatus(),
                     HobbyUtil.mapImageCode(hobby.getHobbyInfoId()),
-                    hobby.getCreatedAt()
+                    hobby.getCreatedAt(),
+                    true
             );
         }
     }

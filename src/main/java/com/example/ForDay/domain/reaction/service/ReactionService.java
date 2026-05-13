@@ -102,6 +102,7 @@ public class ReactionService {
         return GetRecordReactionUsersResDto.of(type, reactionUsers, size);
     }
 
+    // 푸시 알림 비동기 처리시
     @Transactional
     public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -121,6 +122,32 @@ public class ReactionService {
 
         if(!isRecordOwner(currentUser, record)) {
             notificationService.processReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
+        }
+
+        return ReactToRecordResDto.of(type, recordId);
+    }
+
+    // 푸시 알림 동기 처리시
+    @Transactional
+    public ReactToRecordResDto testReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
+        if(!isRecordOwner(currentUser, record)) activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
+        validateDuplicateReaction(recordId, currentUser.getId(), type);
+
+        ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
+        recordReactionRepository.save(reaction);
+
+        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
+        if (result == 0) {
+            recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
+        }
+        reactionRankingService.incrementRankingScore(record.getRecordId());
+
+        if(!isRecordOwner(currentUser, record)) {
+            // 여기만 수정
+            notificationService.testProcessReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
         }
 
         return ReactToRecordResDto.of(type, recordId);

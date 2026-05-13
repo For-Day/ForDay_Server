@@ -13,16 +13,9 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, String> {
     User findBySocialId(String socialId);
 
-    @Modifying
-    @Transactional
-    @Query("""
-            DELETE FROM User u
-            WHERE u.role = 'GUEST'
-              AND u.lastActivityAt IS NOT NULL
-              AND u.lastActivityAt < :threshold""")
-    int deleteOldGuests(@Param("threshold") LocalDateTime threshold);
-
     boolean existsByNickname(String nickname);
+
+    boolean existsByNicknameAndIdNot(String nickname, String currentUserId);
 
     boolean existsBySocialId(String socialId);
 }

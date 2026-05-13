@@ -187,4 +187,8 @@ public class Hobby extends BaseTimeEntity {
     public void deleteHobby() {
         this.deleted = true;
     }
+
+    public boolean isProgressed() {
+        return this.status == HobbyStatus.IN_PROGRESS;
+    }
 }
