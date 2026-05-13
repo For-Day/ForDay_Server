@@ -1368,9 +1368,12 @@ public interface HobbyControllerDocs {
                             name = "MINIMUM_PROGRESS_HOBBY_REQUIRED",
                             value = """
                                     {
-                                      "status": 400,
+                                      "status": 409,
                                       "success": false,
-                                      "message": "진행 중인 취미는 최소 1개 이상 존재해야 합니다."
+                                      "data": {
+                                        "errorClassName": "MINIMUM_PROGRESS_HOBBY_REQUIRED",
+                                        "message": "진행 중인 취미는 최소 1개 이상 존재해야 합니다."
+                                      }
                                     }
                                     """
                     ))
