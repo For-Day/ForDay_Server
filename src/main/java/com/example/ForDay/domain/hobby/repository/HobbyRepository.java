@@ -55,4 +55,6 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long>, HobbyReposi
     List<Hobby> findAllByUser(User user);
 
     Optional<Hobby> findByUserAndStatusAndSequence(User user, HobbyStatus status, int sequence);
+
+    long countByUserAndStatus(User user, HobbyStatus hobbyStatus);
 }
