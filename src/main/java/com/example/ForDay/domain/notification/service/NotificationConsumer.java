@@ -1,12 +1,10 @@
 package com.example.ForDay.domain.notification.service;
 
-import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.firebase.dto.request.FcmNotificationReqDto;
 import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;

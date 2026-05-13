@@ -86,14 +86,12 @@ public class HobbyServiceV2 {
         List<Hobby> userHobbies = hobbyRepository.findAllByUser(currentUser);
         Map<Long, Hobby> hobbyMap = userHobbies.stream().collect(Collectors.toMap(Hobby::getId, h -> h));
 
-        if (reqDto.getProgressHobbyList() != null) {
-            hobbyValidator.validateDuplicateSequence(reqDto.getProgressHobbyList());
-            for (UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo info : reqDto.getProgressHobbyList()) {
-                Hobby hobby = hobbyMap.get(info.getHobbyId());
-                if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
+        hobbyValidator.validateDuplicateSequence(reqDto.getProgressHobbyList());
+        for (UpdateMyHobbySettingReqDtoV2.ProgressUpdateInfo info : reqDto.getProgressHobbyList()) {
+            Hobby hobby = hobbyMap.get(info.getHobbyId());
+            if (hobby == null) throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
 
-                hobby.updateStatusAndSequence(info.getSequence(), HobbyStatus.IN_PROGRESS);
-            }
+            hobby.updateStatusAndSequence(info.getSequence(), HobbyStatus.IN_PROGRESS);
         }
 
         if (reqDto.getHiddenHobbyList() != null) {
