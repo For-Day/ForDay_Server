@@ -1362,17 +1362,31 @@ public interface HobbyControllerDocs {
                     content = @Content(schema = @Schema(implementation = DeleteHobbyResDto.class))
             ),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "삭제 실패 (진행 중인 취미 1개 미만 제한)",
+                    content = @Content(examples = @ExampleObject(
+                            name = "MINIMUM_PROGRESS_HOBBY_REQUIRED",
+                            value = """
+                                    {
+                                      "status": 400,
+                                      "success": false,
+                                      "message": "진행 중인 취미는 최소 1개 이상 존재해야 합니다."
+                                    }
+                                    """
+                    ))
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "삭제 실패 (해당 ID의 취미가 존재하지 않음)",
                     content = @Content(examples = @ExampleObject(
                             name = "HOBBY_NOT_FOUND",
                             value = """
-                {
-                  "status": 404,
-                  "success": false,
-                  "message": "해당 취미를 찾을 수 없습니다."
-                }
-                """
+                                    {
+                                      "status": 404,
+                                      "success": false,
+                                      "message": "해당 취미를 찾을 수 없습니다."
+                                    }
+                                    """
                     ))
             )
     })
