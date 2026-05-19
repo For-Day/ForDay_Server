@@ -203,81 +203,66 @@ public class AuthService {
 
     @Transactional
     public SwitchAccountResDto switchAccount(SwitchAccountReqDto reqDto, CustomUserDetails user) {
-        User currentUser = userUtil.getCurrentUser(user); // 현재 유저
+        User currentUser = userUtil.getCurrentUser(user);
 
         log.info("Switch account attempt - userId: {}, currentRole: {}, requestSocialType: {}", currentUser.getId(), currentUser.getRole(), reqDto.getSocialType());
 
-        if(!currentUser.getRole().equals(Role.GUEST)) { // 게스트가 아니면 예외
+        if(!currentUser.getRole().equals(Role.GUEST)) {
             log.warn("Switch account denied - userId: {} is not GUEST (role: {})", currentUser.getId(), currentUser.getRole());
             throw new CustomException(ErrorCode.NO_GUEST_ACCESS);
         }
 
-        if(reqDto.getSocialType() == SocialType.GUEST) { // 요청 타입이 게스트이면 예외
+        if(reqDto.getSocialType() == SocialType.GUEST) {
             log.warn("Invalid switch request - userId: {} tried to switch to GUEST", currentUser.getId());
             throw new CustomException(ErrorCode.INVALID_REQUEST_TYPE);
         }
 
-        String accessToken = "";
-        String refreshToken = "";
+        String socialId = "";
+        String email = null;
+
         switch (reqDto.getSocialType()) {
             case KAKAO -> {
-                log.info("Calling Kakao API - userId: {}", currentUser.getId());
-
-                // kakao 회원 정보 받아오기
+                log.info("Calling Kakao API for switch - userId: {}", currentUser.getId());
                 KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(reqDto.getSocialCode());
-
-                String socialId = createSocialId(SocialType.KAKAO, String.valueOf(kakaoProfileDto.getId()));
-
-                // 이미 존재하는 회원이면 전환 방지
-                if(userRepository.existsBySocialId(socialId)) {
-                    log.warn("Switch failed - socialId already exists: {}", socialId);
-                    throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
-                }
-
-                // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> KAKAO
-                currentUser.switchAccount(kakaoProfileDto.getKakao_account().getEmail(), Role.USER, SocialType.KAKAO, socialId);
-                userRepository.save(currentUser);
-
-                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.KAKAO);
-                refreshToken = jwtUtil.createRefreshToken(socialId);
-
-                log.info("Switch success - userId: {}, newSocialType: KAKAO, socialId: {}",
-                        currentUser.getId(), socialId);
+                socialId = createSocialId(SocialType.KAKAO, String.valueOf(kakaoProfileDto.getId()));
+                email = kakaoProfileDto.getKakao_account().getEmail();
             }
             case APPLE -> {
-                log.info("Calling Apple API - userId: {}", currentUser.getId());
-                // 프론트에서 code값을 보내면서 로그인/회원가입 요청을 한다.
-                // code와 애플 설정값을 이용하여 직접 JWT 토큰 생성후 apple api에 유저 정보 요청을 보낸다. -> 응답으로 idToken과 accessToken을 받는다.
+                log.info("Calling Apple API for switch - userId: {}", currentUser.getId());
                 AppleTokenResDto appleTokenResDto = appleService.getAppleToken(reqDto.getSocialCode());
-
-                // 응답으로 받은 idToken에 대해 공개키로 무결성 검증을 진행한다.  (공개키 생성은 애플 api에 요청해서 받아오기)
-                // 공개키 받아서 검증 후 payload 읽기
                 Claims claims = appleService.verifyAndParseAppleIdToken(appleTokenResDto);
-
-                // 사용자 정보에서 socialId와 email 추출
-                String socialId = createSocialId(SocialType.APPLE, claims.getSubject());
-
-                // 이미 존재하는 회원이면 전환 방지
-                if(userRepository.existsBySocialId(socialId)) {
-                    log.warn("Switch failed - socialId already exists: {}", socialId);
-                    throw new CustomException(ErrorCode.SOCIAL_ALREADY_EXISTS);
-                }
-
-                String email = claims.containsKey("email") ? claims.get("email", String.class) : null;
-
-                // 새롭게 전환하는 유저이면 기존 Role: GUEST -> USER, GUEST -> APPLE
-                currentUser.switchAccount(email, Role.USER, SocialType.APPLE, socialId);
-                userRepository.save(currentUser);
-                accessToken = jwtUtil.createAccessToken(socialId, Role.USER, SocialType.APPLE);
-                refreshToken = jwtUtil.createRefreshToken(socialId);
-
-                log.info("Switch success - userId: {}, newSocialType: APPLE, socialId: {}",
-                        currentUser.getId(), socialId);
+                socialId = createSocialId(SocialType.APPLE, claims.getSubject());
+                email = claims.containsKey("email") ? claims.get("email", String.class) : null;
             }
         }
 
-        String fcmToken = fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
-        return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken, fcmToken);
+        User targetUser = userRepository.findBySocialId(socialId);
+        String accessToken = "";
+        String refreshToken = "";
+
+        if (targetUser != null) {
+            log.info("Switch account - Social account already exists. Logging in as existing user. socialId: {}, existingUserId: {}", socialId, targetUser.getId());
+
+            accessToken = jwtUtil.createAccessToken(socialId, targetUser.getRole(), reqDto.getSocialType());
+            refreshToken = jwtUtil.createRefreshToken(socialId);
+
+            String fcmToken = fcmTokenService.registerFcmToken(targetUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+
+            return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken, fcmToken);
+
+        } else {
+            log.info("Switch account - Creating new social link for GUEST userId: {}, socialId: {}", currentUser.getId(), socialId);
+
+            currentUser.switchAccount(email, Role.USER, reqDto.getSocialType(), socialId);
+            userRepository.save(currentUser);
+
+            accessToken = jwtUtil.createAccessToken(socialId, Role.USER, reqDto.getSocialType());
+            refreshToken = jwtUtil.createRefreshToken(socialId);
+
+            String fcmToken = fcmTokenService.registerFcmToken(currentUser, reqDto.getFcmToken(), reqDto.getDeviceId(), reqDto.getDeviceType());
+
+            return SwitchAccountResDto.of(reqDto.getSocialType(), accessToken, refreshToken, fcmToken);
+        }
     }
 
     @Transactional
