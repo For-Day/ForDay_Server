@@ -15,6 +15,7 @@ import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.hobby.validator.HobbyValidator;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class HobbyServiceV2 {
     private final HobbyUtil hobbyUtil;
     private final NotificationService notificationService;
     private final HobbyAiInsightService hobbyAiInsightService;
+    private final UserRepository userRepository;
 
     @Transactional
     public HobbyCreateResDtoV2 hobbyCreate(HobbyCreateReqDtoV2 reqDto, User currentUser) {
@@ -57,6 +59,7 @@ public class HobbyServiceV2 {
         if (!currentUser.isOnboardingCompleted()) {
             currentUser.completeOnboarding();
             log.info("[HobbyCreate] User onboarding marked as completed: userId={}", currentUser.getId());
+            userRepository.save(currentUser);
         }
 
         return HobbyCreateResDtoV2.from(savedHobbies);

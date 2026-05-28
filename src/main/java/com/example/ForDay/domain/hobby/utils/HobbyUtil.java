@@ -73,7 +73,7 @@ public class HobbyUtil {
     }
 
     public Hobby getFirstHobby(User user) {
-        return hobbyRepository.findByUserAndStatusAndSequence(user, HobbyStatus.IN_PROGRESS, 1)
+        return hobbyRepository.findFirstByUserAndStatusOrderBySequenceAsc(user, HobbyStatus.IN_PROGRESS)
                 .orElse(null);
     }
 }

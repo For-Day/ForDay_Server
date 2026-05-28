@@ -1,4 +1,4 @@
-package com.example.ForDay.domain.activity.controller;
+package com.example.ForDay.domain.activity.controller.v1;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
