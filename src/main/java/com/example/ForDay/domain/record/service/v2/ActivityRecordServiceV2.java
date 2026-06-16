@@ -150,9 +150,8 @@ public class ActivityRecordServiceV2 {
 
     private List<RecordImage> buildRecordImages(ActivityRecord record, List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
         if (images == null || images.isEmpty()) return Collections.emptyList();
-        int minOrder = images.stream().mapToInt(ActivityRecordReqDtoV2.ActivityImageReqDto::getImageOrder).min().orElse(1);
         return images.stream()
-                .map(img -> RecordImage.of(record, img, img.getImageOrder().equals(minOrder)))
+                .map(img -> RecordImage.of(record, img, img.getImageOrder() == 1))
                 .toList();
     }
 }
