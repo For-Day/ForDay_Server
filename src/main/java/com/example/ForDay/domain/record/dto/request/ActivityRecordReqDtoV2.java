@@ -44,7 +44,7 @@ public class ActivityRecordReqDtoV2 {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public class ActivityImageReqDto {
+    public static class ActivityImageReqDto {
 
         @NotBlank
         private String imageUrl;
