@@ -131,14 +131,7 @@ public class ActivityRecordServiceV2 {
         Activity activity = resolveActivity(reqDto, currentUser, hobby);
         activity.record();
 
-        ActivityRecord record = ActivityRecord.builder()
-                .user(currentUser)
-                .hobby(hobby)
-                .activity(activity)
-                .sticker(reqDto.getSticker())
-                .memo(reqDto.getMemo())
-                .visibility(reqDto.getVisibility())
-                .build();
+        ActivityRecord record = ActivityRecord.ofV2(hobby, activity, currentUser, reqDto);
         activityRecordRepository.save(record);
 
         List<RecordImage> images = buildRecordImages(record, reqDto.getImages());

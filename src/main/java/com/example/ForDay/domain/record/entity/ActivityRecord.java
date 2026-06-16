@@ -3,6 +3,7 @@ package com.example.ForDay.domain.record.entity;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
@@ -107,6 +108,17 @@ public class ActivityRecord extends BaseTimeEntity {
                 .memo(dto.getMemo())
                 .visibility(dto.getVisibility())
                 .imageUrl(dto.getImageUrl())
+                .build();
+    }
+
+    public static ActivityRecord ofV2(Hobby hobby, Activity activity, User user, ActivityRecordReqDtoV2 dto) {
+        return ActivityRecord.builder()
+                .hobby(hobby)
+                .activity(activity)
+                .user(user)
+                .sticker(dto.getSticker())
+                .memo(dto.getMemo())
+                .visibility(dto.getVisibility())
                 .build();
     }
 }
