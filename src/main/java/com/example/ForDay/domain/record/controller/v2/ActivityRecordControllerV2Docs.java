@@ -1,6 +1,8 @@
 package com.example.ForDay.domain.record.controller.v2;
 
+import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
+import com.example.ForDay.domain.record.dto.response.ActivityRecordResDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
@@ -70,6 +72,33 @@ public interface ActivityRecordControllerV2Docs {
             @Parameter(description = "조회할 감정 유형 (미입력 시 전체)", example = "AWESOME") @RequestParam(required = false) RecordReactionType type,
             @Parameter(description = "이전 조회에서 마지막으로 조회된 reactionId", example = "36") @RequestParam(required = false) Long lastReactionId,
             @Parameter(description = "추가 조회할 갯수", example = "10") @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "활동 기록하기 V2",
+            description = """
+                    활동을 기록합니다. activityId와 activityContent는 둘 중 하나만 입력해야 합니다.
+                    - activityId가 있는 경우: 기존 활동을 사용하여 기록합니다. (activityContent는 null이어야 합니다.)
+                    - activityContent가 있는 경우: 새 활동을 생성한 뒤 기록합니다. (activityId는 null이어야 합니다.)
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "기록 성공",
+                    content = @Content(schema = @Schema(implementation = ActivityRecordResDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(examples = {
+                    @ExampleObject(name = "INVALID_INPUT_VALUE", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_INPUT_VALUE\", \"message\": \"activityId가 null이면 activityContent는 필수입니다. activityId가 있으면 activityContent는 null이어야 합니다.\"}}"),
+                    @ExampleObject(name = "INVALID_HOBBY_STATUS", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_HOBBY_STATUS\", \"message\": \"현재 취미 상태에서는 해당 작업을 수행할 수 없습니다.\"}}"),
+                    @ExampleObject(name = "STICKER_COMPLETION_REACHED", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"STICKER_COMPLETION_REACHED\", \"message\": \"해당 취미의 스티커 수가 이미 최대치에 도달했습니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "리소스를 찾을 수 없음", content = @Content(examples = {
+                    @ExampleObject(name = "HOBBY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"HOBBY_NOT_FOUND\", \"message\": \"존재하지 않는 취미입니다.\"}}"),
+                    @ExampleObject(name = "ACTIVITY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_NOT_FOUND\", \"message\": \"존재하지 않는 활동입니다.\"}}")
+            }))
+    })
+    @PostMapping
+    ActivityRecordResDto recordActivity(
+            @Valid @RequestBody ActivityRecordReqDtoV2 reqDto,
             @AuthenticationPrincipal CustomUserDetails user
     );
 }
