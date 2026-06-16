@@ -65,6 +65,10 @@ public class ActivityRecord extends BaseTimeEntity {
 
     @Builder.Default
     @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RecordImage> images = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ActivityRecordReaction> reactions = new ArrayList<>();
 
     @Builder.Default

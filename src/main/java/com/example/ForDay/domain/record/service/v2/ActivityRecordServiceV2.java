@@ -1,15 +1,23 @@
 package com.example.ForDay.domain.record.service.v2;
 
+import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.service.ReactionRedisLockService;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.entity.RecordImage;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.repository.RecordImageRepository;
 import com.example.ForDay.domain.reaction.service.ReactionRankingService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -23,10 +31,10 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -42,6 +50,9 @@ public class ActivityRecordServiceV2 {
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
     private final ReactionRedisLockService reactionRedisLockService;
+    private final HobbyRepository hobbyRepository;
+    private final ActivityRepository activityRepository;
+    private final RecordImageRepository recordImageRepository;
 
     // 위, 아래 스와이프 적용 버전
     @Transactional
@@ -107,5 +118,48 @@ public class ActivityRecordServiceV2 {
 
     private static boolean isStoryContext(RecordSearchConditionReqDto condition) {
         return condition.context() == ContextType.STORY_ALL || condition.context() == ContextType.STORY_HOBBY;
+    }
+
+    @Transactional
+    public ActivityRecordResDto recordActivity(ActivityRecordReqDtoV2 reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        Hobby hobby = hobbyRepository.findByIdAndUserId(reqDto.getHobbyId(), currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        hobby.validateCanRecord();
+
+        Activity activity = resolveActivity(reqDto, currentUser, hobby);
+        activity.record();
+
+        ActivityRecord record = ActivityRecord.builder()
+                .user(currentUser)
+                .hobby(hobby)
+                .activity(activity)
+                .sticker(reqDto.getSticker())
+                .memo(reqDto.getMemo())
+                .visibility(reqDto.getVisibility())
+                .build();
+        activityRecordRepository.save(record);
+
+        List<RecordImage> images = buildRecordImages(record, reqDto.getImages());
+        recordImageRepository.saveAll(images);
+
+        return ActivityRecordResDto.from(record, images);
+    }
+
+    private Activity resolveActivity(ActivityRecordReqDtoV2 reqDto, User currentUser, Hobby hobby) {
+        if (reqDto.getActivityId() != null) {
+            return activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUser.getId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+        }
+        return activityRepository.save(Activity.createActivity(currentUser, hobby, reqDto.getActivityContent(), false));
+    }
+
+    private List<RecordImage> buildRecordImages(ActivityRecord record, List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
+        if (images == null || images.isEmpty()) return Collections.emptyList();
+        int minOrder = images.stream().mapToInt(ActivityRecordReqDtoV2.ActivityImageReqDto::getImageOrder).min().orElse(1);
+        return images.stream()
+                .map(img -> RecordImage.of(record, img, img.getImageOrder().equals(minOrder)))
+                .toList();
     }
 }
