@@ -2,6 +2,7 @@ package com.example.ForDay.domain.activity.controller.v1;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
+import com.example.ForDay.domain.activity.dto.response.GetRecentActivityListResDto;
 import com.example.ForDay.domain.activity.service.ActivityRecommendItemService;
 import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.domain.activity.type.AIItemType;
@@ -40,5 +41,12 @@ public class ActivityController implements ActivityControllerDocs {
                                                          @RequestParam(name = "type", defaultValue = "ALL") AIItemType type,
                                                          @AuthenticationPrincipal CustomUserDetails user) {
         return recommendItemService.getAiRecommendItems(hobbyId, user, type);
+    }
+
+    @Override
+    @GetMapping("/recent")
+    public GetRecentActivityListResDto getRecentActivityList(@RequestParam(name = "hobbyId") Long hobbyId,
+                                                             @AuthenticationPrincipal CustomUserDetails user) {
+        return activityService.getRecentActivityList(hobbyId, user);
     }
 }

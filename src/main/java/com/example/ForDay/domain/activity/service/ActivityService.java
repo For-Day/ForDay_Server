@@ -2,6 +2,7 @@ package com.example.ForDay.domain.activity.service;
 
 import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
+import com.example.ForDay.domain.activity.dto.response.GetRecentActivityListResDto;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityBulkRepository;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
@@ -109,6 +110,13 @@ public class ActivityService {
         recordRedisService.evictRecordCache(hobby.getId(), currentUser.getId());
 
         return RecordActivityResDto.of(hobby, activityRecord, activity, reqDto.getSticker(), isCheckStickerFull(hobby));
+    }
+
+    @Transactional(readOnly = true)
+    public GetRecentActivityListResDto getRecentActivityList(Long hobbyId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        log.info("[ActivityService] 최근 활동 목록 조회 - hobbyId={}, userId={}", hobbyId, currentUser.getId());
+        return activityRepository.getRecentActivityList(hobbyId, currentUser.getId());
     }
 
     @Transactional

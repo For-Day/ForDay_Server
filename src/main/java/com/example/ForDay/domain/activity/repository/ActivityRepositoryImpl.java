@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.activity.repository;
 
 import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
+import com.example.ForDay.domain.activity.dto.response.GetRecentActivityListResDto;
 import com.example.ForDay.domain.activity.entity.QActivity;
 import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHobbyActivitiesResDto;
@@ -14,6 +15,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -83,6 +85,34 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom{
         }
 
         return new GetActivityListResDto(activities);
+    }
+
+    @Override
+    public GetRecentActivityListResDto getRecentActivityList(Long hobbyId, String userId) {
+        LocalDateTime threeMonthsAgo = LocalDateTime.now().minusMonths(3);
+
+        List<GetRecentActivityListResDto.ActivityDto> activities = queryFactory
+                .select(Projections.constructor(
+                        GetRecentActivityListResDto.ActivityDto.class,
+                        activity.id,
+                        activity.content,
+                        activity.collectedStickerNum,
+                        activity.lastRecordedAt
+                ))
+                .from(activity)
+                .where(
+                        activity.hobby.id.eq(hobbyId),
+                        activity.user.id.eq(userId),
+                        activity.lastRecordedAt.isNotNull(),
+                        activity.lastRecordedAt.goe(threeMonthsAgo)
+                )
+                .orderBy(
+                        activity.lastRecordedAt.desc(),
+                        activity.collectedStickerNum.desc()
+                )
+                .fetch();
+
+        return new GetRecentActivityListResDto(activities);
     }
 
     @Override
