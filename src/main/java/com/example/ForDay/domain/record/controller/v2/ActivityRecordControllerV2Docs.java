@@ -8,6 +8,7 @@ import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
 import com.example.ForDay.domain.record.dto.response.DeleteActivityRecordResDtoV2;
+import com.example.ForDay.domain.record.dto.response.GetKeyboardKeywordsResDto;
 import com.example.ForDay.domain.record.dto.response.UpdateActivityRecordResDtoV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -157,5 +158,18 @@ public interface ActivityRecordControllerV2Docs {
     DeleteActivityRecordResDtoV2 deleteActivityRecord(
             @Parameter(description = "활동 기록 ID", example = "42") @PathVariable(name = "recordId") Long recordId,
             @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "취미별 키보드 키워드 조회",
+            description = "기록 작성 시 취미 유형(hobbyInfoId)에 맞는 키보드 키워드 목록을 반환합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetKeyboardKeywordsResDto.class)))
+    })
+    @GetMapping("/keyboard-keywords")
+    GetKeyboardKeywordsResDto getKeyboardKeywords(
+            @Parameter(description = "취미 정보 ID", example = "1", required = true) @RequestParam(name = "hobbyInfoId") Long hobbyInfoId
     );
 }

@@ -21,8 +21,10 @@ import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.RecordImage;
+import com.example.ForDay.domain.record.entity.KeyboardKeyword;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.record.repository.KeyboardKeywordRepository;
 import com.example.ForDay.domain.record.repository.RecordImageRepository;
 import com.example.ForDay.domain.reaction.service.ReactionRankingService;
 import com.example.ForDay.domain.record.type.ContextType;
@@ -65,6 +67,7 @@ public class ActivityRecordServiceV2 {
     private final RecordCacheService recordCacheService;
     private final ActivityRecordReportRepository activityRecordReportRepository;
     private final TodayRecordRedisService todayRecordRedisService;
+    private final KeyboardKeywordRepository keyboardKeywordRepository;
 
     // 위, 아래 스와이프 적용 버전
     @Transactional
@@ -226,6 +229,12 @@ public class ActivityRecordServiceV2 {
         recordCacheService.evictRecordCache(record.getId());
 
         return DeleteActivityRecordResDtoV2.of(recordId, deleteImageUrls);
+    }
+
+    @Transactional(readOnly = true)
+    public GetKeyboardKeywordsResDto getKeyboardKeywords(Long hobbyInfoId) {
+        List<KeyboardKeyword> keywords = keyboardKeywordRepository.findAllByHobbyInfoId(hobbyInfoId);
+        return GetKeyboardKeywordsResDto.from(hobbyInfoId, keywords);
     }
 
     private boolean isToday(ActivityRecord record) {
