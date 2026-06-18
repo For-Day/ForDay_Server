@@ -1,8 +1,11 @@
 package com.example.ForDay.domain.record.dto.response;
 
 import com.example.ForDay.domain.record.dto.ReactionSummary;
+import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
+import com.example.ForDay.domain.record.entity.RecordImage;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
+import com.example.ForDay.global.util.TimeUtil;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -70,6 +73,35 @@ public class GetRecordDetailResDtoV3 {
     private Long nextRecordId;
 
 
+    public static GetRecordDetailResDtoV3 of(RecordDetailQueryDto detail,
+                                             boolean isRecordOwner,
+                                             boolean scraped,
+                                             List<ReactionSummary> summaries,
+                                             List<RecordImage> images,
+                                             String profileImageUrl,
+                                             String readerId) {
+        return GetRecordDetailResDtoV3.builder()
+                .hobbyId(detail.hobbyId())
+                .hobbyName(detail.hobbyName())
+                .activityId(detail.activityId())
+                .activityContent(detail.activityContent())
+                .activityRecordId(detail.recordId())
+                .images(images.stream().map(ImageInfo::from).toList())
+                .sticker(detail.sticker())
+                .createdAt(TimeUtil.formatLocalDateTime(detail.createdAt()))
+                .memo(detail.memo())
+                .recordOwner(isRecordOwner)
+                .scraped(scraped)
+                .userInfo(UserInfoDto.of(detail, profileImageUrl))
+                .visibility(detail.visibility())
+                .newReaction(NewReactionDto.of(summaries, isRecordOwner))
+                .userReaction(UserReactionDto.of(summaries, readerId))
+                .prevRecordId(null)
+                .nextRecordId(null)
+                .build();
+    }
+
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -94,6 +126,17 @@ public class GetRecordDetailResDtoV3 {
 
         @Schema(description = "썸네일 여부 (imageOrder=1인 이미지가 true)", example = "true")
         private boolean thumbnail;
+
+        public static ImageInfo from(RecordImage image) {
+            return ImageInfo.builder()
+                    .imageId(image.getId())
+                    .imageUrl(image.getImageUrl())
+                    .imageOrder(image.getImageOrder())
+                    .imageWidth(image.getImageWidth())
+                    .imageHeight(image.getImageHeight())
+                    .thumbnail(image.isThumbnail())
+                    .build();
+        }
     }
 
     @Data
@@ -177,5 +220,13 @@ public class GetRecordDetailResDtoV3 {
 
         @Schema(description = "작성자 프로필 이미지 URL", example = "https://s3.example.com/profile.jpg")
         private String profileImageUrl;
+
+        public static UserInfoDto of(RecordDetailQueryDto detail, String profileImageUrl) {
+            return UserInfoDto.builder()
+                    .userId(detail.writerId())
+                    .nickname(detail.writerNickname())
+                    .profileImageUrl(profileImageUrl)
+                    .build();
+        }
     }
 }

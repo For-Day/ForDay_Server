@@ -2,6 +2,7 @@ package com.example.ForDay.domain.activity.controller.v1;
 
 import com.example.ForDay.domain.activity.dto.request.UpdateActivityReqDto;
 import com.example.ForDay.domain.activity.dto.response.GetAiRecommendItemsResDto;
+import com.example.ForDay.domain.activity.dto.response.GetRecentActivityListResDto;
 import com.example.ForDay.domain.activity.type.AIItemType;
 import com.example.ForDay.global.common.error.ErrorResponse;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -251,5 +252,32 @@ public interface ActivityControllerDocs {
             @AuthenticationPrincipal CustomUserDetails user
     );
 
+    @Operation(
+            summary = "최근 3개월 기록된 활동 리스트 조회",
+            description = """
+                최근 3개월 이내에 기록된 활동 목록을 반환합니다.
+
+                **정렬 순서**
+                1. 최근 기록 순 (lastRecordedAt DESC)
+                2. 가장 많이 한 순 (collectedStickerNum DESC)
+
+                기록이 한 번도 없는 활동(lastRecordedAt = null)은 제외됩니다.
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GetRecentActivityListResDto.class)
+                    )
+            )
+    })
+    GetRecentActivityListResDto getRecentActivityList(
+            @Parameter(description = "취미 ID", required = true, example = "1")
+            @RequestParam(name = "hobbyId") Long hobbyId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
 
 }
