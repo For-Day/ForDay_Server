@@ -4,6 +4,7 @@ import com.example.ForDay.domain.reaction.service.ReactionService;
 import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.record.service.v2.ActivityRecordServiceV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -69,10 +70,15 @@ public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Doc
     }
 
     // 기록 수정
+    @Override
+    @PutMapping("/{recordId}")
+    public UpdateActivityRecordResDtoV2 updateActivityRecord(@PathVariable(name = "recordId") Long recordId,
+                                                              @RequestBody @Valid UpdateActivityRecordReqDtoV2 reqDto,
+                                                              @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordServiceV2.updateActivityRecord(recordId, reqDto, user);
+    }
 
     // 기록 삭제
-
-    // 기록 조회
 
     // 취미별 자주 사용하는 memo 조회
 }

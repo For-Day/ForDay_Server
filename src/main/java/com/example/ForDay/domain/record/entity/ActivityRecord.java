@@ -5,6 +5,7 @@ import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
@@ -92,6 +93,15 @@ public class ActivityRecord extends BaseTimeEntity {
         this.imageUrl = reqDto.getImageUrl();
     }
 
+    public void updateRecordV2(Activity activity, UpdateActivityRecordReqDtoV2 reqDto) {
+        this.activity = activity;
+        this.sticker = reqDto.getSticker();
+        this.memo = reqDto.getMemo();
+        this.visibility = reqDto.getVisibility();
+        var images = reqDto.getImages();
+        this.imageUrl = (images != null && !images.isEmpty()) ? images.get(0).getImageUrl() : null;
+    }
+
     public void deleteRecord() {
         this.sticker = null;
         this.memo = null;
@@ -119,6 +129,7 @@ public class ActivityRecord extends BaseTimeEntity {
                 .sticker(dto.getSticker())
                 .memo(dto.getMemo())
                 .visibility(dto.getVisibility())
+                .imageUrl(dto.getImages().get(0).getImageUrl())
                 .build();
     }
 }

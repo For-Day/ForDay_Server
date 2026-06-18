@@ -2,10 +2,12 @@ package com.example.ForDay.domain.record.controller.v2;
 
 import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.response.ActivityRecordResDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
+import com.example.ForDay.domain.record.dto.response.UpdateActivityRecordResDtoV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -99,6 +101,35 @@ public interface ActivityRecordControllerV2Docs {
     @PostMapping
     ActivityRecordResDto recordActivity(
             @Valid @RequestBody ActivityRecordReqDtoV2 reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "활동 기록 수정 V2",
+            description = """
+                    활동 기록을 수정합니다.
+                    - activityId: 연결된 활동을 변경할 경우 입력합니다. (생략 시 기존 활동 유지)
+                    - images: 기존 이미지를 모두 대체합니다. 빈 리스트 전달 시 이미지가 전체 삭제됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "수정 성공",
+                    content = @Content(schema = @Schema(implementation = UpdateActivityRecordResDtoV2.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(examples = {
+                    @ExampleObject(name = "INVALID_INPUT_VALUE", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_INPUT_VALUE\", \"message\": \"스티커는 필수입니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "403", description = "수정 권한 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACCESS_DENIED", value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"ACCESS_DENIED\", \"message\": \"본인의 기록만 수정할 수 있습니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "리소스를 찾을 수 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACTIVITY_RECORD_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"),
+                    @ExampleObject(name = "ACTIVITY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_NOT_FOUND\", \"message\": \"존재하지 않는 활동입니다.\"}}")
+            }))
+    })
+    @PutMapping("/{recordId}")
+    UpdateActivityRecordResDtoV2 updateActivityRecord(
+            @Parameter(description = "활동 기록 ID", example = "42") @PathVariable(name = "recordId") Long recordId,
+            @Valid @RequestBody UpdateActivityRecordReqDtoV2 reqDto,
             @AuthenticationPrincipal CustomUserDetails user
     );
 }
