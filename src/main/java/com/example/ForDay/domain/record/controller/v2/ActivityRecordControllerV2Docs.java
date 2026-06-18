@@ -7,6 +7,7 @@ import com.example.ForDay.domain.record.dto.response.ActivityRecordResDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
+import com.example.ForDay.domain.record.dto.response.DeleteActivityRecordResDtoV2;
 import com.example.ForDay.domain.record.dto.response.UpdateActivityRecordResDtoV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
@@ -130,6 +131,31 @@ public interface ActivityRecordControllerV2Docs {
     UpdateActivityRecordResDtoV2 updateActivityRecord(
             @Parameter(description = "활동 기록 ID", example = "42") @PathVariable(name = "recordId") Long recordId,
             @Valid @RequestBody UpdateActivityRecordReqDtoV2 reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "활동 기록 삭제 V2",
+            description = """
+                    활동 기록을 삭제합니다.
+                    - 오늘 기록: 활동/취미 상태 복구 후 완전 삭제 (하드 삭제)
+                    - 이전 기록: 소프트 삭제 (deleted=true 처리)
+                    - 첨부 이미지는 모두 S3에서 삭제됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "삭제 성공",
+                    content = @Content(schema = @Schema(implementation = DeleteActivityRecordResDtoV2.class))),
+            @ApiResponse(responseCode = "400", description = "이미 삭제된 기록", content = @Content(examples = {
+                    @ExampleObject(name = "ALREADY_DELETED_RECORD", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"ALREADY_DELETED_RECORD\", \"message\": \"이미 삭제된 기록입니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "기록 없음 또는 권한 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACTIVITY_RECORD_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}")
+            }))
+    })
+    @DeleteMapping("/{recordId}")
+    DeleteActivityRecordResDtoV2 deleteActivityRecord(
+            @Parameter(description = "활동 기록 ID", example = "42") @PathVariable(name = "recordId") Long recordId,
             @AuthenticationPrincipal CustomUserDetails user
     );
 }

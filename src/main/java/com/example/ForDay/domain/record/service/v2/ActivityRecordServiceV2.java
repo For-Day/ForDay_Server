@@ -7,8 +7,10 @@ import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.service.ReactionRedisLockService;
+import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.service.RecordCacheService;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
@@ -38,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -60,6 +63,8 @@ public class ActivityRecordServiceV2 {
     private final NotificationRepository notificationRepository;
     private final StickerInfoCacheService stickerInfoCacheService;
     private final RecordCacheService recordCacheService;
+    private final ActivityRecordReportRepository activityRecordReportRepository;
+    private final TodayRecordRedisService todayRecordRedisService;
 
     // 위, 아래 스와이프 적용 버전
     @Transactional
@@ -187,6 +192,44 @@ public class ActivityRecordServiceV2 {
                 .visibility(record.getVisibility())
                 .images(newImages.stream().map(ActivityRecordResDto.ImageInfo::from).toList())
                 .build();
+    }
+
+    @Transactional
+    public DeleteActivityRecordResDtoV2 deleteActivityRecord(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ActivityRecord record = activityRecordUtil.getRecordByUserId(recordId, currentUser);
+
+        if (record.isDeleted()) {
+            throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
+        }
+
+        recordReactionRepository.deleteByActivityRecord(record);
+        activityRecordReportRepository.deleteByReportedRecord(record);
+        activityRecordScrapRepository.deleteByActivityRecord(record);
+
+        List<RecordImage> recordImages = recordImageRepository.findAllByActivityRecordIdOrderByImageOrderAsc(recordId);
+        List<String> deleteImageUrls = recordImages.stream().map(RecordImage::getImageUrl).toList();
+
+        if (isToday(record)) {
+            record.getActivity().deleteRecord();
+            record.getHobby().deleteRecord();
+            todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), record.getHobby().getId());
+            activityRecordRepository.delete(record);
+            notificationRepository.updateImageUrlByRecordId(recordId, null);
+        } else {
+            recordImageRepository.deleteAll(recordImages);
+            record.deleteRecord();
+        }
+
+        deleteImageUrls.forEach(s3Util::registerS3DeletionAfterCommit);
+        stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        recordCacheService.evictRecordCache(record.getId());
+
+        return DeleteActivityRecordResDtoV2.of(recordId, deleteImageUrls);
+    }
+
+    private boolean isToday(ActivityRecord record) {
+        return record.getCreatedAt().toLocalDate().equals(LocalDate.now());
     }
 
     private Activity resolveActivityForUpdate(Long activityId, User currentUser, ActivityRecord record) {

@@ -79,6 +79,12 @@ public class ActivityRecordControllerV2 implements ActivityRecordControllerV2Doc
     }
 
     // 기록 삭제
+    @Override
+    @DeleteMapping("/{recordId}")
+    public DeleteActivityRecordResDtoV2 deleteActivityRecord(@PathVariable(name = "recordId") Long recordId,
+                                                              @AuthenticationPrincipal CustomUserDetails user) {
+        return activityRecordServiceV2.deleteActivityRecord(recordId, user);
+    }
 
     // 취미별 자주 사용하는 memo 조회
 }
