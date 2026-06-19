@@ -20,8 +20,4 @@ public class ActivityRecordControllerV3 implements ActivityRecordControllerV3Doc
                                                    @AuthenticationPrincipal CustomUserDetails user) {
         return activityRecordServiceV3.getRecordDetail(recordId, user);
     }
-
-    // 기록 수정
-
-    // 기록 삭제
 }

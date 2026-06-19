@@ -24,6 +24,8 @@ import com.example.ForDay.domain.record.entity.RecordImage;
 import com.example.ForDay.domain.record.entity.KeyboardKeyword;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.hobby.entity.HobbyInfo;
+import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
 import com.example.ForDay.domain.record.repository.KeyboardKeywordRepository;
 import com.example.ForDay.domain.record.repository.RecordImageRepository;
 import com.example.ForDay.domain.reaction.service.ReactionRankingService;
@@ -68,6 +70,7 @@ public class ActivityRecordServiceV2 {
     private final ActivityRecordReportRepository activityRecordReportRepository;
     private final TodayRecordRedisService todayRecordRedisService;
     private final KeyboardKeywordRepository keyboardKeywordRepository;
+    private final HobbyInfoRepository hobbyInfoRepository;
 
     // 위, 아래 스와이프 적용 버전
     @Transactional
