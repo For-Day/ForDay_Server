@@ -1,9 +1,15 @@
 package com.example.ForDay.domain.record.controller.v2;
 
+import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
+import com.example.ForDay.domain.record.dto.response.ActivityRecordResDto;
 import com.example.ForDay.domain.record.dto.response.GetRecordDetailResDtoV2;
 import com.example.ForDay.domain.record.dto.response.ReactionSummaryResDto;
 import com.example.ForDay.domain.record.dto.response.ReactionTabScrollResDto;
+import com.example.ForDay.domain.record.dto.response.DeleteActivityRecordResDtoV2;
+import com.example.ForDay.domain.record.dto.response.GetKeyboardKeywordsResDto;
+import com.example.ForDay.domain.record.dto.response.UpdateActivityRecordResDtoV2;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,5 +77,99 @@ public interface ActivityRecordControllerV2Docs {
             @Parameter(description = "이전 조회에서 마지막으로 조회된 reactionId", example = "36") @RequestParam(required = false) Long lastReactionId,
             @Parameter(description = "추가 조회할 갯수", example = "10") @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "활동 기록하기 V2",
+            description = """
+                    활동을 기록합니다. activityId와 activityContent는 둘 중 하나만 입력해야 합니다.
+                    - activityId가 있는 경우: 기존 활동을 사용하여 기록합니다. (activityContent는 null이어야 합니다.)
+                    - activityContent가 있는 경우: 새 활동을 생성한 뒤 기록합니다. (activityId는 null이어야 합니다.)
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "기록 성공",
+                    content = @Content(schema = @Schema(implementation = ActivityRecordResDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(examples = {
+                    @ExampleObject(name = "INVALID_INPUT_VALUE", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_INPUT_VALUE\", \"message\": \"activityId가 null이면 activityContent는 필수입니다. activityId가 있으면 activityContent는 null이어야 합니다.\"}}"),
+                    @ExampleObject(name = "INVALID_HOBBY_STATUS", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_HOBBY_STATUS\", \"message\": \"현재 취미 상태에서는 해당 작업을 수행할 수 없습니다.\"}}"),
+                    @ExampleObject(name = "STICKER_COMPLETION_REACHED", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"STICKER_COMPLETION_REACHED\", \"message\": \"해당 취미의 스티커 수가 이미 최대치에 도달했습니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "리소스를 찾을 수 없음", content = @Content(examples = {
+                    @ExampleObject(name = "HOBBY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"HOBBY_NOT_FOUND\", \"message\": \"존재하지 않는 취미입니다.\"}}"),
+                    @ExampleObject(name = "ACTIVITY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_NOT_FOUND\", \"message\": \"존재하지 않는 활동입니다.\"}}")
+            }))
+    })
+    @PostMapping
+    ActivityRecordResDto recordActivity(
+            @Valid @RequestBody ActivityRecordReqDtoV2 reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "활동 기록 수정 V2",
+            description = """
+                    활동 기록을 수정합니다.
+                    - activityId: 연결된 활동을 변경할 경우 입력합니다. (생략 시 기존 활동 유지)
+                    - images: 기존 이미지를 모두 대체합니다. 빈 리스트 전달 시 이미지가 전체 삭제됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "수정 성공",
+                    content = @Content(schema = @Schema(implementation = UpdateActivityRecordResDtoV2.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(examples = {
+                    @ExampleObject(name = "INVALID_INPUT_VALUE", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"INVALID_INPUT_VALUE\", \"message\": \"스티커는 필수입니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "403", description = "수정 권한 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACCESS_DENIED", value = "{\"status\": 403, \"success\": false, \"data\": {\"errorClassName\": \"ACCESS_DENIED\", \"message\": \"본인의 기록만 수정할 수 있습니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "리소스를 찾을 수 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACTIVITY_RECORD_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}"),
+                    @ExampleObject(name = "ACTIVITY_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_NOT_FOUND\", \"message\": \"존재하지 않는 활동입니다.\"}}")
+            }))
+    })
+    @PutMapping("/{recordId}")
+    UpdateActivityRecordResDtoV2 updateActivityRecord(
+            @Parameter(description = "활동 기록 ID", example = "42") @PathVariable(name = "recordId") Long recordId,
+            @Valid @RequestBody UpdateActivityRecordReqDtoV2 reqDto,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "활동 기록 삭제 V2",
+            description = """
+                    활동 기록을 삭제합니다.
+                    - 오늘 기록: 활동/취미 상태 복구 후 완전 삭제 (하드 삭제)
+                    - 이전 기록: 소프트 삭제 (deleted=true 처리)
+                    - 첨부 이미지는 모두 S3에서 삭제됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "삭제 성공",
+                    content = @Content(schema = @Schema(implementation = DeleteActivityRecordResDtoV2.class))),
+            @ApiResponse(responseCode = "400", description = "이미 삭제된 기록", content = @Content(examples = {
+                    @ExampleObject(name = "ALREADY_DELETED_RECORD", value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"ALREADY_DELETED_RECORD\", \"message\": \"이미 삭제된 기록입니다.\"}}")
+            })),
+            @ApiResponse(responseCode = "404", description = "기록 없음 또는 권한 없음", content = @Content(examples = {
+                    @ExampleObject(name = "ACTIVITY_RECORD_NOT_FOUND", value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"ACTIVITY_RECORD_NOT_FOUND\", \"message\": \"존재하지 않는 활동 기록입니다.\"}}")
+            }))
+    })
+    @DeleteMapping("/{recordId}")
+    DeleteActivityRecordResDtoV2 deleteActivityRecord(
+            @Parameter(description = "활동 기록 ID", example = "42") @PathVariable(name = "recordId") Long recordId,
+            @AuthenticationPrincipal CustomUserDetails user
+    );
+
+    @Operation(
+            summary = "취미별 키보드 키워드 조회",
+            description = "기록 작성 시 취미 유형(hobbyInfoId)에 맞는 키보드 키워드 목록을 반환합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetKeyboardKeywordsResDto.class)))
+    })
+    @GetMapping("/keyboard-keywords")
+    GetKeyboardKeywordsResDto getKeyboardKeywords(
+            @Parameter(description = "취미 정보 ID", example = "1", required = true) @RequestParam(name = "hobbyInfoId") Long hobbyInfoId
     );
 }

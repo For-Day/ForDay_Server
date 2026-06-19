@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.activity.repository;
 
 import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
+import com.example.ForDay.domain.activity.dto.response.GetRecentActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.GetActivityListResDto;
 import com.example.ForDay.domain.hobby.dto.response.GetHobbyActivitiesResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
@@ -12,5 +13,6 @@ import java.util.Optional;
 public interface ActivityRepositoryCustom {
     GetHobbyActivitiesResDto getHobbyActivities(Long hobbyId, Integer size);
     GetActivityListResDto getActivityList(Long hobbyId, String userId);
+    GetRecentActivityListResDto getRecentActivityList(Long hobbyId, String userId);
     Optional<ActivityRecordCollectInfo> getCollectActivityInfo(Long activityId);
 }

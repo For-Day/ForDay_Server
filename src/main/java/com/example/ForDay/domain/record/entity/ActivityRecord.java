@@ -3,7 +3,9 @@ package com.example.ForDay.domain.record.entity;
 import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
@@ -65,6 +67,10 @@ public class ActivityRecord extends BaseTimeEntity {
 
     @Builder.Default
     @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RecordImage> images = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "activityRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ActivityRecordReaction> reactions = new ArrayList<>();
 
     @Builder.Default
@@ -87,6 +93,15 @@ public class ActivityRecord extends BaseTimeEntity {
         this.imageUrl = reqDto.getImageUrl();
     }
 
+    public void updateRecordV2(Activity activity, UpdateActivityRecordReqDtoV2 reqDto) {
+        this.activity = activity;
+        this.sticker = reqDto.getSticker();
+        this.memo = reqDto.getMemo();
+        this.visibility = reqDto.getVisibility();
+        var images = reqDto.getImages();
+        this.imageUrl = (images != null && !images.isEmpty()) ? images.get(0).getImageUrl() : null;
+    }
+
     public void deleteRecord() {
         this.sticker = null;
         this.memo = null;
@@ -103,6 +118,18 @@ public class ActivityRecord extends BaseTimeEntity {
                 .memo(dto.getMemo())
                 .visibility(dto.getVisibility())
                 .imageUrl(dto.getImageUrl())
+                .build();
+    }
+
+    public static ActivityRecord ofV2(Hobby hobby, Activity activity, User user, ActivityRecordReqDtoV2 dto) {
+        return ActivityRecord.builder()
+                .hobby(hobby)
+                .activity(activity)
+                .user(user)
+                .sticker(dto.getSticker())
+                .memo(dto.getMemo())
+                .visibility(dto.getVisibility())
+                .imageUrl(dto.getImages().get(0).getImageUrl())
                 .build();
     }
 }

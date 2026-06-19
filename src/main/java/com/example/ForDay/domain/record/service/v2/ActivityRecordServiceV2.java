@@ -1,15 +1,33 @@
 package com.example.ForDay.domain.record.service.v2;
 
+import com.example.ForDay.domain.activity.entity.Activity;
+import com.example.ForDay.domain.activity.repository.ActivityRepository;
+import com.example.ForDay.domain.hobby.entity.Hobby;
+import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.service.ReactionRedisLockService;
+import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
+import com.example.ForDay.domain.record.service.RecordCacheService;
+import com.example.ForDay.domain.record.service.StickerInfoCacheService;
+import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.record.dto.ReactionSummary;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
+import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
+import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.record.entity.ActivityRecord;
+import com.example.ForDay.domain.record.entity.RecordImage;
+import com.example.ForDay.domain.record.entity.KeyboardKeyword;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordScrapRepository;
+import com.example.ForDay.domain.hobby.entity.HobbyInfo;
+import com.example.ForDay.domain.hobby.repository.HobbyInfoRepository;
+import com.example.ForDay.domain.record.repository.KeyboardKeywordRepository;
+import com.example.ForDay.domain.record.repository.RecordImageRepository;
 import com.example.ForDay.domain.reaction.service.ReactionRankingService;
 import com.example.ForDay.domain.record.type.ContextType;
 import com.example.ForDay.domain.record.type.RecordReactionType;
@@ -23,10 +41,11 @@ import com.example.ForDay.global.util.UserUtil;
 import com.example.ForDay.infra.s3.util.S3Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -42,6 +61,16 @@ public class ActivityRecordServiceV2 {
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
     private final ReactionRedisLockService reactionRedisLockService;
+    private final HobbyRepository hobbyRepository;
+    private final ActivityRepository activityRepository;
+    private final RecordImageRepository recordImageRepository;
+    private final NotificationRepository notificationRepository;
+    private final StickerInfoCacheService stickerInfoCacheService;
+    private final RecordCacheService recordCacheService;
+    private final ActivityRecordReportRepository activityRecordReportRepository;
+    private final TodayRecordRedisService todayRecordRedisService;
+    private final KeyboardKeywordRepository keyboardKeywordRepository;
+    private final HobbyInfoRepository hobbyInfoRepository;
 
     // 위, 아래 스와이프 적용 버전
     @Transactional
@@ -87,6 +116,26 @@ public class ActivityRecordServiceV2 {
         return new ReactToRecordResDto("반응이 정상적으로 등록되었습니다.", reactionType, recordId);
     }
 
+    @Transactional
+    public ActivityRecordResDto recordActivity(ActivityRecordReqDtoV2 reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+
+        Hobby hobby = hobbyRepository.findByIdAndUserId(reqDto.getHobbyId(), currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        hobby.validateCanRecord();
+
+        Activity activity = resolveActivity(reqDto, currentUser, hobby);
+        activity.record();
+
+        ActivityRecord record = ActivityRecord.ofV2(hobby, activity, currentUser, reqDto);
+        activityRecordRepository.save(record);
+
+        List<RecordImage> images = buildRecordImages(record, reqDto.getImages());
+        recordImageRepository.saveAll(images);
+
+        return ActivityRecordResDto.from(record, images);
+    }
+
     private boolean isScraped(RecordDetailQueryDto detail, User currentUser) {
         return activityRecordScrapRepository.existsByScrap(detail.recordId(), currentUser.getId());
     }
@@ -107,5 +156,106 @@ public class ActivityRecordServiceV2 {
 
     private static boolean isStoryContext(RecordSearchConditionReqDto condition) {
         return condition.context() == ContextType.STORY_ALL || condition.context() == ContextType.STORY_HOBBY;
+    }
+
+    private Activity resolveActivity(ActivityRecordReqDtoV2 reqDto, User currentUser, Hobby hobby) {
+        if (reqDto.getActivityId() != null) {
+            return activityRepository.findByIdAndUserId(reqDto.getActivityId(), currentUser.getId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+        }
+        return activityRepository.save(Activity.createActivity(currentUser, hobby, reqDto.getActivityContent(), false));
+    }
+
+    @Transactional
+    public UpdateActivityRecordResDtoV2 updateActivityRecord(Long recordId, UpdateActivityRecordReqDtoV2 reqDto, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ActivityRecord record = activityRecordUtil.getRecordByUserId(recordId, currentUser);
+
+        Activity activity = resolveActivityForUpdate(reqDto.getActivityId(), currentUser, record);
+
+        List<RecordImage> oldImages = recordImageRepository.findAllByActivityRecordIdOrderByImageOrderAsc(recordId);
+        oldImages.forEach(img -> s3Util.registerS3DeletionAfterCommit(img.getImageUrl()));
+        recordImageRepository.deleteAll(oldImages);
+
+        record.updateRecordV2(activity, reqDto);
+
+        List<RecordImage> newImages = buildRecordImages(record, reqDto.getImages());
+        recordImageRepository.saveAll(newImages);
+
+        String newThumbnailUrl = newImages.isEmpty() ? null : newImages.get(0).getImageUrl();
+        notificationRepository.updateImageUrlByRecordId(recordId, newThumbnailUrl);
+
+        stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        recordCacheService.evictRecordCache(record.getId());
+
+        return UpdateActivityRecordResDtoV2.builder()
+                .message("활동 기록이 정상적으로 수정되었습니다.")
+                .activityRecordId(record.getId())
+                .activityId(activity.getId())
+                .activityContent(activity.getContent())
+                .sticker(record.getSticker())
+                .memo(record.getMemo())
+                .visibility(record.getVisibility())
+                .images(newImages.stream().map(ActivityRecordResDto.ImageInfo::from).toList())
+                .build();
+    }
+
+    @Transactional
+    public DeleteActivityRecordResDtoV2 deleteActivityRecord(Long recordId, CustomUserDetails user) {
+        User currentUser = userUtil.getCurrentUser(user);
+        ActivityRecord record = activityRecordUtil.getRecordByUserId(recordId, currentUser);
+
+        if (record.isDeleted()) {
+            throw new CustomException(ErrorCode.ALREADY_DELETED_RECORD);
+        }
+
+        recordReactionRepository.deleteByActivityRecord(record);
+        activityRecordReportRepository.deleteByReportedRecord(record);
+        activityRecordScrapRepository.deleteByActivityRecord(record);
+
+        List<RecordImage> recordImages = recordImageRepository.findAllByActivityRecordIdOrderByImageOrderAsc(recordId);
+        List<String> deleteImageUrls = recordImages.stream().map(RecordImage::getImageUrl).toList();
+
+        if (isToday(record)) {
+            record.getActivity().deleteRecord();
+            record.getHobby().deleteRecord();
+            todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), record.getHobby().getId());
+            activityRecordRepository.delete(record);
+            notificationRepository.updateImageUrlByRecordId(recordId, null);
+        } else {
+            recordImageRepository.deleteAll(recordImages);
+            record.deleteRecord();
+        }
+
+        deleteImageUrls.forEach(s3Util::registerS3DeletionAfterCommit);
+        stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
+        recordCacheService.evictRecordCache(record.getId());
+
+        return DeleteActivityRecordResDtoV2.of(recordId, deleteImageUrls);
+    }
+
+    @Transactional(readOnly = true)
+    public GetKeyboardKeywordsResDto getKeyboardKeywords(Long hobbyInfoId) {
+        List<KeyboardKeyword> keywords = keyboardKeywordRepository.findAllByHobbyInfoId(hobbyInfoId);
+        return GetKeyboardKeywordsResDto.from(hobbyInfoId, keywords);
+    }
+
+    private boolean isToday(ActivityRecord record) {
+        return record.getCreatedAt().toLocalDate().equals(LocalDate.now());
+    }
+
+    private Activity resolveActivityForUpdate(Long activityId, User currentUser, ActivityRecord record) {
+        if (activityId == null) {
+            return record.getActivity();
+        }
+        return activityRepository.findByIdAndUserId(activityId, currentUser.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_NOT_FOUND));
+    }
+
+    private List<RecordImage> buildRecordImages(ActivityRecord record, List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
+        if (images == null || images.isEmpty()) return Collections.emptyList();
+        return images.stream()
+                .map(img -> RecordImage.of(record, img, img.getImageOrder() == 1))
+                .toList();
     }
 }
