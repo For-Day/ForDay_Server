@@ -4,6 +4,7 @@ import com.example.ForDay.domain.activity.entity.Activity;
 import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
+import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.service.ReactionRedisLockService;
@@ -120,8 +121,20 @@ public class ActivityRecordServiceV2 {
     public ActivityRecordResDto recordActivity(ActivityRecordReqDtoV2 reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
-        Hobby hobby = hobbyRepository.findByIdAndUserId(reqDto.getHobbyId(), currentUser.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        Hobby hobby;
+        if (reqDto.getHobbyId() != null) {
+            hobby = hobbyRepository.findByIdAndUserId(reqDto.getHobbyId(), currentUser.getId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
+        } else {
+            Integer maxSequence = hobbyRepository.findMaxSequenceByUserAndStatus(currentUser, HobbyStatus.IN_PROGRESS);
+            int nextSequence = (maxSequence == null ? 0 : maxSequence) + 1;
+            hobby = hobbyRepository.save(Hobby.builder()
+                    .user(currentUser)
+                    .hobbyName(reqDto.getHobbyName())
+                    .status(HobbyStatus.IN_PROGRESS)
+                    .sequence(nextSequence)
+                    .build());
+        }
         hobby.validateCanRecord();
 
         Activity activity = resolveActivity(reqDto, currentUser, hobby);

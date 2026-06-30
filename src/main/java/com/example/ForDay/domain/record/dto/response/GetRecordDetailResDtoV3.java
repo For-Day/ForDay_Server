@@ -79,7 +79,9 @@ public class GetRecordDetailResDtoV3 {
                                              List<ReactionSummary> summaries,
                                              List<RecordImage> images,
                                              String profileImageUrl,
-                                             String readerId) {
+                                             String readerId,
+                                             Long prevId,
+                                             Long nextId) {
         return GetRecordDetailResDtoV3.builder()
                 .hobbyId(detail.hobbyId())
                 .hobbyName(detail.hobbyName())
@@ -96,8 +98,8 @@ public class GetRecordDetailResDtoV3 {
                 .visibility(detail.visibility())
                 .newReaction(NewReactionDto.of(summaries, isRecordOwner))
                 .userReaction(UserReactionDto.of(summaries, readerId))
-                .prevRecordId(null)
-                .nextRecordId(null)
+                .prevRecordId(prevId)
+                .nextRecordId(nextId)
                 .build();
     }
 
