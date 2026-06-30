@@ -18,8 +18,11 @@ import java.util.List;
 @Schema(description = "활동 기록하기 요청 DTO")
 public class ActivityRecordReqDtoV2 {
 
-    @Schema(description = "기록할 취미 ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "기록할 취미 ID. hobbyName과 둘 중 하나만 입력.", example = "1")
     private Long hobbyId;
+
+    @Schema(description = "새로 생성할 취미 이름. hobbyId와 둘 중 하나만 입력. hobbyId가 null일 때 해당 이름으로 새 취미가 생성됨.", example = "독서")
+    private String hobbyName;
 
     @Schema(description = "기존 활동 ID. activityContent와 둘 중 하나만 입력. 기존 활동으로 기록 시 사용.", example = "10")
     private Long activityId;
@@ -41,8 +44,18 @@ public class ActivityRecordReqDtoV2 {
     @Schema(description = "메모 (최대 100자)", example = "오늘은 1시간 독서했다.")
     private String memo;
 
-    @AssertTrue(message = "activityId가 null이면 activityContent는 필수입니다. activityId가 있으면 activityContent는 null이어야 합니다.")
+    @AssertTrue(message = "hobbyId와 hobbyName 중 정확히 하나만 입력해야 합니다.")
+    public boolean isHobbyIdentifierValid() {
+        boolean hasHobbyId = hobbyId != null;
+        boolean hasHobbyName = hobbyName != null && !hobbyName.isBlank();
+        return hasHobbyId ^ hasHobbyName;
+    }
+
+    @AssertTrue(message = "activityId가 null이면 activityContent는 필수입니다. activityId가 있으면 activityContent는 null이어야 합니다. 새 취미 생성 시(hobbyId가 없을 때)는 activityId 사용 불가입니다.")
     public boolean isActivityContentValid() {
+        if (hobbyId == null && activityId != null) {
+            return false;
+        }
         if (activityId == null) {
             return activityContent != null && !activityContent.isBlank();
         } else {
