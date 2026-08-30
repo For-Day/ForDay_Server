@@ -77,11 +77,13 @@ class ArchitectureTest {
                     .because("JPA 애노테이션은 허용하되 스프링 컨테이너는 알지 않는다");
 
     @ArchTest
-    static final ArchRule D4_포트는_인터페이스여야_한다 =
+    static final ArchRule D4_포트는_인터페이스나_값객체여야_한다 =
             classes()
                     .that().resideInAPackage("..port..")
                     .should().beInterfaces()
-                    .because("구현체가 섞이면 포트가 아니다")
+                    // 포트의 입출력 값 객체(record)는 구현체가 아니므로 허용한다
+                    .orShould().beRecords()
+                    .because("포트 패키지에는 인터페이스와 그 입출력 값 객체만 둔다")
                     .allowEmptyShould(true);
 
     @ArchTest
@@ -167,6 +169,8 @@ class ArchitectureTest {
     static final ArchRule I1_포트는_작게_유지한다 =
             classes()
                     .that().resideInAPackage("..port..")
+                    // record 의 자동 생성 접근자까지 세면 안 되므로 인터페이스만 본다
+                    .and().areInterfaces()
                     .should(메서드가_제한_이하())
                     .because("클라이언트가 쓰지 않는 메서드에 의존하게 만들지 않는다")
                     .allowEmptyShould(true);
