@@ -171,13 +171,21 @@ class ArchitectureTest {
                     .because("클라이언트가 쓰지 않는 메서드에 의존하게 만들지 않는다")
                     .allowEmptyShould(true);
 
+    /**
+     * 대상은 <b>요청</b> DTO로 한정한다.
+     *
+     * <p>응답 DTO까지 막으면 ADR-0001이 의도적으로 남겨둔 조회 경로 타협과 충돌한다.
+     * {@code ActivityRecordRepositoryImpl.getStickerInfo}는 QueryDSL Projections로
+     * {@code hobby}의 응답 DTO를 바로 만드는데, 이는 "명령은 유스케이스 경유,
+     * 조회는 현행 유지"라는 결정에 따라 허용된 경우다.
+     */
     @ArchTest
     @ArchIgnore(reason = "Phase 1(ActivityRecord의 hobby.dto 참조 제거) 완료 후 활성화 - 이슈 #346")
-    static final ArchRule I2_도메인_간_DTO_교차_참조_금지 =
+    static final ArchRule I2_도메인_간_요청DTO_교차_참조_금지 =
             noClasses()
                     .that().resideInAPackage("..domain.record..")
-                    .should().dependOnClassesThat().resideInAPackage("..domain.hobby.dto..")
-                    .because("컨텍스트 간 통신은 DTO가 아니라 도메인 타입으로 한다");
+                    .should().dependOnClassesThat().resideInAPackage("..domain.hobby.dto.request..")
+                    .because("컨텍스트 간 통신은 요청 DTO가 아니라 도메인 타입으로 한다");
 
     // ==================== 커스텀 조건 ====================
 
