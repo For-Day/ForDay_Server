@@ -9,6 +9,8 @@ import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
 import com.example.ForDay.domain.hobby.dto.StickerContext;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
+import com.example.ForDay.domain.hobby.command.HobbyCreateCommand;
+import com.example.ForDay.domain.hobby.command.HobbyUpdateCommand;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.service.HobbyAiInsightService;
@@ -86,7 +88,7 @@ public class HobbyService {
 
         hobbyValidator.validateMaxInProgressHobbies(currentUser);
         hobbyValidator.validateDuplicateHobby(reqDto, currentUser);
-        Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, reqDto, DEFAULT_GOAL_DAYS));
+        Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, toCreateCommand(reqDto)));
 
         if (!currentUser.isOnboardingCompleted()) {
             currentUser.completeOnboarding();
@@ -375,9 +377,31 @@ public class HobbyService {
         }
 
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
-        hobby.updateHobby(reqDto, reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null);
+        hobby.updateHobby(toUpdateCommand(reqDto));
 
         return UpdateHobbyResDto.from(hobby);
+    }
+
+    private HobbyCreateCommand toCreateCommand(HobbyCreateReqDto reqDto) {
+        return new HobbyCreateCommand(
+                reqDto.getHobbyInfoId(),
+                reqDto.getHobbyName(),
+                reqDto.getHobbyPurpose(),
+                reqDto.getHobbyTimeMinutes(),
+                reqDto.getExecutionCount(),
+                reqDto.getIsDurationSet() ? DEFAULT_GOAL_DAYS : null
+        );
+    }
+
+    private HobbyUpdateCommand toUpdateCommand(UpdateHobbyReqDto reqDto) {
+        return new HobbyUpdateCommand(
+                reqDto.getHobbyInfoId(),
+                reqDto.getHobbyName(),
+                reqDto.getHobbyPurpose(),
+                reqDto.getHobbyTimeMinutes(),
+                reqDto.getExecutionCount(),
+                reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null
+        );
     }
 
     @Transactional(readOnly = true)

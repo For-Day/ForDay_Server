@@ -15,6 +15,7 @@ import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateRecordVisibilityReqDto;
 import com.example.ForDay.domain.record.dto.response.*;
+import com.example.ForDay.domain.record.command.RecordUpdateCommand;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -120,7 +121,7 @@ public class ActivityRecordService {
         Activity activity = activityUtil.getActivityByUserId(reqDto.getActivityId(), currentUser.getId());
 
         handleImageUpdate(record.getImageUrl(), reqDto.getImageUrl(), record.getId());
-        record.updateRecord(activity, reqDto);
+        record.updateRecord(activity, toUpdateCommand(reqDto));
 
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
@@ -217,6 +218,15 @@ public class ActivityRecordService {
         s3Util.validateS3Image(newImageUrl);
         s3Util.registerS3DeletionAfterCommit(oldImageUrl);
         notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
+    }
+
+    private RecordUpdateCommand toUpdateCommand(UpdateActivityRecordReqDto reqDto) {
+        return new RecordUpdateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                reqDto.getImageUrl()
+        );
     }
 
     private boolean isImageChanged(String oldUrl, String newUrl) {

@@ -20,6 +20,9 @@ import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.record.command.RecordCreateCommand;
+import com.example.ForDay.domain.record.command.RecordImageCommand;
+import com.example.ForDay.domain.record.command.RecordUpdateCommand;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.RecordImage;
 import com.example.ForDay.domain.record.entity.KeyboardKeyword;
@@ -140,7 +143,7 @@ public class ActivityRecordServiceV2 {
         Activity activity = resolveActivity(reqDto, currentUser, hobby);
         activity.record();
 
-        ActivityRecord record = ActivityRecord.ofV2(hobby, activity, currentUser, reqDto);
+        ActivityRecord record = ActivityRecord.of(hobby, activity, currentUser, toCreateCommand(reqDto));
         activityRecordRepository.save(record);
 
         List<RecordImage> images = buildRecordImages(record, reqDto.getImages());
@@ -190,7 +193,7 @@ public class ActivityRecordServiceV2 {
         oldImages.forEach(img -> s3Util.registerS3DeletionAfterCommit(img.getImageUrl()));
         recordImageRepository.deleteAll(oldImages);
 
-        record.updateRecordV2(activity, reqDto);
+        record.updateRecord(activity, toUpdateCommand(reqDto));
 
         List<RecordImage> newImages = buildRecordImages(record, reqDto.getImages());
         recordImageRepository.saveAll(newImages);
@@ -268,7 +271,36 @@ public class ActivityRecordServiceV2 {
     private List<RecordImage> buildRecordImages(ActivityRecord record, List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
         if (images == null || images.isEmpty()) return Collections.emptyList();
         return images.stream()
-                .map(img -> RecordImage.of(record, img, img.getImageOrder() == 1))
+                .map(img -> RecordImage.of(record, toImageCommand(img), img.getImageOrder() == 1))
                 .toList();
+    }
+
+    private RecordCreateCommand toCreateCommand(ActivityRecordReqDtoV2 reqDto) {
+        return new RecordCreateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                reqDto.getImages().get(0).getImageUrl()
+        );
+    }
+
+    private RecordUpdateCommand toUpdateCommand(UpdateActivityRecordReqDtoV2 reqDto) {
+        List<ActivityRecordReqDtoV2.ActivityImageReqDto> images = reqDto.getImages();
+        String thumbnailUrl = (images != null && !images.isEmpty()) ? images.get(0).getImageUrl() : null;
+        return new RecordUpdateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                thumbnailUrl
+        );
+    }
+
+    private RecordImageCommand toImageCommand(ActivityRecordReqDtoV2.ActivityImageReqDto image) {
+        return new RecordImageCommand(
+                image.getImageUrl(),
+                image.getImageOrder(),
+                image.getImageWidth(),
+                image.getImageHeight()
+        );
     }
 }
