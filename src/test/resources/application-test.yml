@@ -19,6 +19,9 @@ spring:
     redis:
       host: localhost
       port: 6379
+      # 테스트는 전용 DB를 쓴다. IntegrationTestSupport가 매 테스트 전에 flushDb를
+      # 호출하므로, 개발용 데이터가 들어 있는 0번과 반드시 분리해야 한다.
+      database: 1
 
   jwt:
     secret: test-secret
