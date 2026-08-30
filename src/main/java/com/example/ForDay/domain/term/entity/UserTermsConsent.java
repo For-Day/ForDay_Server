@@ -1,6 +1,6 @@
 package com.example.ForDay.domain.term.entity;
 
-import com.example.ForDay.domain.term.dto.request.RegisterTermsConsentReqDto;
+import com.example.ForDay.domain.term.command.TermsConsentCommand;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -39,14 +39,14 @@ public class UserTermsConsent extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private String agreementVersion;
 
-    public static UserTermsConsent create(RegisterTermsConsentReqDto reqDto, String userId) {
+    public static UserTermsConsent create(TermsConsentCommand command, String userId) {
         return UserTermsConsent
                 .builder()
                 .userId(userId)
-                .serviceConsent(reqDto.isServiceConsent())
-                .ageOver14Consent(reqDto.isAgeOver14Consent())
-                .privateConsent(reqDto.isPrivateConsent())
-                .recordPushConsent(reqDto.isRecordPushConsent())
+                .serviceConsent(command.serviceConsent())
+                .ageOver14Consent(command.ageOver14Consent())
+                .privateConsent(command.privateConsent())
+                .recordPushConsent(command.recordPushConsent())
                 .agreementVersion("1.0.0")
                 .build();
     }

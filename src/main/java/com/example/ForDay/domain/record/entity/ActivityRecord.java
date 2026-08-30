@@ -1,11 +1,9 @@
 package com.example.ForDay.domain.record.entity;
 
 import com.example.ForDay.domain.activity.entity.Activity;
-import com.example.ForDay.domain.hobby.dto.request.RecordActivityReqDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
-import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
-import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDto;
-import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
+import com.example.ForDay.domain.record.command.RecordCreateCommand;
+import com.example.ForDay.domain.record.command.RecordUpdateCommand;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
@@ -85,21 +83,16 @@ public class ActivityRecord extends BaseTimeEntity {
         this.visibility = newVisibility;
     }
 
-    public void updateRecord(Activity activity, UpdateActivityRecordReqDto reqDto) {
+    /**
+     * DTO 의존을 걷어내니 V1·V2 본문이 같아져 하나로 합쳤다.
+     * 대표 이미지를 무엇으로 볼지(V1은 단일 이미지, V2는 목록의 첫 장)는 호출부가 정한다.
+     */
+    public void updateRecord(Activity activity, RecordUpdateCommand command) {
         this.activity = activity;
-        this.sticker = reqDto.getSticker();
-        this.memo = reqDto.getMemo();
-        this.visibility = reqDto.getVisibility();
-        this.imageUrl = reqDto.getImageUrl();
-    }
-
-    public void updateRecordV2(Activity activity, UpdateActivityRecordReqDtoV2 reqDto) {
-        this.activity = activity;
-        this.sticker = reqDto.getSticker();
-        this.memo = reqDto.getMemo();
-        this.visibility = reqDto.getVisibility();
-        var images = reqDto.getImages();
-        this.imageUrl = (images != null && !images.isEmpty()) ? images.get(0).getImageUrl() : null;
+        this.sticker = command.sticker();
+        this.memo = command.memo();
+        this.visibility = command.visibility();
+        this.imageUrl = command.imageUrl();
     }
 
     public void deleteRecord() {
@@ -109,27 +102,16 @@ public class ActivityRecord extends BaseTimeEntity {
         this.deleted = true;
     }
 
-    public static ActivityRecord of(Hobby hobby, Activity activity, User user, RecordActivityReqDto dto) {
+    /** {@link #updateRecord}와 같은 이유로 V1·V2 팩토리를 하나로 합쳤다. */
+    public static ActivityRecord of(Hobby hobby, Activity activity, User user, RecordCreateCommand command) {
         return ActivityRecord.builder()
                 .hobby(hobby)
                 .activity(activity)
                 .user(user)
-                .sticker(dto.getSticker())
-                .memo(dto.getMemo())
-                .visibility(dto.getVisibility())
-                .imageUrl(dto.getImageUrl())
-                .build();
-    }
-
-    public static ActivityRecord ofV2(Hobby hobby, Activity activity, User user, ActivityRecordReqDtoV2 dto) {
-        return ActivityRecord.builder()
-                .hobby(hobby)
-                .activity(activity)
-                .user(user)
-                .sticker(dto.getSticker())
-                .memo(dto.getMemo())
-                .visibility(dto.getVisibility())
-                .imageUrl(dto.getImages().get(0).getImageUrl())
+                .sticker(command.sticker())
+                .memo(command.memo())
+                .visibility(command.visibility())
+                .imageUrl(command.imageUrl())
                 .build();
     }
 }

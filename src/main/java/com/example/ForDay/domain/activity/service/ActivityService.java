@@ -17,6 +17,7 @@ import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.service.HobbyCardService;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
+import com.example.ForDay.domain.record.command.RecordCreateCommand;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
@@ -69,7 +70,7 @@ public class ActivityService {
         todayRecordRedisService.validateNotRecordedToday(currentUser.getId(), hobby.getId());
         s3Util.validateS3Image(reqDto.getImageUrl());
 
-        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
+        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, toCreateCommand(reqDto));
         activity.record();
         currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
@@ -98,7 +99,7 @@ public class ActivityService {
         hobby.validateInProgress();
         s3Util.validateS3Image(reqDto.getImageUrl());
 
-        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
+        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, toCreateCommand(reqDto));
 
         activity.record();
         currentUser.obtainSticker();
@@ -214,6 +215,15 @@ public class ActivityService {
         }
         return Objects.equals(hobby.getCurrentStickerNum().intValue(), STICKER_COMPLETE_COUNT)
                 && Objects.equals(hobby.getGoalDays().intValue(), STICKER_COMPLETE_COUNT);
+    }
+
+    private RecordCreateCommand toCreateCommand(RecordActivityReqDto reqDto) {
+        return new RecordCreateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                reqDto.getImageUrl()
+        );
     }
 
     private void validateTargetUser(String currentUserId, ActivityRecordCollectInfo target) {

@@ -1,8 +1,7 @@
 package com.example.ForDay.domain.hobby.entity;
 
-import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDto;
-import com.example.ForDay.domain.hobby.dto.request.HobbyCreateReqDtoV2;
-import com.example.ForDay.domain.hobby.dto.request.UpdateHobbyReqDto;
+import com.example.ForDay.domain.hobby.command.HobbyCreateCommand;
+import com.example.ForDay.domain.hobby.command.HobbyUpdateCommand;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;
@@ -122,13 +121,13 @@ public class Hobby extends BaseTimeEntity {
         }
     }
 
-    public void updateHobby(UpdateHobbyReqDto reqDto, Integer goalDays) {
-        this.hobbyInfoId = reqDto.getHobbyInfoId();
-        this.hobbyName = reqDto.getHobbyName();
-        this.hobbyPurpose = reqDto.getHobbyPurpose();
-        this.hobbyTimeMinutes = reqDto.getHobbyTimeMinutes();
-        this.executionCount = reqDto.getExecutionCount();
-        this.goalDays = goalDays;
+    public void updateHobby(HobbyUpdateCommand command) {
+        this.hobbyInfoId = command.hobbyInfoId();
+        this.hobbyName = command.hobbyName();
+        this.hobbyPurpose = command.hobbyPurpose();
+        this.hobbyTimeMinutes = command.hobbyTimeMinutes();
+        this.executionCount = command.executionCount();
+        this.goalDays = command.goalDays();
     }
 
     public boolean isStickerFull() {
@@ -156,24 +155,24 @@ public class Hobby extends BaseTimeEntity {
         }
     }
 
-    public static Hobby createNewHobby(User user, HobbyCreateReqDto reqDto, Integer defaultGoalDays) {
+    public static Hobby createNewHobby(User user, HobbyCreateCommand command) {
         return Hobby.builder()
                 .user(user)
-                .hobbyInfoId(reqDto.getHobbyInfoId())
-                .hobbyName(reqDto.getHobbyName())
-                .hobbyPurpose(reqDto.getHobbyPurpose())
-                .hobbyTimeMinutes(reqDto.getHobbyTimeMinutes())
-                .executionCount(reqDto.getExecutionCount())
-                .goalDays(reqDto.getIsDurationSet() ? defaultGoalDays : null)
+                .hobbyInfoId(command.hobbyInfoId())
+                .hobbyName(command.hobbyName())
+                .hobbyPurpose(command.hobbyPurpose())
+                .hobbyTimeMinutes(command.hobbyTimeMinutes())
+                .executionCount(command.executionCount())
+                .goalDays(command.goalDays())
                 .status(HobbyStatus.IN_PROGRESS)
                 .build();
     }
 
-    public static Hobby createNewHobbyV2(User currentUser, HobbyCreateReqDtoV2.HobbyInfo info, int sequence) {
+    public static Hobby createNewHobbyV2(User currentUser, Long hobbyInfoId, String hobbyName, int sequence) {
         return Hobby.builder()
                 .user(currentUser)
-                .hobbyInfoId(info.getHobbyInfoId())
-                .hobbyName(info.getHobbyName())
+                .hobbyInfoId(hobbyInfoId)
+                .hobbyName(hobbyName)
                 .status(HobbyStatus.IN_PROGRESS)
                 .sequence(sequence)
                 .build();
