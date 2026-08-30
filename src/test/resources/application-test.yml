@@ -27,3 +27,38 @@ spring:
     secret: test-secret
     access-expiration: 180
     refresh-expiration: 7
+
+# 아래 값은 테스트가 application.yml(= 배포 시크릿)에 의존하지 않도록 여기서 직접 채운다.
+# 프로파일별 설정이 application.yml을 덮으므로, 시크릿 구조가 바뀌어도 테스트는 영향받지 않는다.
+# 어느 것도 실제 자격증명이 아니며, 외부를 호출하는 테스트도 없다.
+cloud:
+  aws:
+    access-key: test-access-key
+    secret-key: test-secret-key
+    region: ap-northeast-2
+    bucket: test-bucket
+    endpoint: s3.ap-northeast-2.amazonaws.com
+
+aws:
+  region: ap-northeast-2
+
+lambda:
+  create-cover-function-name: test-cover-function
+
+fastapi:
+  url: http://localhost:8000
+
+ai:
+  max-call-limit: 10
+
+apple:
+  client_id: test-client-id
+  team_id: test-team-id
+  key: test-key-id
+  private_key: test-private-key
+
+server:
+  port: 8080
+  env: test
+
+serverName: test-server

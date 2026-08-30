@@ -35,8 +35,7 @@ jobs:
           java-version: 17
           cache: gradle
 
-      # application.yml은 gitignore 대상이지만 테스트 컨텍스트가 플레이스홀더를
-      # 읽으므로 배포와 동일하게 주입한다.
+      # FcmConfig가 이 JSON을 classpath에서 실제로 읽으므로 테스트에도 필요하다.
       - name: Create Firebase JSON
         uses: jsdaniell/create-json@v1.2.2
         with:
@@ -44,8 +43,18 @@ jobs:
           json: ${{ secrets.FIREBASE_JSON }}
           dir: "src/main/resources/"
 
+      # 테스트 자체는 application-test.yml로 자립하지만, 배포와 같은 조건을 만들어
+      # 이 파일이 정상인지 함께 확인한다.
       - name: Create application.yml
         run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
+
+      # 이 파일은 배포 시 그대로 jar에 담기므로 비어 있으면 운영 기동이 위험하다.
+      # 값은 출력하지 않고 최상위 키 이름만 확인한다.
+      - name: Inspect injected application.yml (keys only)
+        run: |
+          echo "줄 수: $(wc -l < ./src/main/resources/application.yml)"
+          echo "최상위 키:"
+          grep -E '^[a-zA-Z][a-zA-Z0-9_-]*:' ./src/main/resources/application.yml | sed 's/:.*//' | sort -u
 
       - name: Run tests
         run: |
