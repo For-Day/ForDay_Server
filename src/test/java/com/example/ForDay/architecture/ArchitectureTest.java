@@ -76,10 +76,18 @@ class ArchitectureTest {
                     .should().dependOnClassesThat().resideInAPackage("org.springframework..")
                     .because("JPA 애노테이션은 허용하되 스프링 컨테이너는 알지 않는다");
 
+    /**
+     * 대상은 <b>포트</b>({@code *Port})로 한정한다.
+     *
+     * <p>포트 시그니처에 쓰이는 값 객체({@code PushMessage}, {@code UploadTarget})는
+     * 포트 계약의 일부라 같은 패키지에 두지만, 그 자체가 포트는 아니므로 검사하지 않는다.
+     * 규칙이 막으려는 건 "포트 자리에 구현체가 섞이는 것"이다.
+     */
     @ArchTest
     static final ArchRule D4_포트는_인터페이스여야_한다 =
             classes()
                     .that().resideInAPackage("..port..")
+                    .and().haveSimpleNameEndingWith("Port")
                     .should().beInterfaces()
                     .because("구현체가 섞이면 포트가 아니다")
                     .allowEmptyShould(true);
@@ -163,10 +171,17 @@ class ArchitectureTest {
 
     // ==================== ISP: 인터페이스 분리 ====================
 
+    /**
+     * 대상은 <b>포트 인터페이스</b>로 한정한다(D4와 동일 기준).
+     *
+     * <p>값 객체는 컴포넌트 수만큼 접근자가 생겨 메서드 수가 쉽게 5개를 넘지만,
+     * 이 규칙이 재는 건 "클라이언트가 의존하게 되는 포트의 크기"다.
+     */
     @ArchTest
     static final ArchRule I1_포트는_작게_유지한다 =
             classes()
                     .that().resideInAPackage("..port..")
+                    .and().haveSimpleNameEndingWith("Port")
                     .should(메서드가_제한_이하())
                     .because("클라이언트가 쓰지 않는 메서드에 의존하게 만들지 않는다")
                     .allowEmptyShould(true);
