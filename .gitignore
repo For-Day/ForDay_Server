@@ -39,3 +39,6 @@ out/
 src/main/resources/application.yml
 src/main/resources/application-prod.yml
 src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
+
+### Claude Code ###
+.claude/settings.local.json
