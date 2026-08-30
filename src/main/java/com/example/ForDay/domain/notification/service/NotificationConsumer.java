@@ -1,8 +1,8 @@
 package com.example.ForDay.domain.notification.service;
 
 import com.example.ForDay.domain.user.repository.UserRepository;
-import com.example.ForDay.global.firebase.dto.request.FcmNotificationReqDto;
-import com.example.ForDay.global.firebase.service.FcmTokenService;
+import com.example.ForDay.global.port.PushMessage;
+import com.example.ForDay.global.port.PushSenderPort;
 import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationConsumer {
     private final NotificationService notificationService;
-    private final FcmTokenService fcmTokenService;
+    private final PushSenderPort pushSenderPort;
     private final UserRepository userRepository;
 
     @RabbitListener(queues = RabbitMqConfig.NOTIFICATION_QUEUE)
@@ -35,9 +35,8 @@ public class NotificationConsumer {
 
         for (String token : tokens) {
             try {
-                FcmNotificationReqDto reqDto = FcmNotificationReqDto.of(token, eventDto);
-
-                fcmTokenService.sendNotificationByToken(reqDto);
+                pushSenderPort.send(new PushMessage(
+                        token, eventDto.getTitle(), eventDto.getBody(), eventDto.getData()));
                 log.info("[FCM] 전송 요청 성공 - Token: {}", token);
             } catch (Exception e) {
                 // 특정 토큰 전송 실패 시 로그 남기고 다음 토큰으로 진행

@@ -1,7 +1,7 @@
 package com.example.ForDay.domain.user.dto.response;
 
 import com.example.ForDay.domain.user.entity.User;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,9 +23,9 @@ public class UserInfoResDto {
 
     private boolean unReadNotificationExists;
 
-    public static UserInfoResDto of(User user, int totalStickerCount, S3Util s3Util, boolean unReadNotificationExists) {
+    public static UserInfoResDto of(User user, int totalStickerCount, ImageUrlConverter imageUrlConverter, boolean unReadNotificationExists) {
         return new UserInfoResDto(
-                s3Util.toProfileMainResizedUrl(user.getProfileImageUrl()),
+                imageUrlConverter.toProfileMainResizedUrl(user.getProfileImageUrl()),
                 user.getNickname(),
                 totalStickerCount,
                 unReadNotificationExists

@@ -14,7 +14,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.message.FriendSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,7 @@ public class FriendService {
     private final FriendRelationRepository friendRelationRepository;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
     private final FriendCacheService friendCacheService;
 
     @Transactional
@@ -114,7 +114,7 @@ public class FriendService {
 
         List<GetFriendListResDto.UserInfoDto> updatedList = GetFriendListResDto.UserInfoDto.listOf(
                 userInfoDtos,
-                s3Util::toProfileMainResizedUrl
+                imageUrlConverter::toProfileMainResizedUrl
         );
 
         return GetFriendListResDto.of(FriendSuccessCode.FRIEND_LIST_GET_SUCCESS.getMessage(), updatedList, size);

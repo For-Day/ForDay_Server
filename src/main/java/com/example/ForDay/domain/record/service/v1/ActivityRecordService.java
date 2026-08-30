@@ -30,7 +30,8 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
+import com.example.ForDay.global.port.ImageLifecyclePort;
 import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,8 @@ public class ActivityRecordService {
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
     private final HobbyRepository hobbyRepository;
     private final RecentRedisService recentRedisService;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
+    private final ImageLifecyclePort imageLifecyclePort;
     private final ActivityRecordReactionRepository reactionRepository;
     private final ActivityRecordReportRepository reportRepository;
     private final ActivityRecordScrapRepository scrapRepository;
@@ -90,7 +92,7 @@ public class ActivityRecordService {
         log.info("[getRecordDetail] 조회 성공 - RecordId: {}, Writer: {}, Reactions: {}, Scraped: {}",
                 recordId, detail.writerId(), summaries.size(), scraped);
 
-        String profileImageUrl = s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl());
+        String profileImageUrl = imageUrlConverter.toProfileMainResizedUrl(detail.writerProfileImageUrl());
 
         return GetRecordDetailResDto.of(detail, isRecordOwner, scraped, GetRecordDetailResDto.NewReactionDto.of(summaries, isRecordOwner), GetRecordDetailResDto.UserReactionDto.of(summaries, currentUserId), profileImageUrl);
     }
@@ -153,7 +155,7 @@ public class ActivityRecordService {
             record.deleteRecord();
         }
 
-        s3Util.registerS3DeletionAfterCommit(deleteImageUrl);
+        imageLifecyclePort.deleteAfterCommit(deleteImageUrl);
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
         return DeleteActivityRecordResDto.of(record.getId(), deleteImageUrl);
@@ -172,7 +174,7 @@ public class ActivityRecordService {
                 hobbyInfo.id(), lastRecordId, size + 1, keyword, currentUser.getId(), storyFilterType, hobbyInfo.name()
         );
 
-        recordDtos.forEach(dto -> dto.convertImageUrls(s3Util));
+        recordDtos.forEach(dto -> dto.convertImageUrls(imageUrlConverter));
 
         return GetActivityRecordByStoryResDto.of(notificationService.unreadNotificationExists(currentUser), tabInfos, recordDtos, size);
     }
@@ -214,8 +216,8 @@ public class ActivityRecordService {
         if (!isImageChanged(oldImageUrl, newImageUrl)) {
             return;
         }
-        s3Util.validateS3Image(newImageUrl);
-        s3Util.registerS3DeletionAfterCommit(oldImageUrl);
+        imageLifecyclePort.validateExists(newImageUrl);
+        imageLifecyclePort.deleteAfterCommit(oldImageUrl);
         notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
     }
 

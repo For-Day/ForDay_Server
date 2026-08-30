@@ -18,7 +18,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -38,7 +38,7 @@ public class ReactionService {
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final ActivityRecordReactionCountRepository activityRecordReactionCountRepository;
     private final UserUtil userUtil;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
     private final ActivityRecordRepository activityRecordRepository;
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final ReactionRankingService reactionRankingService;
@@ -177,7 +177,7 @@ public class ReactionService {
             if (sliceDto != null && sliceDto.getUsers() != null) {
                 sliceDto.getUsers().forEach(userDto -> {
                     userDto.setProfileImageUrl(
-                            s3Util.toProfileListResizedUrl(userDto.getProfileImageUrl())
+                            imageUrlConverter.toProfileListResizedUrl(userDto.getProfileImageUrl())
                     );
                 });
             }

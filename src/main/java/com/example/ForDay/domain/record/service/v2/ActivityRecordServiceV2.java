@@ -39,7 +39,8 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
+import com.example.ForDay.global.port.ImageLifecyclePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,8 @@ public class ActivityRecordServiceV2 {
     private final UserUtil userUtil;
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
+    private final ImageLifecyclePort imageLifecyclePort;
     private final ReactionRankingService reactionRankingService;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
@@ -98,7 +100,7 @@ public class ActivityRecordServiceV2 {
         Long prevId = activityRecordRepository.findPrevRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
         Long nextId = activityRecordRepository.findNextRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
 
-        return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()), currentUser.getId());
+        return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, imageUrlConverter.toProfileMainResizedUrl(detail.writerProfileImageUrl()), currentUser.getId());
     }
 
     @Transactional
@@ -187,7 +189,7 @@ public class ActivityRecordServiceV2 {
         Activity activity = resolveActivityForUpdate(reqDto.getActivityId(), currentUser, record);
 
         List<RecordImage> oldImages = recordImageRepository.findAllByActivityRecordIdOrderByImageOrderAsc(recordId);
-        oldImages.forEach(img -> s3Util.registerS3DeletionAfterCommit(img.getImageUrl()));
+        oldImages.forEach(img -> imageLifecyclePort.deleteAfterCommit(img.getImageUrl()));
         recordImageRepository.deleteAll(oldImages);
 
         record.updateRecordV2(activity, reqDto);
@@ -240,7 +242,7 @@ public class ActivityRecordServiceV2 {
             record.deleteRecord();
         }
 
-        deleteImageUrls.forEach(s3Util::registerS3DeletionAfterCommit);
+        deleteImageUrls.forEach(imageLifecyclePort::deleteAfterCommit);
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
 

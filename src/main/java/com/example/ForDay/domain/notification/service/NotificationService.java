@@ -16,10 +16,10 @@ import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.global.common.response.message.NotificationSuccessCode;
-import com.example.ForDay.global.firebase.dto.request.FcmNotificationReqDto;
+import com.example.ForDay.global.port.PushMessage;
+import com.example.ForDay.global.port.PushSenderPort;
 import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
-import com.example.ForDay.global.firebase.service.FcmTokenService;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.example.ForDay.global.util.UserUtil;
@@ -46,7 +46,7 @@ public class NotificationService {
     private final ApplicationEventPublisher eventPublisher;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
-    private final FcmTokenService fcmTokenService;
+    private final PushSenderPort pushSenderPort;
 
     @Transactional(readOnly = true)
     public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, CustomUserDetails user) {
@@ -119,15 +119,8 @@ public class NotificationService {
 
             for (String token : tokens) {
                 try {
-                    FcmNotificationReqDto reqDto = new FcmNotificationReqDto(
-                            token,
-                            sender.getNickname(),
-                            pushReactionBody,
-                            null,
-                            data
-                    );
-
-                    fcmTokenService.sendNotificationByToken(reqDto);
+                    pushSenderPort.send(new PushMessage(
+                            token, sender.getNickname(), pushReactionBody, data));
                     log.info("[FCM-Sync] 동기 전송 성공 - Token: {}", token);
                 } catch (Exception e) {
                     log.error("[FCM-Sync] 동기 전송 중 에러 발생 - Token: {}, Error: {}", token, e.getMessage());
@@ -168,12 +161,8 @@ public class NotificationService {
                 createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())
         );
 
-        FcmNotificationReqDto fcmSendReqDto = FcmNotificationReqDto.of(
-                reqDto.getFcmToken(),
-                eventDto
-        );
-
-        fcmTokenService.sendNotificationByToken(fcmSendReqDto);
+        pushSenderPort.send(new PushMessage(
+                reqDto.getFcmToken(), eventDto.getTitle(), eventDto.getBody(), eventDto.getData()));
 
         return new SendPushMessageResDto(NotificationSuccessCode.SEND_NOTIFICATION_SUCCESS.getMessage());
     }
