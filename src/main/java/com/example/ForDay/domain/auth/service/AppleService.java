@@ -2,6 +2,7 @@ package com.example.ForDay.domain.auth.service;
 
 import com.example.ForDay.domain.auth.dto.response.AppleTokenResDto;
 import com.example.ForDay.domain.auth.dto.response.ApplePublicKeyDto;
+import com.example.ForDay.domain.auth.port.AppleIdentityPort;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
@@ -12,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -25,6 +25,8 @@ import java.util.Date;
 @Service
 @RequiredArgsConstructor
 public class AppleService {
+
+    private final AppleIdentityPort appleIdentityPort;
     @Value("${apple.client_id}")
     private String clientId;
 
@@ -96,7 +98,7 @@ public class AppleService {
     }
 
     public Claims verifyAndParseAppleIdToken(AppleTokenResDto resDto) {
-        ApplePublicKeyDto applePublicKeys = getPublicKeys();
+        ApplePublicKeyDto applePublicKeys = appleIdentityPort.fetchPublicKeys();
 
         MyKeyLocator myKeyLocator =
                 new MyKeyLocator(applePublicKeys.getKeys());
@@ -112,14 +114,4 @@ public class AppleService {
         return claims;
     }
 
-    private ApplePublicKeyDto getPublicKeys() {
-        RestTemplate restTemplate = new RestTemplate();
-
-        String applePublicKeyUrl = "https://appleid.apple.com/auth/keys";
-
-        return restTemplate.getForObject(
-                applePublicKeyUrl,
-                ApplePublicKeyDto.class
-        );
-    }
 }

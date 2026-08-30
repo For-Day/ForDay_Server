@@ -26,7 +26,7 @@ import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiActivityRecommendService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.global.ai.service.AiUserSummaryService;
+import com.example.ForDay.domain.hobby.service.HobbyAiSummaryService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -34,9 +34,10 @@ import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
-import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.domain.hobby.port.CoverGeneratorPort;
+import com.example.ForDay.global.util.ImageUrlConverter;
+import com.example.ForDay.global.port.ImageLifecyclePort;
+import com.example.ForDay.global.port.ImageUrlPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,10 +65,11 @@ public class HobbyService {
     private final AiCallCountService aiCallCountService;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final AiUserSummaryService aiUserSummaryService;
-    private final S3Service s3Service;
-    private final CoverLambdaInvoker invoker;
-    private final S3Util s3Util;
+    private final HobbyAiSummaryService hobbyAiSummaryService;
+    private final CoverGeneratorPort coverGeneratorPort;
+    private final ImageUrlConverter imageUrlConverter;
+    private final ImageLifecyclePort imageLifecyclePort;
+    private final ImageUrlPort imageUrlPort;
     private final ActivityRecommendItemRepository activityRecommendItemRepository;
     private final HobbyAiInsightService hobbyAiInsightService;
     private final AiActivityRecommendService aiActivityRecommendService;
@@ -107,7 +109,7 @@ public class HobbyService {
 
         try {
             FastAPIRecommendResDto response = aiActivityRecommendService.requestActivityRecommendAI(currentUser, hobby);
-            String summary = AiMessageConstants.formatHobbySummary(aiUserSummaryService.determine(currentUser, hobby));
+            String summary = AiMessageConstants.formatHobbySummary(hobbyAiSummaryService.determine(currentUser, hobby));
             saveRecommendItems(hobby, response);
 
             return ActivityAIRecommendResDto.of(currentCount, maxCallLimit, summary, response.getActivities());
@@ -346,7 +348,7 @@ public class HobbyService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        return SetHobbyCoverImageResDto.of(result, s3Util.toCoverMainResizedUrl(result.updatedCoverUrl()));
+        return SetHobbyCoverImageResDto.of(result, imageUrlConverter.toCoverMainResizedUrl(result.updatedCoverUrl()));
     }
 
     @Transactional(readOnly = true)
@@ -474,8 +476,8 @@ public class HobbyService {
         if (Objects.equals(oldUrl, newUrl)) {
             return CoverChangeResult.unchanged(hobby.getId(), oldUrl);
         }
-        s3Util.validateS3Image(newUrl);
-        s3Util.registerS3DeletionAfterCommit(oldUrl);
+        imageLifecyclePort.validateExists(newUrl);
+        imageLifecyclePort.deleteAfterCommit(oldUrl);
         hobby.updateCoverImage(newUrl);
 
         return CoverChangeResult.changed(hobby.getId(), newUrl);
@@ -495,7 +497,7 @@ public class HobbyService {
         Hobby hobby = record.getHobby();
         String oldCoverUrl = hobby.getCoverImageUrl();
         String newCoverUrl = buildCoverUrlFromRecord(record);
-        s3Util.registerS3DeletionAfterCommit(oldCoverUrl);
+        imageLifecyclePort.deleteAfterCommit(oldCoverUrl);
         hobby.updateCoverImage(newCoverUrl);
 
         return CoverChangeResult.changed(hobby.getId(), newCoverUrl);
@@ -509,26 +511,17 @@ public class HobbyService {
         String recordImageUrl = record.getImageUrl();
 
         if (StringUtils.hasText(recordImageUrl)) {
-            String srcKey = s3Service.extractKeyFromFileUrl(recordImageUrl);
+            String srcKey = imageUrlPort.extractKeyFromFileUrl(recordImageUrl);
 
             String newCoverKey = srcKey.replace(TEMP_ACTIVITY_PATH, TEMP_COVER_PATH);
             String resizedCoverKey = newCoverKey.replace(TEMP_DIR, THUMB_DIR);
 
-            s3Service.copyObject(srcKey, newCoverKey);
-            requestSetCover(newCoverKey, resizedCoverKey);
-            return s3Service.createFileUrl(newCoverKey);
+            imageLifecyclePort.copy(srcKey, newCoverKey);
+            coverGeneratorPort.generateCover(newCoverKey, resizedCoverKey);
+            return imageUrlPort.createFileUrl(newCoverKey);
         }
 
         return StickerCover.getUrlBySticker(record.getSticker());
-    }
-
-    private void requestSetCover(String newCoverKey, String resizedCoverKey) throws Exception {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("action", "SET_COVER");
-        payload.put("srcKey", newCoverKey);
-        payload.put("dstKey", resizedCoverKey);
-
-        invoker.invokeSync(payload);
     }
 
     private void saveRecommendItems(Hobby hobby, FastAPIRecommendResDto response) {
