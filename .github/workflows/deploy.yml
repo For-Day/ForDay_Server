@@ -10,6 +10,19 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # 테스트가 실제로 접속하는 Redis. 자세한 배경은 .github/workflows/test.yml 참고.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +30,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Create Firebase JSON
         uses: jsdaniell/create-json@v1.2.2
@@ -28,10 +42,23 @@ jobs:
       - name: Create application.yml
         run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
 
-      - name: Build Spring Boot
+      # clean은 여기서 한 번만 한다. 뒤의 build가 컴파일 결과를 재사용하도록
+      # 테스트와 빌드를 나눠 실행해, 실패 지점이 어느 단계인지 바로 드러나게 한다.
+      - name: Run tests
         run: |
           chmod +x ./gradlew
-          ./gradlew clean build -x test
+          ./gradlew clean test
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/test
+          retention-days: 7
+
+      - name: Build Spring Boot
+        run: ./gradlew build -x test
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

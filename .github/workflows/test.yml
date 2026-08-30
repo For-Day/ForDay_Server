@@ -1,0 +1,70 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [ "dev", "release", "main" ]
+  push:
+    branches: [ "dev" ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # @SpringBootTest는 application-test.yml의 localhost:6379에 실제로 접속한다.
+    # DB는 H2 인메모리, RabbitMQ는 연결 실패해도 컨텍스트가 뜨므로 Redis만 띄운다.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      # FcmConfig가 이 JSON을 classpath에서 실제로 읽으므로 테스트에도 필요하다.
+      - name: Create Firebase JSON
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json"
+          json: ${{ secrets.FIREBASE_JSON }}
+          dir: "src/main/resources/"
+
+      # 테스트 자체는 application-test.yml로 자립하지만, 배포와 같은 조건을 만들어
+      # 이 파일이 정상인지 함께 확인한다.
+      - name: Create application.yml
+        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
+
+      # 이 파일은 배포 시 그대로 jar에 담기므로 비어 있으면 운영 기동이 위험하다.
+      # 값은 출력하지 않고 최상위 키 이름만 확인한다.
+      - name: Inspect injected application.yml (keys only)
+        run: |
+          echo "줄 수: $(wc -l < ./src/main/resources/application.yml)"
+          echo "최상위 키:"
+          grep -E '^[a-zA-Z][a-zA-Z0-9_-]*:' ./src/main/resources/application.yml | sed 's/:.*//' | sort -u
+
+      - name: Run tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/test
+          retention-days: 7

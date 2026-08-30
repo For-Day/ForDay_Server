@@ -111,7 +111,10 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                         activityRecordReport.reporter.id.eq(currentUserId)
                                 ).notExists()
                 )
-                .orderBy(record.createdAt.desc())
+                // 커서가 id 기준이므로 정렬도 id로 동점을 끊어야 한다.
+                // createdAt만으로 정렬하면 같은 시각에 생성된 기록의 순서가 undefined라
+                // 페이지 경계에서 누락·중복이 생긴다.
+                .orderBy(record.createdAt.desc(), record.id.desc())
                 .limit(feedSize + 1)
                 .fetch();
     }

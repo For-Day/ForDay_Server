@@ -16,20 +16,17 @@ import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
+import com.example.ForDay.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 @Transactional
-@ActiveProfiles("test")
-class ActivityRecordScrapRepositoryImplTest {
+class ActivityRecordScrapRepositoryImplTest extends IntegrationTestSupport {
     @Autowired
     private ActivityRecordRepository activityRecordRepository;
 

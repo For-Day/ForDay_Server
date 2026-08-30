@@ -282,19 +282,25 @@ public class ActivityRecordServiceV2 {
                 reqDto.getSticker(),
                 reqDto.getMemo(),
                 reqDto.getVisibility(),
-                reqDto.getImages().get(0).getImageUrl()
+                extractThumbnailUrl(reqDto.getImages())
         );
     }
 
     private RecordUpdateCommand toUpdateCommand(UpdateActivityRecordReqDtoV2 reqDto) {
-        List<ActivityRecordReqDtoV2.ActivityImageReqDto> images = reqDto.getImages();
-        String thumbnailUrl = (images != null && !images.isEmpty()) ? images.get(0).getImageUrl() : null;
         return new RecordUpdateCommand(
                 reqDto.getSticker(),
                 reqDto.getMemo(),
                 reqDto.getVisibility(),
-                thumbnailUrl
+                extractThumbnailUrl(reqDto.getImages())
         );
+    }
+
+    /**
+     * 첫 번째 이미지를 대표 이미지로 쓴다. 이미지 없이 기록할 수 있으므로 null을 허용한다.
+     */
+    private String extractThumbnailUrl(List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
+        if (images == null || images.isEmpty()) return null;
+        return images.get(0).getImageUrl();
     }
 
     private RecordImageCommand toImageCommand(ActivityRecordReqDtoV2.ActivityImageReqDto image) {
