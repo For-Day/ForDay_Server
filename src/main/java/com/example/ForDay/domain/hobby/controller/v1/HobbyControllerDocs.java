@@ -1172,6 +1172,16 @@ public interface HobbyControllerDocs {
                     responseCode = "404",
                     description = "HOBBY_NOT_FOUND / ACTIVITY_RECORD_NOT_FOUND / S3_IMAGE_NOT_FOUND: 요청한 리소스를 찾을 수 없음",
                     content = @Content(examples = @ExampleObject(value = "{\"status\": 404, \"success\": false, \"data\": {\"errorClassName\": \"S3_IMAGE_NOT_FOUND\", \"message\": \"S3에 해당 이미지가 존재하지 않습니다. 업로드 여부를 확인해주세요.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "502",
+                    description = "COVER_GENERATION_FAILED: 커버 이미지 생성(Lambda) 실패",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 502, \"success\": false, \"data\": {\"errorClassName\": \"COVER_GENERATION_FAILED\", \"message\": \"커버 이미지 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "504",
+                    description = "COVER_GENERATION_TIMEOUT: 커버 이미지 생성(Lambda) 호출이 타임아웃(콜드 스타트/지연)됨",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 504, \"success\": false, \"data\": {\"errorClassName\": \"COVER_GENERATION_TIMEOUT\", \"message\": \"커버 이미지 생성이 지연되고 있어요. 잠시 후 다시 시도해주세요.\"}}"))
             )
     })
     SetHobbyCoverImageResDto setHobbyCoverImage(
