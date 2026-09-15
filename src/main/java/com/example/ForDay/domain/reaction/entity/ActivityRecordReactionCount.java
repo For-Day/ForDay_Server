@@ -27,13 +27,19 @@ public class ActivityRecordReactionCount extends BaseTimeEntity {
     private Long fightingCount;
 
     public static ActivityRecordReactionCount init(Long recordId, RecordReactionType type) {
+        return initWithCount(recordId, type, 1L);
+    }
+
+    // 스케줄러가 (recordId, type) 단위로 증가량을 그룹핑해 반영할 때, row가 아직 없는 조합을
+    // 그룹 증가량(count)으로 바로 초기화하기 위한 팩토리 메서드.
+    public static ActivityRecordReactionCount initWithCount(Long recordId, RecordReactionType type, long count) {
         return ActivityRecordReactionCount.builder()
                 .recordId(recordId)
-                .totalCount(1L)
-                .awesomeCount(type == RecordReactionType.AWESOME ? 1L : 0L)
-                .greatCount(type == RecordReactionType.GREAT ? 1L : 0L)
-                .amazingCount(type == RecordReactionType.AMAZING ? 1L : 0L)
-                .fightingCount(type == RecordReactionType.FIGHTING ? 1L : 0L)
+                .totalCount(count)
+                .awesomeCount(type == RecordReactionType.AWESOME ? count : 0L)
+                .greatCount(type == RecordReactionType.GREAT ? count : 0L)
+                .amazingCount(type == RecordReactionType.AMAZING ? count : 0L)
+                .fightingCount(type == RecordReactionType.FIGHTING ? count : 0L)
                 .build();
     }
 }
