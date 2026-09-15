@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -116,12 +117,20 @@ public class ReactionScheduler {
             }
         }
 
-        // 저장에 실제로 성공한 건수만큼만 카운트를 증가시킨다(중복으로 스킵된 건은 제외).
-        savedReactions.forEach(parsed -> {
-            int result = recordReactionCountRepository.increaseCount(parsed.recordId(), parsed.type().toString());
+        // 저장에 실제로 성공한 건만 (recordId, type) 조합 단위로 그룹핑해 증가량을 합산한 뒤,
+        // 조합당 UPDATE 1회로 반영한다. 건당 UPDATE를 반복하면 배치 1,000건에 UPDATE가
+        // 1,000번 나가지만, 그룹핑하면 조합 수만큼만 나간다.
+        Map<ReactionCountKey, Long> deltasByKey = savedReactions.stream()
+                .collect(Collectors.groupingBy(
+                        parsed -> new ReactionCountKey(parsed.recordId(), parsed.type()),
+                        Collectors.counting()
+                ));
+
+        deltasByKey.forEach((key, delta) -> {
+            int result = recordReactionCountRepository.increaseCountBy(key.recordId(), key.type().toString(), delta);
             if (result == 0) {
                 recordReactionCountRepository.save(
-                        ActivityRecordReactionCount.init(parsed.recordId(), parsed.type())
+                        ActivityRecordReactionCount.initWithCount(key.recordId(), key.type(), delta)
                 );
             }
         });
@@ -175,5 +184,10 @@ public class ReactionScheduler {
         String toKey() {
             return recordId + ":" + userId + ":" + type;
         }
+    }
+
+    // 카운트 반영 시 (recordId, type) 조합 단위로 증가량을 묶기 위한 그룹 키.
+    // userId는 카운트 자체와 무관하므로 ParsedReaction과 별도로 둔다.
+    private record ReactionCountKey(Long recordId, RecordReactionType type) {
     }
 }

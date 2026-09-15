@@ -4,6 +4,7 @@ import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.reaction.dto.ReactionKeyDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
+import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
@@ -28,7 +29,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
@@ -144,7 +147,7 @@ class ReactionSchedulerTest {
             User user = User.builder().build();
             given(activityRecordRepository.getReferenceById(42L)).willReturn(activityRecord);
             given(userRepository.getReferenceById("user-123")).willReturn(user);
-            given(recordReactionCountRepository.increaseCount(42L, RecordReactionType.GREAT.toString()))
+            given(recordReactionCountRepository.increaseCountBy(42L, RecordReactionType.GREAT.toString(), 1L))
                     .willReturn(1);
 
             // WHEN
@@ -176,7 +179,7 @@ class ReactionSchedulerTest {
 
             given(activityRecordRepository.getReferenceById(2L)).willReturn(ActivityRecord.builder().build());
             given(userRepository.getReferenceById("user-2")).willReturn(User.builder().build());
-            given(recordReactionCountRepository.increaseCount(2L, RecordReactionType.AWESOME.toString()))
+            given(recordReactionCountRepository.increaseCountBy(2L, RecordReactionType.AWESOME.toString(), 1L))
                     .willReturn(1);
 
             // WHEN
@@ -190,9 +193,9 @@ class ReactionSchedulerTest {
 
             // THEN: 걸러진 건은 카운트도 증가하지 않는다
             verify(recordReactionCountRepository, never())
-                    .increaseCount(1L, RecordReactionType.GREAT.toString());
+                    .increaseCountBy(eq(1L), eq(RecordReactionType.GREAT.toString()), anyLong());
             verify(recordReactionCountRepository, times(1))
-                    .increaseCount(2L, RecordReactionType.AWESOME.toString());
+                    .increaseCountBy(2L, RecordReactionType.AWESOME.toString(), 1L);
 
             // THEN: 사전에 걸러졌으므로 건별 재시도(레이스 컨디션 대응 경로)는 호출되지 않는다
             verify(reactionIndividualSaveService, never()).saveIfNotDuplicate(any(ActivityRecordReaction.class));
@@ -225,13 +228,64 @@ class ReactionSchedulerTest {
 
             // THEN: 저장에 실제로 성공한 건(recordId=1, GREAT)만 카운트가 증가한다
             verify(recordReactionCountRepository, times(1))
-                    .increaseCount(1L, RecordReactionType.GREAT.toString());
+                    .increaseCountBy(1L, RecordReactionType.GREAT.toString(), 1L);
             // THEN: 중복으로 스킵된 건(recordId=2, AWESOME)은 카운트가 증가하지 않는다
             verify(recordReactionCountRepository, never())
-                    .increaseCount(2L, RecordReactionType.AWESOME.toString());
+                    .increaseCountBy(eq(2L), eq(RecordReactionType.AWESOME.toString()), anyLong());
 
             // THEN: 저장 성공/중복 스킵 여부와 무관하게, 이번 배치에서 옮긴 2건은 모두 processing 큐에서 정리된다
             verify(listOperations, times(2)).leftPop(PROCESSING_QUEUE);
+        }
+
+        @Test
+        @DisplayName("같은 (recordId, type) 조합이 배치에 여러 건 있어도 카운트 UPDATE는 조합당 1번만 나간다")
+        void saveReactionsToDb_groupsSameRecordAndTypeIntoSingleCountUpdate() {
+            // GIVEN: 서로 다른 유저 3명이 같은 record(1)에 같은 타입(GREAT)으로 반응한 상황
+            given(listOperations.rightPopAndLeftPush(MAIN_QUEUE, PROCESSING_QUEUE))
+                    .willReturn("user-a:1:GREAT")
+                    .willReturn("user-b:1:GREAT")
+                    .willReturn("user-c:1:GREAT")
+                    .willReturn(null);
+            given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
+                    .willReturn(Collections.emptyList());
+            given(activityRecordRepository.getReferenceById(1L)).willReturn(ActivityRecord.builder().build());
+            given(userRepository.getReferenceById(anyString())).willReturn(User.builder().build());
+            given(recordReactionCountRepository.increaseCountBy(1L, RecordReactionType.GREAT.toString(), 3L))
+                    .willReturn(1);
+
+            // WHEN
+            reactionScheduler.saveReactionsToDb();
+
+            // THEN: 3건이 (recordId=1, GREAT) 하나의 조합으로 묶여 증가량 3으로 UPDATE가 "딱 1번"만 나간다
+            // (건당 UPDATE였다면 increaseCount류 메서드가 3번 호출됐어야 한다)
+            verify(recordReactionCountRepository, times(1))
+                    .increaseCountBy(1L, RecordReactionType.GREAT.toString(), 3L);
+        }
+
+        @Test
+        @DisplayName("카운트 row가 아직 없는 조합은 건별 1이 아니라 그룹 증가량으로 바로 초기화된다")
+        void saveReactionsToDb_initializesNewCountRowWithGroupedDelta() {
+            // GIVEN: 서로 다른 유저 2명이 같은 record(1)에 같은 타입(AMAZING)으로 반응했는데,
+            // 아직 해당 record의 카운트 row 자체가 없는 상황(UPDATE 대상 row가 없어 결과가 0건)
+            given(listOperations.rightPopAndLeftPush(MAIN_QUEUE, PROCESSING_QUEUE))
+                    .willReturn("user-a:1:AMAZING")
+                    .willReturn("user-b:1:AMAZING")
+                    .willReturn(null);
+            given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
+                    .willReturn(Collections.emptyList());
+            given(activityRecordRepository.getReferenceById(1L)).willReturn(ActivityRecord.builder().build());
+            given(userRepository.getReferenceById(anyString())).willReturn(User.builder().build());
+            given(recordReactionCountRepository.increaseCountBy(1L, RecordReactionType.AMAZING.toString(), 2L))
+                    .willReturn(0);
+
+            // WHEN
+            reactionScheduler.saveReactionsToDb();
+
+            // THEN: init()으로 무조건 1을 세팅하는 게 아니라, 그룹 증가량(2)을 그대로 초기값으로 저장해야 한다
+            ArgumentCaptor<ActivityRecordReactionCount> captor = ArgumentCaptor.forClass(ActivityRecordReactionCount.class);
+            verify(recordReactionCountRepository).save(captor.capture());
+            assertThat(captor.getValue().getTotalCount()).isEqualTo(2L);
+            assertThat(captor.getValue().getAmazingCount()).isEqualTo(2L);
         }
     }
 }
