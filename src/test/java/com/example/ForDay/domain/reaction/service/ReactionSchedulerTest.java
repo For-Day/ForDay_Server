@@ -2,6 +2,7 @@ package com.example.ForDay.domain.reaction.service;
 
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.type.RecordReactionType;
+import com.example.ForDay.domain.reaction.dto.ReactionKeyDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
@@ -16,15 +17,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -53,13 +59,16 @@ class ReactionSchedulerTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private ReactionIndividualSaveService reactionIndividualSaveService;
+
     private ReactionScheduler reactionScheduler;
 
     @BeforeEach
     void setUp() {
         reactionScheduler = new ReactionScheduler(
                 redisTemplate, recordReactionRepository, recordReactionCountRepository,
-                activityRecordRepository, userRepository
+                activityRecordRepository, userRepository, reactionIndividualSaveService
         );
         given(redisTemplate.opsForList()).willReturn(listOperations);
     }
@@ -127,6 +136,9 @@ class ReactionSchedulerTest {
             given(listOperations.rightPopAndLeftPush(MAIN_QUEUE, PROCESSING_QUEUE))
                     .willReturn("user-123:42:GREAT")
                     .willReturn(null);
+            // 사전 중복 확인 결과 기존에 저장된 조합이 없는 상황
+            given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
+                    .willReturn(Collections.emptyList());
 
             ActivityRecord activityRecord = ActivityRecord.builder().build();
             User user = User.builder().build();
@@ -149,6 +161,77 @@ class ReactionSchedulerTest {
 
             // THEN: DB 반영(저장+카운트)이 전부 끝난 뒤에만 처리한 건수(1건)만큼 processing 큐를 정리한다
             verify(listOperations, times(1)).leftPop(PROCESSING_QUEUE);
+        }
+
+        @Test
+        @DisplayName("사전 중복 확인에 걸린 항목은 saveAll 대상에서 제외되고 카운트도 증가하지 않는다")
+        void saveReactionsToDb_filtersOutExistingReactions_beforeBulkSave() {
+            // GIVEN: 배치에 2건이 있는데, 그중 (recordId=1, user-1, GREAT)은 이미 DB에 저장되어 있는 상황
+            given(listOperations.rightPopAndLeftPush(MAIN_QUEUE, PROCESSING_QUEUE))
+                    .willReturn("user-1:1:GREAT")
+                    .willReturn("user-2:2:AWESOME")
+                    .willReturn(null);
+            given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
+                    .willReturn(List.of(new ReactionKeyDto(1L, "user-1", RecordReactionType.GREAT)));
+
+            given(activityRecordRepository.getReferenceById(2L)).willReturn(ActivityRecord.builder().build());
+            given(userRepository.getReferenceById("user-2")).willReturn(User.builder().build());
+            given(recordReactionCountRepository.increaseCount(2L, RecordReactionType.AWESOME.toString()))
+                    .willReturn(1);
+
+            // WHEN
+            reactionScheduler.saveReactionsToDb();
+
+            // THEN: 사전 중복으로 걸러진 (recordId=1) 건은 saveAll 대상에서 빠지고, 나머지 1건만 저장 시도된다
+            ArgumentCaptor<List<ActivityRecordReaction>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordReactionRepository).saveAll(captor.capture());
+            assertThat(captor.getValue()).hasSize(1);
+            assertThat(captor.getValue().get(0).getReactionType()).isEqualTo(RecordReactionType.AWESOME);
+
+            // THEN: 걸러진 건은 카운트도 증가하지 않는다
+            verify(recordReactionCountRepository, never())
+                    .increaseCount(1L, RecordReactionType.GREAT.toString());
+            verify(recordReactionCountRepository, times(1))
+                    .increaseCount(2L, RecordReactionType.AWESOME.toString());
+
+            // THEN: 사전에 걸러졌으므로 건별 재시도(레이스 컨디션 대응 경로)는 호출되지 않는다
+            verify(reactionIndividualSaveService, never()).saveIfNotDuplicate(any(ActivityRecordReaction.class));
+
+            // THEN: 사전 중복 확인으로 걸러졌든 저장에 성공했든, 이번 배치 2건은 모두 processing 큐에서 정리된다
+            verify(listOperations, times(2)).leftPop(PROCESSING_QUEUE);
+        }
+
+        @Test
+        @DisplayName("사전 확인을 통과했는데도 벌크 저장이 실패하면(레이스 컨디션) 건별로 재시도하고, 실제로 저장에 성공한 건만 카운트를 증가시킨다")
+        void saveReactionsToDb_fallsBackToIndividualSave_whenBulkSaveFailsDespitePreCheck() {
+            // GIVEN: 사전 확인에서는 중복이 없다고 나왔지만(레이스 컨디션 상황을 흉내),
+            // 그 사이 v1 동기 반응 API 등으로 실제로는 하나가 먼저 저장되어 saveAll이 실패하는 상황
+            given(listOperations.rightPopAndLeftPush(MAIN_QUEUE, PROCESSING_QUEUE))
+                    .willReturn("u1:1:GREAT")
+                    .willReturn("u2:2:AWESOME")
+                    .willReturn(null);
+            given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
+                    .willReturn(Collections.emptyList());
+            willThrow(new DataIntegrityViolationException("duplicate"))
+                    .given(recordReactionRepository).saveAll(anyList());
+
+            // 건별 재시도에서는 첫 건(u1:1:GREAT)만 실제로 저장에 성공하고,
+            // 두 번째 건(u2:2:AWESOME)은 그 사이 먼저 저장된 중복이라 스킵된다.
+            given(reactionIndividualSaveService.saveIfNotDuplicate(any(ActivityRecordReaction.class)))
+                    .willReturn(true, false);
+
+            // WHEN
+            reactionScheduler.saveReactionsToDb();
+
+            // THEN: 저장에 실제로 성공한 건(recordId=1, GREAT)만 카운트가 증가한다
+            verify(recordReactionCountRepository, times(1))
+                    .increaseCount(1L, RecordReactionType.GREAT.toString());
+            // THEN: 중복으로 스킵된 건(recordId=2, AWESOME)은 카운트가 증가하지 않는다
+            verify(recordReactionCountRepository, never())
+                    .increaseCount(2L, RecordReactionType.AWESOME.toString());
+
+            // THEN: 저장 성공/중복 스킵 여부와 무관하게, 이번 배치에서 옮긴 2건은 모두 processing 큐에서 정리된다
+            verify(listOperations, times(2)).leftPop(PROCESSING_QUEUE);
         }
     }
 }
