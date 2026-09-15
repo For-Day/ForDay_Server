@@ -92,6 +92,19 @@ public class S3ImageStorageAdapter implements ImageUrlPort, ImageUploadPort, Ima
         });
     }
 
+    @Override
+    public void deleteOrphanCopy(String key) {
+        if (!StringUtils.hasText(key)) return;
+
+        try {
+            s3Service.deleteByKey(key);
+            log.info("[S3-Cleanup] 고아 사본 삭제 완료 - Key: {}", key);
+        } catch (Exception e) {
+            // 보상 삭제 실패가 원래 실패(호출부의 예외 전파)를 가로막으면 안 되므로 로그만 남긴다.
+            log.error("[S3-Cleanup] 고아 사본 삭제 실패 - Key: {}, error: {}", key, e.getMessage());
+        }
+    }
+
     private void delete(String imageUrl) {
         try {
             String originalKey = s3Service.extractKeyFromFileUrl(imageUrl);
