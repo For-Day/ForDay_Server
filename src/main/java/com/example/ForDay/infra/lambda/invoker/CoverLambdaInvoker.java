@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
 import software.amazon.awssdk.core.exception.ApiCallTimeoutException;
@@ -29,14 +30,25 @@ public class CoverLambdaInvoker {
     @Value("${lambda.create-cover-function-name}")
     private String functionName;
 
+    // #356: $LATEST를 직접 호출하는 대신 alias(prod)를 통해 버전 고정 호출한다.
+    // 비워두면(로컬/테스트처럼 alias가 없는 환경) qualifier를 지정하지 않아 기존과 동일하게
+    // $LATEST가 호출된다 - 하위 호환을 위해 기본값을 빈 문자열로 둔다.
+    @Value("${lambda.create-cover-function-alias:}")
+    private String functionAlias;
+
     public String invokeSync(Map<String, Object> payload) throws Exception {
         byte[] json = objectMapper.writeValueAsBytes(payload);
 
-        InvokeRequest req = InvokeRequest.builder()
+        InvokeRequest.Builder reqBuilder = InvokeRequest.builder()
                 .functionName(functionName)
                 .invocationType(InvocationType.REQUEST_RESPONSE)
-                .payload(SdkBytes.fromByteArray(json))
-                .build();
+                .payload(SdkBytes.fromByteArray(json));
+
+        if (StringUtils.hasText(functionAlias)) {
+            reqBuilder.qualifier(functionAlias);
+        }
+
+        InvokeRequest req = reqBuilder.build();
 
         InvokeResponse res;
         try {

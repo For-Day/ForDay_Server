@@ -5,6 +5,7 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.core.SdkBytes;
@@ -23,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class CoverLambdaInvokerTest {
@@ -33,10 +35,18 @@ class CoverLambdaInvokerTest {
     private CoverLambdaInvoker invoker;
 
     private CoverLambdaInvoker newInvoker() throws Exception {
+        return newInvoker(null);
+    }
+
+    private CoverLambdaInvoker newInvoker(String functionAlias) throws Exception {
         CoverLambdaInvoker invoker = new CoverLambdaInvoker(lambdaClient);
         Field functionName = CoverLambdaInvoker.class.getDeclaredField("functionName");
         functionName.setAccessible(true);
         functionName.set(invoker, "test-cover-function");
+
+        Field aliasField = CoverLambdaInvoker.class.getDeclaredField("functionAlias");
+        aliasField.setAccessible(true);
+        aliasField.set(invoker, functionAlias);
         return invoker;
     }
 
@@ -103,5 +113,33 @@ class CoverLambdaInvokerTest {
         assertThatThrownBy(() -> invoker.invokeSync(Map.of("action", "SET_COVER")))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COVER_GENERATION_FAILED);
+    }
+
+    @Test
+    @DisplayName("alias가 설정되어 있으면 qualifier로 그 alias를 지정해 호출한다 (#356 - $LATEST 대신 버전 고정 호출)")
+    void invokeSync_setsQualifier_whenAliasConfigured() throws Exception {
+        invoker = newInvoker("prod");
+        given(lambdaClient.invoke(any(InvokeRequest.class)))
+                .willReturn(InvokeResponse.builder().payload(SdkBytes.fromUtf8String("{}")).build());
+
+        invoker.invokeSync(Map.of("action", "SET_COVER"));
+
+        ArgumentCaptor<InvokeRequest> captor = ArgumentCaptor.forClass(InvokeRequest.class);
+        verify(lambdaClient).invoke(captor.capture());
+        assertThat(captor.getValue().qualifier()).isEqualTo("prod");
+    }
+
+    @Test
+    @DisplayName("alias가 설정돼 있지 않으면 qualifier 없이 호출한다 (기존과 동일하게 $LATEST)")
+    void invokeSync_omitsQualifier_whenAliasNotConfigured() throws Exception {
+        invoker = newInvoker(null);
+        given(lambdaClient.invoke(any(InvokeRequest.class)))
+                .willReturn(InvokeResponse.builder().payload(SdkBytes.fromUtf8String("{}")).build());
+
+        invoker.invokeSync(Map.of("action", "SET_COVER"));
+
+        ArgumentCaptor<InvokeRequest> captor = ArgumentCaptor.forClass(InvokeRequest.class);
+        verify(lambdaClient).invoke(captor.capture());
+        assertThat(captor.getValue().qualifier()).isNull();
     }
 }
