@@ -79,16 +79,34 @@ public class HobbyCoverService {
 
     /**
      * Case 2: 기존 활동 기록의 사진(또는 스티커 기본 이미지)으로 설정.
+     * <p>
+     * copy()로 만든 사본은 트랜잭션 밖에 있어 DB 롤백에 연동되지 않는다(#359). 그래서 이후
+     * 단계(Lambda 리사이즈 생성, Tx2 DB 반영)가 실패하면 그 자리에서 직접 보상 삭제한다.
      */
     public CoverChangeResult changeFromRecord(Long recordId, User currentUser) throws Exception {
         CoverPreparation prep = transactionSupport.prepare(recordId, currentUser);
 
         if (prep.hasSourceImage()) {
             imageLifecyclePort.copy(prep.srcKey(), prep.newCoverKey());
-            coverGeneratorPort.generateCover(prep.newCoverKey(), prep.resizedCoverKey());
+            try {
+                coverGeneratorPort.generateCover(prep.newCoverKey(), prep.resizedCoverKey());
+            } catch (Exception e) {
+                // Lambda 실패 - 리사이즈본은 아직 없으므로 원본 사본만 고아로 남는다.
+                imageLifecyclePort.deleteOrphanCopy(prep.newCoverKey());
+                throw e;
+            }
         }
 
-        return transactionSupport.applyChange(prep.hobbyId(), prep.oldCoverUrl(), prep.newCoverUrl());
+        try {
+            return transactionSupport.applyChange(prep.hobbyId(), prep.oldCoverUrl(), prep.newCoverUrl());
+        } catch (RuntimeException e) {
+            // Tx2 실패 - 여기까지 왔다면 원본 사본과 리사이즈본이 둘 다 만들어진 상태라 둘 다 지운다.
+            if (prep.hasSourceImage()) {
+                imageLifecyclePort.deleteOrphanCopy(prep.newCoverKey());
+                imageLifecyclePort.deleteOrphanCopy(prep.resizedCoverKey());
+            }
+            throw e;
+        }
     }
 
     private boolean isDirectUploadCase(SetHobbyCoverImageReqDto reqDto) {
