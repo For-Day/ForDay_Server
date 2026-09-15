@@ -172,7 +172,7 @@ class HobbyCoverServiceTest {
         }
 
         @Test
-        @DisplayName("Lambda 리사이즈 생성이 실패하면 applyChange(Tx2)는 호출되지 않는다 - 실패 시 커버 미변경")
+        @DisplayName("Lambda 리사이즈 생성이 실패하면 applyChange(Tx2)는 호출되지 않고, 원본 사본만 보상 삭제한다 (#359)")
         void doesNotApplyChange_whenLambdaGenerationFails() throws Exception {
             hobbyCoverService = new HobbyCoverService(hobbyUtil, imageLifecyclePort, coverGeneratorPort, transactionSupport);
             CoverPreparation prep = CoverPreparation.fromRecordImage(
@@ -186,6 +186,27 @@ class HobbyCoverServiceTest {
 
             // THEN: Tx2(applyChange)에 진입하지 않으므로 DB의 커버는 그대로 유지된다
             verify(transactionSupport, never()).applyChange(anyLong(), any(), any());
+            // THEN: Lambda가 리사이즈본을 만들기 전에 실패했으므로 원본 사본만 고아로 남아 그것만 지운다
+            verify(imageLifecyclePort).deleteOrphanCopy("new-cover-key");
+            verify(imageLifecyclePort, never()).deleteOrphanCopy("resized-key");
+        }
+
+        @Test
+        @DisplayName("applyChange(Tx2)가 실패하면 원본 사본과 리사이즈본을 둘 다 보상 삭제한다 (#359)")
+        void deletesBothCopies_whenApplyChangeFails() throws Exception {
+            hobbyCoverService = new HobbyCoverService(hobbyUtil, imageLifecyclePort, coverGeneratorPort, transactionSupport);
+            CoverPreparation prep = CoverPreparation.fromRecordImage(
+                    1L, "old-url", "new-url", "src-key", "new-cover-key", "resized-key");
+            given(transactionSupport.prepare(10L, currentUser)).willReturn(prep);
+            willThrow(new CustomException(ErrorCode.HOBBY_NOT_FOUND))
+                    .given(transactionSupport).applyChange(1L, "old-url", "new-url");
+
+            assertThatThrownBy(() -> hobbyCoverService.changeFromRecord(10L, currentUser))
+                    .isInstanceOf(CustomException.class);
+
+            // THEN: 이 시점엔 S3 copy와 Lambda 리사이즈 생성 모두 성공한 뒤였으므로 둘 다 고아로 남아 둘 다 지운다
+            verify(imageLifecyclePort).deleteOrphanCopy("new-cover-key");
+            verify(imageLifecyclePort).deleteOrphanCopy("resized-key");
         }
     }
 }
