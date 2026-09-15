@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.reaction.service;
 
+import com.example.ForDay.domain.reaction.dto.ReactionKeyDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReactionCount;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionCountRepository;
@@ -19,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -35,6 +38,7 @@ public class ReactionScheduler {
     private final ActivityRecordReactionCountRepository recordReactionCountRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final UserRepository userRepository;
+    private final ReactionIndividualSaveService reactionIndividualSaveService;
 
     /**
      * 이전 인스턴스가 pop 이후 ~ DB 저장 완료 전 구간에서 죽어 processing 큐에 남긴 항목을
@@ -74,45 +78,55 @@ public class ReactionScheduler {
 
         if (rawValues.isEmpty()) return;
 
-        List<ActivityRecordReaction> reactions = rawValues.stream()
-                .map(value -> {
-                    // ReactionRedisLockService가 REACTION_QUEUE_FORMAT("%s:%d:%s")으로
-                    // userId:recordId:type 순서로 push하므로 그 순서에 맞춰 파싱한다.
-                    String[] split = value.split(":");
-                    String userId = split[0];
-                    Long recordId = Long.parseLong(split[1]);
-                    RecordReactionType type = RecordReactionType.valueOf(split[2]);
+        List<ParsedReaction> parsedReactions = rawValues.stream().map(this::parse).toList();
 
-                    return ActivityRecordReaction.builder()
-                            .activityRecord(activityRecordRepository.getReferenceById(recordId))
-                            .reactedUser(userRepository.getReferenceById(userId))
-                            .reactionType(type)
-                            .readWriter(false)
-                            .build();
-                })
+        // 벌크 저장을 시도하기 전에, 이번 배치의 recordId들에 대해 이미 저장된
+        // (recordId, userId, type) 조합을 한 번의 쿼리로 조회해 자바 메모리에서 미리 걸러낸다.
+        // saveAll은 배치 단위로 실패하므로, 저장을 시도하고 실패를 기다리는 대신
+        // 저장 전에 중복을 제거해 대부분의 배치가 예외 없이 한 번에 끝나게 한다.
+        Set<Long> recordIds = parsedReactions.stream().map(ParsedReaction::recordId).collect(Collectors.toSet());
+        Set<String> existingKeys = recordReactionRepository.findExistingKeysByRecordIds(recordIds).stream()
+                .map(ReactionKeyDto::toKey)
+                .collect(Collectors.toSet());
+        List<ParsedReaction> newReactions = parsedReactions.stream()
+                .filter(parsed -> !existingKeys.contains(parsed.toKey()))
                 .toList();
 
-        try {
-            recordReactionRepository.saveAll(reactions);
-            recordReactionRepository.flush();
-        } catch (DataIntegrityViolationException e) {
-            log.warn("벌크 저장 중 중복 데이터 발견. 건별 저장으로 전환하거나 무시합니다.");
+        int duplicateCount = parsedReactions.size() - newReactions.size();
+        if (duplicateCount > 0) {
+            log.info("[reaction] 사전 중복 확인으로 {}건 스킵", duplicateCount);
         }
 
-        rawValues.forEach(value -> {
-            String[] split = value.split(":");
-            Long recordId = Long.parseLong(split[1]);
-            RecordReactionType type = RecordReactionType.valueOf(split[2]);
+        // 실제로 DB에 반영된(=중복이 아니라 새로 저장된) 건만 카운트 반영 대상이 된다.
+        List<ParsedReaction> savedReactions;
+        if (newReactions.isEmpty()) {
+            savedReactions = List.of();
+        } else {
+            List<ActivityRecordReaction> reactions = newReactions.stream().map(this::toEntity).toList();
+            try {
+                recordReactionRepository.saveAll(reactions);
+                recordReactionRepository.flush();
+                savedReactions = newReactions;
+            } catch (DataIntegrityViolationException e) {
+                // 사전 확인 이후에도 실패하는 경우는 레이스 컨디션(예: 큐를 거치지 않는
+                // v1 동기 반응 API가 사전 확인과 saveAll 사이에 같은 조합을 먼저 저장한 경우)뿐인
+                // 극히 드문 케이스다. 건별로 재시도해 이번에도 중복인 건만 스킵한다.
+                log.warn("사전 확인 이후에도 벌크 저장이 실패했습니다(레이스 컨디션 추정). 건별 저장으로 전환합니다.");
+                savedReactions = saveIndividually(newReactions);
+            }
+        }
 
-            int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
+        // 저장에 실제로 성공한 건수만큼만 카운트를 증가시킨다(중복으로 스킵된 건은 제외).
+        savedReactions.forEach(parsed -> {
+            int result = recordReactionCountRepository.increaseCount(parsed.recordId(), parsed.type().toString());
             if (result == 0) {
                 recordReactionCountRepository.save(
-                        ActivityRecordReactionCount.init(recordId, type)
+                        ActivityRecordReactionCount.init(parsed.recordId(), parsed.type())
                 );
             }
         });
 
-        // DB 반영이 전부 끝난 뒤에만 processing 큐에서 제거한다.
+        // DB 반영(저장 성공 또는 중복으로 정상 스킵)이 전부 끝난 뒤에만 processing 큐에서 제거한다.
         // 여기 도달하기 전에 예외가 발생하면 트랜잭션은 롤백되고 항목은 processing 큐에 남아
         // 다음 기동 시 recoverPendingReactions()로 복구된다.
         // processing 큐의 head는 항상 이번 배치에서 옮긴 항목이므로(RPOPLPUSH가 매번 head로 push),
@@ -122,6 +136,44 @@ public class ReactionScheduler {
             redisTemplate.opsForList().leftPop(REACTION_PROCESSING_QUEUE);
         }
 
-        log.info("리액션 DB 저장 완료: {}건", reactions.size());
+        log.info("리액션 DB 저장 완료: {}건 / 수신 {}건", savedReactions.size(), rawValues.size());
+    }
+
+    // 벌크 저장 실패 시 건별로 재시도한다. 한 건의 중복이 다른 건의 저장을 막지 않도록
+    // 각 건은 ReactionIndividualSaveService에서 REQUIRES_NEW로 독립된 트랜잭션에서 저장된다.
+    private List<ParsedReaction> saveIndividually(List<ParsedReaction> parsedReactions) {
+        List<ParsedReaction> saved = new ArrayList<>();
+        for (ParsedReaction parsed : parsedReactions) {
+            if (reactionIndividualSaveService.saveIfNotDuplicate(toEntity(parsed))) {
+                saved.add(parsed);
+            }
+        }
+        return saved;
+    }
+
+    private ActivityRecordReaction toEntity(ParsedReaction parsed) {
+        return ActivityRecordReaction.builder()
+                .activityRecord(activityRecordRepository.getReferenceById(parsed.recordId()))
+                .reactedUser(userRepository.getReferenceById(parsed.userId()))
+                .reactionType(parsed.type())
+                .readWriter(false)
+                .build();
+    }
+
+    // ReactionRedisLockService가 REACTION_QUEUE_FORMAT("%s:%d:%s")으로
+    // userId:recordId:type 순서로 push하므로 그 순서에 맞춰 파싱한다.
+    private ParsedReaction parse(String value) {
+        String[] split = value.split(":");
+        String userId = split[0];
+        Long recordId = Long.parseLong(split[1]);
+        RecordReactionType type = RecordReactionType.valueOf(split[2]);
+        return new ParsedReaction(userId, recordId, type);
+    }
+
+    private record ParsedReaction(String userId, Long recordId, RecordReactionType type) {
+        // ReactionKeyDto.toKey()와 동일한 형식으로 맞춰야 사전 중복 확인 시 정확히 대조된다.
+        String toKey() {
+            return recordId + ":" + userId + ":" + type;
+        }
     }
 }
