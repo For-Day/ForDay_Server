@@ -18,4 +18,11 @@ public interface ImageLifecyclePort {
      * 롤백되면 삭제하지 않는다.
      */
     void deleteAfterCommit(String imageUrl);
+
+    /**
+     * {@link #copy}로 만든 임시 사본을, 그 이후 단계(리사이즈 생성·DB 반영 등)가 실패했을 때
+     * 트랜잭션과 무관하게 즉시 삭제한다. 실패해도 예외를 던지지 않고 로그만 남긴다 -
+     * 보상 삭제 자체의 실패가 원래 실패의 후처리(예외 전파)를 가로막으면 안 되기 때문이다.
+     */
+    void deleteOrphanCopy(String key);
 }
