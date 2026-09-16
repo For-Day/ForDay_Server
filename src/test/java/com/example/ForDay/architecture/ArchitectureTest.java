@@ -166,7 +166,7 @@ class ArchitectureTest {
     static final ArchRule S5_트랜잭션_안에서_푸시를_직접_발송하지_않는다 =
             methods().that(트랜잭션_경계_안의_메서드)
                     .should(푸시를_직접_발송하지_않는다())
-                    .because("커밋 전에 발송하면 롤백돼도 알림이 나간다 - AFTER_COMMIT 이벤트 경로를 쓴다");
+                    .because("커밋 전에 발송하면 롤백돼도 알림이 나간다 - Outbox 경로를 쓴다");
 
     // ==================== OCP / LSP ====================
 
@@ -285,7 +285,7 @@ class ArchitectureTest {
                 for (JavaMethodCall call : item.getMethodCallsFromSelf()) {
                     if (call.getTargetOwner().isAssignableTo(PushSenderPort.class)) {
                         events.add(SimpleConditionEvent.violated(item, String.format(
-                                "%s 가 트랜잭션 안에서 %s 를 직접 호출한다 - AFTER_COMMIT 이벤트로 바꿀 것",
+                                "%s 가 트랜잭션 안에서 %s 를 직접 호출한다 - Outbox 경로로 바꿀 것",
                                 item.getFullName(), call.getTarget().getFullName())));
                     }
                 }
