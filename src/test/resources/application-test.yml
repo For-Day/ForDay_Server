@@ -63,6 +63,23 @@ discord:
     # 이 값으로 실제 HTTP 호출이 나가는 테스트는 없다.
     notification-url: https://discord.com/api/webhooks/test/test
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+  # 테스트/CI 환경에는 RabbitMQ 브로커가 없다(redis만 서비스 컨테이너로 띄움 - deploy.yml).
+  # 기본 RabbitHealthIndicator를 그대로 두면 연결 실패로 전체 health가 DOWN(503)이 되므로,
+  # 테스트 프로파일에서만 끈다. 실제 배포 환경에서는 이 값을 설정하지 않아
+  # RabbitMQ 상태가 health에 그대로 반영된다.
+  health:
+    rabbit:
+      enabled: false
+
 server:
   port: 8080
   env: test
