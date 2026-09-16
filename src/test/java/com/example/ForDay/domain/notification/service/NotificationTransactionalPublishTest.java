@@ -5,6 +5,9 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
+import com.example.ForDay.domain.notification.entity.NotificationOutbox;
+import com.example.ForDay.domain.notification.repository.NotificationOutboxRepository;
+import com.example.ForDay.domain.notification.type.OutboxStatus;
 import com.example.ForDay.domain.reaction.service.ReactionService;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
@@ -18,8 +21,6 @@ import com.example.ForDay.global.firebase.entity.FcmToken;
 import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
 import com.example.ForDay.global.firebase.type.DeviceType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
-import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
-import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.example.ForDay.support.IntegrationTestSupport;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
@@ -27,46 +28,32 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
- * 알림 발행이 트랜잭션 커밋에 묶여 있다는 것을 고정하는 테스트.
+ * 알림 저장과 outbox 저장이 같은 트랜잭션에 원자적으로 묶여 있다는 것을 고정하는 테스트.
  *
- * <p>{@code NotificationEventListener}가 {@code @TransactionalEventListener(AFTER_COMMIT)}로
- * RabbitMQ에 발행하므로 "DB는 롤백됐는데 알림은 나가는" 상황이 구조적으로 막혀 있다.
- * 그 동작을 테스트로 고정해, 누가 phase를 지우거나 평범한 {@code @EventListener}로 바꾸면
- * CI가 잡도록 한다.
+ * <p>{@code NotificationService#processReactionNotification}이 {@code Notification}과
+ * {@code NotificationOutbox}를 같은 트랜잭션 안에서 함께 저장하므로(Outbox 패턴), 둘 중
+ * 하나만 커밋되는 상황이 구조적으로 불가능하다. 실제 RabbitMQ 발행은 이 트랜잭션과 완전히
+ * 분리된 {@link NotificationOutboxRelay}가 맡는다 — 그쪽 동작은
+ * {@link NotificationOutboxRelayTest}에서 검증한다.
  *
- * <p><b>이 클래스에 {@code @Transactional}을 붙이면 안 된다.</b> 테스트가 트랜잭션을 잡고
- * 항상 롤백하면 AFTER_COMMIT 리스너가 아예 실행되지 않아, "커밋되면 발행된다" 쪽을
- * 증명할 수 없다. 그래서 실제로 커밋되는 방식으로 두고 데이터는 {@link #tearDown()}에서
- * 직접 지운다.
- *
- * <p>{@link RabbitTemplate}은 스파이가 아니라 목으로 교체한다. 스파이면 실제 발행이 일어나
- * RabbitMQ가 없는 테스트 환경에서 커넥션 예외가 발생하는데, AFTER_COMMIT 리스너에서 난
- * 예외는 스프링이 삼키므로 테스트는 통과하면서 로그만 지저분해진다. 목이면 커넥션 없이
- * 발행 횟수만 정확히 셀 수 있다.
+ * <p><b>이 클래스에 {@code @Transactional}을 붙이지 않는다.</b> #370 당시엔 AFTER_COMMIT
+ * 리스너를 실행시키기 위해 필요했던 제약인데, Outbox 도입 후에는 발행이 완전히 비동기라
+ * 이 제약이 더는 필수는 아니다. 다만 기존 테스트 스타일과의 일관성을 위해 유지하고,
+ * 커밋된 데이터는 {@link #tearDown()}에서 직접 지운다.
  *
  * <p>대상은 v1 경로({@code POST /records/{id}/reaction} → {@code ReactionService#reactToRecord})다.
  * v2 경로({@code reactToRecordWithRedis})는 Write-Back 부하 측정용이라 알림을 발행하지 않는다.
  */
 class NotificationTransactionalPublishTest extends IntegrationTestSupport {
-
-    @MockitoBean
-    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private ReactionService reactionService;
@@ -90,6 +77,9 @@ class NotificationTransactionalPublishTest extends IntegrationTestSupport {
     private FcmTokenRepository fcmTokenRepository;
 
     @Autowired
+    private NotificationOutboxRepository notificationOutboxRepository;
+
+    @Autowired
     private EntityManager em;
 
     private String receiverId;
@@ -103,7 +93,7 @@ class NotificationTransactionalPublishTest extends IntegrationTestSupport {
     void setUp() {
         // 기록 작성자 = 알림 받는 사람.
         // isRecordPushEnabled 기본값이 false인데, false면 findActiveRecordDeviceToken이
-        // 빈 리스트를 돌려주고 이벤트 자체가 발행되지 않는다. 반드시 true로 만든다.
+        // 빈 리스트를 돌려주고 outbox 행 자체가 생기지 않는다. 반드시 true로 만든다.
         User receiver = userRepository.saveAndFlush(User.builder()
                 .socialId("tx_publish_receiver")
                 .nickname("기록작성자")
@@ -114,7 +104,7 @@ class NotificationTransactionalPublishTest extends IntegrationTestSupport {
                 .build());
         receiverId = receiver.getId();
 
-        // 같은 이유로 FCM 토큰이 최소 1건 있어야 발행 조건이 성립한다.
+        // 같은 이유로 FCM 토큰이 최소 1건 있어야 outbox 저장 조건이 성립한다.
         fcmTokenRepository.saveAndFlush(FcmToken.createFcmToken(
                 "tx-publish-device", receiver, "tx-publish-fcm-token", DeviceType.ANDROID));
 
@@ -165,6 +155,7 @@ class NotificationTransactionalPublishTest extends IntegrationTestSupport {
     @AfterEach
     void tearDown() {
         transactionTemplate.executeWithoutResult(status -> {
+            em.createQuery("delete from NotificationOutbox").executeUpdate();
             em.createQuery("delete from Notification n where n.receiver.id = :userId")
                     .setParameter("userId", receiverId).executeUpdate();
             em.createQuery("delete from ActivityRecordReaction r where r.activityRecord.id = :recordId")
@@ -189,30 +180,17 @@ class NotificationTransactionalPublishTest extends IntegrationTestSupport {
     class WhenRolledBack {
 
         @Test
-        @DisplayName("RabbitMQ로 알림이 발행되지 않는다")
-        void 알림이_발행되지_않는다() {
+        @DisplayName("알림도 outbox 행도 생기지 않는다")
+        void 알림과_outbox_모두_생기지_않는다() {
             // when: 리액션 등록이 성공한 뒤 같은 트랜잭션에서 예외가 터진다
             assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
                 reactionService.reactToRecord(recordId, RecordReactionType.AMAZING, senderDetails);
                 throw new IllegalStateException("트랜잭션 롤백 유도");
             })).isInstanceOf(IllegalStateException.class);
 
-            // then: AFTER_COMMIT 리스너가 실행되지 않아 발행 0건
-            verify(rabbitTemplate, never()).convertAndSend(
-                    eq(RabbitMqConfig.NOTIFICATION_EXCHANGE),
-                    eq(RabbitMqConfig.NOTIFICATION_ROUTING_KEY),
-                    any(NotificationEventDto.class));
-        }
-
-        @Test
-        @DisplayName("알림도 저장되지 않는다")
-        void 알림이_저장되지_않는다() {
-            assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
-                reactionService.reactToRecord(recordId, RecordReactionType.AMAZING, senderDetails);
-                throw new IllegalStateException("트랜잭션 롤백 유도");
-            })).isInstanceOf(IllegalStateException.class);
-
+            // then: Notification과 NotificationOutbox 둘 다 같은 트랜잭션에서 저장됐으므로 함께 사라진다
             assertThat(countNotificationsForReceiver()).isZero();
+            assertThat(notificationOutboxRepository.count()).isZero();
         }
     }
 
@@ -221,19 +199,19 @@ class NotificationTransactionalPublishTest extends IntegrationTestSupport {
     class WhenCommitted {
 
         @Test
-        @DisplayName("알림 저장 건수와 RabbitMQ 발행 건수가 일치한다")
-        void 저장_건수와_발행_건수가_같다() {
+        @DisplayName("알림 저장 건수와 outbox 행 건수가 일치하고, outbox는 PENDING 상태로 남는다")
+        void 저장_건수와_outbox_건수가_같고_PENDING이다() {
             // when: 자체 트랜잭션에서 커밋된다
             reactionService.reactToRecord(recordId, RecordReactionType.AMAZING, senderDetails);
 
-            // then: 저장 1건 ↔ 발행 1건
+            // then: 저장 1건 ↔ outbox 1건, 아직 릴레이가 안 돌았으니 PENDING
             long savedCount = countNotificationsForReceiver();
             assertThat(savedCount).isEqualTo(1L);
 
-            verify(rabbitTemplate, times((int) savedCount)).convertAndSend(
-                    eq(RabbitMqConfig.NOTIFICATION_EXCHANGE),
-                    eq(RabbitMqConfig.NOTIFICATION_ROUTING_KEY),
-                    any(NotificationEventDto.class));
+            List<NotificationOutbox> outboxRows = notificationOutboxRepository.findAll();
+            assertThat(outboxRows).hasSize(1);
+            assertThat(outboxRows.get(0).getStatus()).isEqualTo(OutboxStatus.PENDING);
+            assertThat(outboxRows.get(0).getPayload()).contains("tx-publish-fcm-token");
         }
     }
 

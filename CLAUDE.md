@@ -21,7 +21,7 @@ ForDay (`ForDay_Server`) — 취미 습관 앱("66일 동안 취미 채우기")�
 
 `@Profile("local")`인 `DataInitializer` / `NotificationDataInitializer` / `ReactionInitializer`가 `ApplicationReadyEvent` 시점에 더미 데이터를 넣는다. `local` 외의 프로파일에서는 절대 실행되지 않는다.
 
-`@Profile("measure")`는 응답 시간 비교 측정 전용 슬라이스(`SyncPushNotificationSender`, `TestReactionMeasurementController`)를 켠다. 알림을 트랜잭션 커밋을 기다리지 않고 동기로 즉시 발송해, 정상 경로(AFTER_COMMIT 이벤트 → RabbitMQ)와의 응답 시간 차이를 잰다. 배포는 `blue`/`green` 프로파일로만 뜨므로(§배포 참고) 이 슬라이스는 **프로덕션에는 존재하지 않는다** — `--spring.profiles.active=blue,measure`처럼 부하 측정 전용 인스턴스에서 명시적으로 켤 때만 조립된다. 꺼져 있으면 해당 컨트롤러 경로가 404고, `NotificationService#testProcessReactionNotification`을 직접 호출해도 `IllegalStateException`이 난다.
+`@Profile("measure")`는 응답 시간 비교 측정 전용 슬라이스(`SyncPushNotificationSender`, `TestReactionMeasurementController`)를 켠다. 알림을 트랜잭션 커밋을 기다리지 않고 동기로 즉시 발송해, 정상 경로(Outbox 저장 → `NotificationOutboxRelay` → RabbitMQ)와의 응답 시간 차이를 잰다. 배포는 `blue`/`green` 프로파일로만 뜨므로(§배포 참고) 이 슬라이스는 **프로덕션에는 존재하지 않는다** — `--spring.profiles.active=blue,measure`처럼 부하 측정 전용 인스턴스에서 명시적으로 켤 때만 조립된다. 꺼져 있으면 해당 컨트롤러 경로가 404고, `NotificationService#testProcessReactionNotification`을 직접 호출해도 `IllegalStateException`이 난다.
 
 Swagger UI: `/swagger-ui/index.html`.
 
@@ -62,7 +62,7 @@ Spring Data JPA + QueryDSL. 복잡한 조회는 `XxxRepository` / `XxxRepository
 
 ### 알림
 
-인앱 알림 저장과 푸시 발송이 분리되어 있다. 서비스가 `@TransactionalEventListener(AFTER_COMMIT)`(`NotificationEventListener`)로 `NotificationEventDto`를 발행 → RabbitMQ 토픽 익스체인지(`notification.exchange`) → `NotificationConsumer`가 알림을 저장하고 기기 토큰별로 FCM을 발송하며, 개별 토큰 실패는 로그만 남기고 계속 진행한다. 트랜잭션 서비스 메서드 안에서 FCM을 직접 발송하지 말 것.
+인앱 알림 저장(`Notification`)과 푸시 발송(RabbitMQ → FCM)이 분리되어 있고, 그 사이를 **Outbox 패턴**으로 잇는다. `NotificationService#processReactionNotification`이 `Notification`과 `NotificationOutbox`(발행 대기 행)를 같은 트랜잭션 안에서 함께 커밋하고, 별도의 `NotificationOutboxRelay`(`@Scheduled(fixedDelay = 1000)`)가 PENDING 행을 읽어 RabbitMQ 토픽 익스체인지(`notification.exchange`)로 발행한다 → `NotificationConsumer`가 기기 토큰별로 FCM을 발송하며, 개별 토큰 실패는 로그만 남기고 계속 진행한다. 발행이 실패하면 outbox 행은 PENDING으로 남아 다음 주기에 재시도되고, 최초 실패·복구 시 Discord 웹훅으로 운영 알림이 간다(`DiscordAlertPort`). 배경과 대안 비교: `docs/adr/0002-notification-publish-after-commit.md`. 트랜잭션 서비스 메서드 안에서 FCM을 직접 발송하지 말 것(ArchUnit S5로 강제됨, `docs/architecture-rules.md`).
 
 ### AI
 

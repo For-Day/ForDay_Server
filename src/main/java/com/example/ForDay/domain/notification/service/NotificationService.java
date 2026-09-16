@@ -7,7 +7,9 @@ import com.example.ForDay.domain.notification.dto.response.GetPushNotificationTo
 import com.example.ForDay.domain.notification.dto.response.SendPushMessageResDto;
 import com.example.ForDay.domain.notification.dto.response.UpdatePushNotificationToggleResDto;
 import com.example.ForDay.domain.notification.entity.Notification;
+import com.example.ForDay.domain.notification.entity.NotificationOutbox;
 import com.example.ForDay.domain.notification.entity.ReactionNotification;
+import com.example.ForDay.domain.notification.repository.NotificationOutboxRepository;
 import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.type.NotificationFilterType;
 import com.example.ForDay.domain.notification.type.NotificationType;
@@ -23,10 +25,11 @@ import com.example.ForDay.global.firebase.repository.FcmTokenRepository;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.example.ForDay.global.util.UserUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +43,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class NotificationService {
     private final NotificationRepository notificationRepository;
+    private final NotificationOutboxRepository notificationOutboxRepository;
     private final FcmTokenRepository fcmTokenRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
     private final PushSenderPort pushSenderPort;
@@ -82,6 +86,14 @@ public class NotificationService {
         return UpdatePushNotificationToggleResDto.of(reqDto.isActive(), reqDto.getToggleType());
     }
 
+    /**
+     * 알림 저장과 "발행해야 한다"는 사실을 같은 트랜잭션 안에서 원자적으로 커밋한다
+     * (Outbox 패턴). 예전에는 저장 후 {@code AFTER_COMMIT} 이벤트로 RabbitMQ를 직접
+     * 호출했는데, 그 방식은 (1) 발행이 실패하면 재시도 없이 유실되고 (2) 발행 중 예외가
+     * 트랜잭션 밖으로 전파돼 DB에는 이미 커밋된 리액션이 클라이언트에는 500으로 보이는
+     * 문제가 있었다. 실제 발행은 {@link NotificationOutboxRelay}가 별도로 맡는다.
+     * 배경: {@code docs/adr/0002-notification-publish-after-commit.md}
+     */
     public void processReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
         String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription()); // notification 내용
         String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
@@ -94,13 +106,24 @@ public class NotificationService {
         List<String> tokens = findActiveRecordDeviceToken(receiver);
 
         if (!tokens.isEmpty()) {
-            eventPublisher.publishEvent(NotificationEventDto.of(
+            NotificationEventDto event = NotificationEventDto.of(
                     receiver,
                     tokens,
                     sender.getNickname(),
                     pushReactionBody,
                     NotificationMessageGenerator.createDataForReaction(recordId, savedNotification.getId())
-            ));
+            );
+            notificationOutboxRepository.save(NotificationOutbox.pending(savedNotification.getId(), toJson(event)));
+        }
+    }
+
+    private String toJson(NotificationEventDto event) {
+        try {
+            return objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            // NotificationEventDto는 순수 필드(문자열·리스트·맵)만 갖고 있어 직렬화가 실패할
+            // 구조적 이유가 없다 - 발생하면 설정 오류에 가까우므로 즉시 드러나는 게 낫다.
+            throw new IllegalStateException("알림 이벤트 직렬화 실패", e);
         }
     }
 
@@ -147,9 +170,9 @@ public class NotificationService {
 
     /**
      * {@code TestNotificationController} 전용 디버그 경로다. 프로덕션 알림 발송 경로가
-     * 아니다 — 실제 발송은 {@link #processReactionNotification}의
-     * {@code AFTER_COMMIT} 이벤트 → RabbitMQ 경로 하나뿐이다. 여기는 DB 접근이 없어
-     * {@code @Transactional}이 불필요했고(커넥션만 붙잡은 채 FCM 호출을 기다렸다), 제거했다.
+     * 아니다 — 실제 발송은 {@link #processReactionNotification}이 남긴 outbox 행을
+     * {@link NotificationOutboxRelay}가 읽어 발행하는 경로 하나뿐이다. 여기는 DB 접근이
+     * 없어 {@code @Transactional}이 불필요했고(커넥션만 붙잡은 채 FCM 호출을 기다렸다), 제거했다.
      */
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
