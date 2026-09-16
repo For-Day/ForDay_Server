@@ -2,6 +2,8 @@ package com.example.ForDay.architecture;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -11,13 +13,16 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.example.ForDay.global.port.PushSenderPort;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameEndingWith;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -47,6 +52,19 @@ class ArchitectureTest {
             resideInAPackage("com.example.ForDay..")
                     .and(simpleNameEndingWith("Adapter"))
                     .as("우리 코드베이스의 어댑터 구현체");
+
+    /**
+     * 메서드 자신 또는 선언 클래스에 {@code @Transactional}이 붙어 있으면 대상이다.
+     * 클래스 레벨 트랜잭션은 현재 {@code TermsService} 하나뿐이지만, 늘어날 수 있어 함께 본다.
+     */
+    private static final DescribedPredicate<JavaMethod> 트랜잭션_경계_안의_메서드 =
+            new DescribedPredicate<>("@Transactional 메서드(또는 그 클래스)") {
+                @Override
+                public boolean test(JavaMethod method) {
+                    return method.isAnnotatedWith(Transactional.class)
+                            || method.getOwner().isAnnotatedWith(Transactional.class);
+                }
+            };
 
     // ==================== DIP: 의존 역전 ====================
 
@@ -143,6 +161,12 @@ class ArchitectureTest {
             slices()
                     .matching("com.example.ForDay.domain.(*)..")
                     .should().beFreeOfCycles();
+
+    @ArchTest
+    static final ArchRule S5_트랜잭션_안에서_푸시를_직접_발송하지_않는다 =
+            methods().that(트랜잭션_경계_안의_메서드)
+                    .should(푸시를_직접_발송하지_않는다())
+                    .because("커밋 전에 발송하면 롤백돼도 알림이 나간다 - AFTER_COMMIT 이벤트 경로를 쓴다");
 
     // ==================== OCP / LSP ====================
 
@@ -244,6 +268,26 @@ class ArchitectureTest {
                 if (!implemented) {
                     events.add(SimpleConditionEvent.violated(item,
                             item.getName() + " 에 대응하는 Docs 인터페이스가 없다"));
+                }
+            }
+        };
+    }
+
+    /**
+     * 직접 호출만 본다({@code getMethodCallsFromSelf} — 트랜잭션 메서드가 호출한 다른 메서드
+     * 내부에서 일어나는 간접 호출까지는 추적하지 않는다). 규칙 문구("직접 발송하지 않는다")와
+     * 정확히 일치시키기 위한 의도적인 범위다.
+     */
+    private static ArchCondition<JavaMethod> 푸시를_직접_발송하지_않는다() {
+        return new ArchCondition<>("PushSenderPort를 직접 호출하지 않아야 한다") {
+            @Override
+            public void check(JavaMethod item, ConditionEvents events) {
+                for (JavaMethodCall call : item.getMethodCallsFromSelf()) {
+                    if (call.getTargetOwner().isAssignableTo(PushSenderPort.class)) {
+                        events.add(SimpleConditionEvent.violated(item, String.format(
+                                "%s 가 트랜잭션 안에서 %s 를 직접 호출한다 - AFTER_COMMIT 이벤트로 바꿀 것",
+                                item.getFullName(), call.getTarget().getFullName())));
+                    }
                 }
             }
         };
