@@ -78,6 +78,10 @@ dependencies {
 	// RabbitMQ
 	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
+	// 지표 노출 (이슈 #373 - docs/perf/metrics.md)
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
 	// ArchUnit (아키텍처 규칙 검증 - docs/architecture-rules.md)
 	testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0'
 }
