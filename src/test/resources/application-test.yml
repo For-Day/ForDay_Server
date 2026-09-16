@@ -57,6 +57,12 @@ apple:
   key: test-key-id
   private_key: test-private-key
 
+discord:
+  webhook:
+    # 실제 웹훅이 아니다. DiscordAlertPort는 관련 테스트에서 전부 목으로 교체되므로
+    # 이 값으로 실제 HTTP 호출이 나가는 테스트는 없다.
+    notification-url: https://discord.com/api/webhooks/test/test
+
 server:
   port: 8080
   env: test

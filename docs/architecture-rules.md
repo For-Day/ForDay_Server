@@ -114,7 +114,7 @@ freeze(violation store)는 쓰지 않는다. 현재 위반이 25개 파일 수�
 
 **S4. 도메인 간 순환 의존이 없다.** 현재 미측정 — 활성화 전에 실제 사이클을 먼저 확인해야 한다.
 
-**S5. `@Transactional` 메서드는 FCM을 직접 발송하지 않는다.** 커밋 전에 발송하면 트랜잭션이 롤백돼도 알림이 이미 나간 뒤다. 정상 경로는 `@TransactionalEventListener(AFTER_COMMIT)` → RabbitMQ 하나뿐이며(`NotificationService#processReactionNotification`), `PushSenderPort`를 트랜잭션 메서드 안에서 직접 호출하는 코드는 전부 위반이다.
+**S5. `@Transactional` 메서드는 FCM을 직접 발송하지 않는다.** 커밋 전에 발송하면 트랜잭션이 롤백돼도 알림이 이미 나간 뒤다. 정상 경로는 Outbox 하나뿐이다 — `NotificationService#processReactionNotification`이 `Notification`과 `NotificationOutbox`를 같은 트랜잭션에 커밋하고, `NotificationOutboxRelay`가 별도 트랜잭션에서 RabbitMQ로 발행한다(배경: `docs/adr/0002-notification-publish-after-commit.md`). `PushSenderPort`를 트랜잭션 메서드 안에서 직접 호출하는 코드는 전부 위반이다.
 
 대상은 메서드 자신 또는 **선언 클래스**에 `@Transactional`이 붙은 경우다(클래스 레벨 트랜잭션은 현재 `TermsService` 하나뿐). `getMethodCallsFromSelf()`로 직접 호출만 보고, 트랜잭션 메서드가 호출한 다른 메서드 내부의 간접 호출까지는 추적하지 않는다 — "직접 발송하지 않는다"는 규칙 문구와 범위를 맞추기 위한 의도적인 선택이다.
 
@@ -342,7 +342,7 @@ class ArchitectureTest {
     static final ArchRule S5_트랜잭션_안에서_푸시를_직접_발송하지_않는다 =
             methods().that(트랜잭션_경계_안의_메서드)
                     .should(푸시를_직접_발송하지_않는다())
-                    .because("커밋 전에 발송하면 롤백돼도 알림이 나간다 - AFTER_COMMIT 이벤트 경로를 쓴다");
+                    .because("커밋 전에 발송하면 롤백돼도 알림이 나간다 - Outbox 경로를 쓴다");
 
     // ==================== OCP / LSP ====================
 
@@ -461,7 +461,7 @@ class ArchitectureTest {
                 for (JavaMethodCall call : item.getMethodCallsFromSelf()) {
                     if (call.getTargetOwner().isAssignableTo(PushSenderPort.class)) {
                         events.add(SimpleConditionEvent.violated(item, String.format(
-                                "%s 가 트랜잭션 안에서 %s 를 직접 호출한다 - AFTER_COMMIT 이벤트로 바꿀 것",
+                                "%s 가 트랜잭션 안에서 %s 를 직접 호출한다 - Outbox 경로로 바꿀 것",
                                 item.getFullName(), call.getTarget().getFullName())));
                     }
                 }
