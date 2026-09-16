@@ -21,6 +21,8 @@ ForDay (`ForDay_Server`) — 취미 습관 앱("66일 동안 취미 채우기")�
 
 `@Profile("local")`인 `DataInitializer` / `NotificationDataInitializer` / `ReactionInitializer`가 `ApplicationReadyEvent` 시점에 더미 데이터를 넣는다. `local` 외의 프로파일에서는 절대 실행되지 않는다.
 
+`@Profile("measure")`는 응답 시간 비교 측정 전용 슬라이스(`SyncPushNotificationSender`, `TestReactionMeasurementController`)를 켠다. 알림을 트랜잭션 커밋을 기다리지 않고 동기로 즉시 발송해, 정상 경로(AFTER_COMMIT 이벤트 → RabbitMQ)와의 응답 시간 차이를 잰다. 배포는 `blue`/`green` 프로파일로만 뜨므로(§배포 참고) 이 슬라이스는 **프로덕션에는 존재하지 않는다** — `--spring.profiles.active=blue,measure`처럼 부하 측정 전용 인스턴스에서 명시적으로 켤 때만 조립된다. 꺼져 있으면 해당 컨트롤러 경로가 404고, `NotificationService#testProcessReactionNotification`을 직접 호출해도 `IllegalStateException`이 난다.
+
 Swagger UI: `/swagger-ui/index.html`.
 
 ## 아키텍처

@@ -60,12 +60,7 @@ public class ActivityRecordController implements ActivityRecordControllerDocs {
         return reactionService.reactToRecord(recordId, reqDto.getReactionType(), user);
     }
 
-    @PostMapping("/{recordId}/reaction/test")
-    public ReactToRecordResDto testReactToRecord(@PathVariable(name = "recordId") Long recordId,
-                                             @RequestBody ReactToRecordReqDto reqDto,
-                                             @AuthenticationPrincipal CustomUserDetails user) {
-        return reactionService.testReactToRecord(recordId, reqDto.getReactionType(), user);
-    }
+    // 동기 발송 측정용 엔드포인트는 measure 프로파일 전용 TestReactionMeasurementController로 옮겼다.
 
     @Override
     @DeleteMapping("/{recordId}/reaction")
