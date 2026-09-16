@@ -31,6 +31,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/app/metadata", "/health_check", "/error_check", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml", "/log-test", "/terms/**", "/app/version-policy")
                         .permitAll()
+                        // JWT 없이 접근 가능해야 스크래핑이 되지만, 실질적인 접근 제어는
+                        // 여기가 아니라 nginx의 외부 차단이 맡는다 (docs/perf/metrics.md).
+                        // management.endpoints.web.exposure.include가 health,prometheus로
+                        // 제한돼 있어 다른 actuator 하위 경로는 애초에 존재하지 않는다.
+                        .requestMatchers("/actuator/health", "/actuator/prometheus")
+                        .permitAll()
                         .requestMatchers(
                                 "/auth/kakao", "/auth/apple", "/auth/guest", "/auth/refresh")
                         .permitAll()
