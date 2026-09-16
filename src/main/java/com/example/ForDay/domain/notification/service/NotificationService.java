@@ -25,28 +25,31 @@ import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.example.ForDay.global.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
-    public static final String RECORD_DETAIL_URL = "/api/v2/records/";
     private final NotificationRepository notificationRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final UserUtil userUtil;
     private final UserRepository userRepository;
     private final PushSenderPort pushSenderPort;
+    // measure 프로파일에서만 빈으로 존재한다. 생성자 주입 대신 ObjectProvider로 받아
+    // NotificationService 조립 시점에 SyncPushNotificationSender가 없어도(local/test/prod)
+    // 실패하지 않게 한다. SyncPushNotificationSender가 이 서비스를 다시 참조하므로
+    // 즉시 주입이었다면 순환 의존이 됐을 것이다.
+    private final ObjectProvider<SyncPushNotificationSender> syncPushNotificationSenderProvider;
 
     @Transactional(readOnly = true)
     public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, CustomUserDetails user) {
@@ -96,37 +99,30 @@ public class NotificationService {
                     tokens,
                     sender.getNickname(),
                     pushReactionBody,
-                    createDataForReaction(recordId, savedNotification.getId())
+                    NotificationMessageGenerator.createDataForReaction(recordId, savedNotification.getId())
             ));
         }
     }
 
+    /**
+     * 동기(이 메서드) vs 비동기({@link #processReactionNotification}) 응답 시간을 비교 측정하기
+     * 위한 전용 경로다. 실제 발송 로직은 {@code measure} 프로파일에서만 등록되는
+     * {@link SyncPushNotificationSender}에 있다 — 삭제하지 말 것. #370이 보류한 측정
+     * 항목(동기/비동기 응답시간 재측정)이 이 경로를 사용한다.
+     *
+     * <p>{@code measure} 프로파일이 꺼져 있으면(local/test/prod 전부 해당) 호출할 방법 자체가
+     * 없다 — 이 메서드를 호출하는 {@code TestReactionMeasurementController}도 같은 프로파일로
+     * 게이트돼 있기 때문이다. 그래도 이 메서드가 프로그램적으로 직접 호출되는 경우를 대비해
+     * 방어적으로 예외를 던진다.
+     */
     public void testProcessReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
-        String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription());
-        String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription());
-
-        ReactionNotification savedNotification =
-                notificationRepository.save(
-                        ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
-                );
-
-        List<String> tokens = findActiveRecordDeviceToken(receiver);
-
-        if (!tokens.isEmpty()) {
-            log.info("[FCM-Sync] 동기 발송 시작 - 유저 ID: {}, 토큰 개수: {}개", receiver.getId(), tokens.size());
-
-            Map<String, String> data = createDataForReaction(recordId, savedNotification.getId());
-
-            for (String token : tokens) {
-                try {
-                    pushSenderPort.send(new PushMessage(
-                            token, sender.getNickname(), pushReactionBody, data));
-                    log.info("[FCM-Sync] 동기 전송 성공 - Token: {}", token);
-                } catch (Exception e) {
-                    log.error("[FCM-Sync] 동기 전송 중 에러 발생 - Token: {}, Error: {}", token, e.getMessage());
-                }
-            }
+        SyncPushNotificationSender syncSender = syncPushNotificationSenderProvider.getIfAvailable();
+        if (syncSender == null) {
+            throw new IllegalStateException(
+                    "SyncPushNotificationSender는 'measure' 프로파일에서만 등록된다. " +
+                            "--spring.profiles.active에 measure를 포함해 실행했는지 확인할 것.");
         }
+        syncSender.sendReactionNotificationSync(sender, receiver, reactionType, recordId, imageUrl);
     }
 
     @Transactional(readOnly = true)
@@ -149,7 +145,12 @@ public class NotificationService {
         return GetPushNotificationToggleResDto.of(currentUser.isAppPushEnabled(), currentUser.isRecordPushEnabled());
     }
 
-    @Transactional
+    /**
+     * {@code TestNotificationController} 전용 디버그 경로다. 프로덕션 알림 발송 경로가
+     * 아니다 — 실제 발송은 {@link #processReactionNotification}의
+     * {@code AFTER_COMMIT} 이벤트 → RabbitMQ 경로 하나뿐이다. 여기는 DB 접근이 없어
+     * {@code @Transactional}이 불필요했고(커넥션만 붙잡은 채 FCM 호출을 기다렸다), 제거했다.
+     */
     public SendPushMessageResDto sendPushMessage(SendPushMessageReqDto reqDto, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
 
@@ -158,7 +159,7 @@ public class NotificationService {
                 List.of(reqDto.getFcmToken()),
                 NotificationMessageGenerator.REACTION_TITLE,
                 reqDto.getBody(),
-                createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())
+                NotificationMessageGenerator.createDataForReaction(reqDto.getRecordId(), reqDto.getNotificationId())
         );
 
         pushSenderPort.send(new PushMessage(
@@ -181,14 +182,5 @@ public class NotificationService {
 
     public boolean unreadNotificationExists(User user) {
         return notificationRepository.existsByReceiverIdAndIsReadFalse(user.getId());
-    }
-
-    private Map<String, String> createDataForReaction(Long recordId, Long notificationId) {
-        return Map.of(
-                "recordId", String.valueOf(recordId),
-                "type", NotificationType.RECORD_REACTION.name(),
-                "landingUrl", RECORD_DETAIL_URL + recordId + "?notificationId=" + notificationId + "&context=USER_FEED",
-                "sendAt", LocalDateTime.now().toString()
-        );
     }
 }

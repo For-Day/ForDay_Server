@@ -127,7 +127,11 @@ public class ReactionService {
         return ReactToRecordResDto.of(type, recordId);
     }
 
-    // 푸시 알림 동기 처리시
+    /**
+     * 동기 발송 측정용 경로. {@link #reactToRecord}(비동기 AFTER_COMMIT 경로)와 응답 시간을
+     * 비교하기 위해 남겨둔다 — 삭제하지 말 것. {@code measure} 프로파일 전용
+     * {@code TestReactionMeasurementController}에서만 호출된다.
+     */
     @Transactional
     public ReactToRecordResDto testReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
