@@ -6,6 +6,10 @@ services:
     container_name: green
     ports:
       - "8081:8080"
+    # 서버의 이 파일과 같은 디렉토리에 .env(gitignore 대상, 실제 시크릿 값)를 둔다.
+    # 템플릿은 .env.example 참고.
+    env_file:
+      - .env
     environment:
       - SPRING_PROFILES_ACTIVE=green
       - ENV=green
