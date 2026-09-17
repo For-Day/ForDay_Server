@@ -7,6 +7,16 @@ const RECORD_COUNT = parseInt(__ENV.RECORD_COUNT || '1000', 10);
 const REACTION_TYPES = ['AWESOME', 'GREAT', 'AMAZING', 'FIGHTING'];
 
 /**
+ * pickTarget이 (vu, iter)만으로 결정되면 같은 스크립트를 다시 실행할 때마다 정확히 같은
+ * (userId, recordId, type) 시퀀스가 재생된다 - 1회차에서 이미 DB에 들어간 조합을 2·3회차가
+ * 그대로 반복 요청하게 돼, "3회 반복 후 중위값"이 실제로는 "1회차만 유효, 2·3회차는 거의
+ * 전부 DUPLICATE_REACTION"이 되어버린다(실측 중 발견). RUN_SEED로 실행마다 매핑을 밀어서
+ * 매 회차가 새로운 조합을 쓰게 한다 - 같은 실행 안에서는 각 VU·이터레이션 조합이 여전히
+ * 결정론적이라 충돌 회피 성질은 유지된다.
+ */
+const RUN_SEED = parseInt(__ENV.RUN_SEED || String(Date.now() % 1000000), 10);
+
+/**
  * ReactionMeasurementSeeder가 만든 게스트 유저(measure_user_1..N)로 각각 로그인해
  * USER_COUNT개의 서로 다른 토큰을 발급받는다.
  *
@@ -38,8 +48,8 @@ export function setupGuestTokens() {
  */
 export function pickTarget(vu, iter) {
   const userIndex = (vu - 1) % USER_COUNT;
-  const recordId = 1 + ((vu - 1) * 37 + iter) % RECORD_COUNT;
-  const reactionType = REACTION_TYPES[(vu + iter) % REACTION_TYPES.length];
+  const recordId = 1 + ((vu - 1) * 37 + iter + RUN_SEED) % RECORD_COUNT;
+  const reactionType = REACTION_TYPES[(vu + iter + RUN_SEED) % REACTION_TYPES.length];
   return { userIndex, recordId, reactionType };
 }
 
