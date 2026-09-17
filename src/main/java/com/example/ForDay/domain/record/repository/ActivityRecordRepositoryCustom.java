@@ -2,6 +2,7 @@ package com.example.ForDay.domain.record.repository;
 
 import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
+import com.example.ForDay.domain.record.dto.HobbyCardActivityStatDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
@@ -33,4 +34,8 @@ public interface ActivityRecordRepositoryCustom {
     Long findPrevRecordId(Long recordId, LocalDateTime localDateTime, RecordSearchConditionReqDto condition, String currentUserId, List<Long> hobbyIds);
 
     Long findNextRecordId(Long recordId, LocalDateTime localDateTime, RecordSearchConditionReqDto condition, String currentUserId, List<Long> hobbyIds);
+
+    List<HobbyCardActivityStatDto> findTopActivityStatsByHobbyId(Long hobbyId, long limit);
+
+    List<Integer> findRecordHoursByActivityIds(List<Long> activityIds);
 }
