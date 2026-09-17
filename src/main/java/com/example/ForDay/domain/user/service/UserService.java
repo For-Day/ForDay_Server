@@ -21,7 +21,8 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.message.UserSuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
+import com.example.ForDay.global.port.ImageLifecyclePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -49,7 +50,8 @@ public class UserService {
     private final HobbyCardRepository hobbyCardRepository;
     private final FriendRelationRepository friendRelationRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
+    private final ImageLifecyclePort imageLifecyclePort;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
 
@@ -103,7 +105,7 @@ public class UserService {
         }
 
         int totalStickerCount = hobbyRepository.sumCurrentStickerNumByUserId(targetId).orElse(0);
-        return UserInfoResDto.of(targetUser, totalStickerCount, s3Util, userId == null ? notificationService.unreadNotificationExists(targetUser) : false
+        return UserInfoResDto.of(targetUser, totalStickerCount, imageUrlConverter, userId == null ? notificationService.unreadNotificationExists(targetUser) : false
         );
     }
 
@@ -114,17 +116,17 @@ public class UserService {
         String oldImageUrl = currentUser.getProfileImageUrl();
 
         if (isSameImageCheck(oldImageUrl, newImageUrl)) {
-            return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(oldImageUrl), UserSuccessCode.ALREADY_SAME_PROFILE_IMAGE.getMessage());
+            return new SetUserProfileImageResDto(imageUrlConverter.toProfileMainResizedUrl(oldImageUrl), UserSuccessCode.ALREADY_SAME_PROFILE_IMAGE.getMessage());
         }
 
-        s3Util.validateS3Image(newImageUrl);
+        imageLifecyclePort.validateExists(newImageUrl);
         currentUser.updateProfileImage(newImageUrl);
         userRepository.save(currentUser);
-        s3Util.registerS3DeletionAfterCommit(oldImageUrl);
+        imageLifecyclePort.deleteAfterCommit(oldImageUrl);
 
         log.info("[PROFILE] Image changed for user: {} ({} -> {})", currentUser.getId(), oldImageUrl, newImageUrl);
 
-        return new SetUserProfileImageResDto(s3Util.toProfileMainResizedUrl(newImageUrl), UserSuccessCode.UPDATE_PROFILE_IMAGE_SUCCESS.getMessage());
+        return new SetUserProfileImageResDto(imageUrlConverter.toProfileMainResizedUrl(newImageUrl), UserSuccessCode.UPDATE_PROFILE_IMAGE_SUCCESS.getMessage());
     }
 
     @Transactional(readOnly = true)
@@ -241,7 +243,7 @@ public class UserService {
     private void processThumbnailUrls(List<GetUserScrapListResDto.ScrapDto> scrapDtos) {
         scrapDtos.stream()
                 .filter(dto -> StringUtils.hasText(dto.getThumbnailImageUrl()))
-                .forEach(dto -> dto.setThumbnailImageUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailImageUrl())));
+                .forEach(dto -> dto.setThumbnailImageUrl(imageUrlConverter.toFeedThumbResizedUrl(dto.getThumbnailImageUrl())));
     }
 
     private TargetUserInfo resolveTargetUserInfo(String currentUserId, String targetUserId, User currentUser) {
@@ -264,14 +266,14 @@ public class UserService {
 
     private void processFeedThumbnailUrls(List<GetUserFeedListResDto.FeedDto> feedList) {
         feedList.forEach(dto ->
-                dto.setThumbnailImageUrl(s3Util.toFeedThumbResizedUrl(dto.getThumbnailImageUrl()))
+                dto.setThumbnailImageUrl(imageUrlConverter.toFeedThumbResizedUrl(dto.getThumbnailImageUrl()))
         );
     }
 
     private void processHobbyThumbnailUrls(List<GetHobbyInProgressResDto.HobbyDto> hobbyList) {
         hobbyList.stream()
                 .filter(dto -> StringUtils.hasText(dto.getThumbnailImageUrl()))
-                .forEach(dto -> dto.setThumbnailImageUrl(s3Util.toCoverMainResizedUrl(dto.getThumbnailImageUrl())));
+                .forEach(dto -> dto.setThumbnailImageUrl(imageUrlConverter.toCoverMainResizedUrl(dto.getThumbnailImageUrl())));
     }
 
     private User resolveTargetUser(User currentUser, String userId) {

@@ -18,7 +18,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -38,7 +38,7 @@ public class ReactionService {
     private final ActivityRecordReactionRepository activityRecordReactionRepository;
     private final ActivityRecordReactionCountRepository activityRecordReactionCountRepository;
     private final UserUtil userUtil;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
     private final ActivityRecordRepository activityRecordRepository;
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final ReactionRankingService reactionRankingService;
@@ -114,10 +114,7 @@ public class ReactionService {
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
-        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
-        if (result == 0) {
-            recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
-        }
+        recordReactionCountRepository.upsertIncreaseCount(recordId, type.toString());
         reactionRankingService.incrementRankingScore(record.getRecordId());
 
         if(!isRecordOwner(currentUser, record)) {
@@ -127,7 +124,11 @@ public class ReactionService {
         return ReactToRecordResDto.of(type, recordId);
     }
 
-    // 푸시 알림 동기 처리시
+    /**
+     * 동기 발송 측정용 경로. {@link #reactToRecord}(비동기 AFTER_COMMIT 경로)와 응답 시간을
+     * 비교하기 위해 남겨둔다 — 삭제하지 말 것. {@code measure} 프로파일 전용
+     * {@code TestReactionMeasurementController}에서만 호출된다.
+     */
     @Transactional
     public ReactToRecordResDto testReactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
         User currentUser = userUtil.getCurrentUser(user);
@@ -139,10 +140,7 @@ public class ReactionService {
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
-        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
-        if (result == 0) {
-            recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
-        }
+        recordReactionCountRepository.upsertIncreaseCount(recordId, type.toString());
         reactionRankingService.incrementRankingScore(record.getRecordId());
 
         if(!isRecordOwner(currentUser, record)) {
@@ -177,7 +175,7 @@ public class ReactionService {
             if (sliceDto != null && sliceDto.getUsers() != null) {
                 sliceDto.getUsers().forEach(userDto -> {
                     userDto.setProfileImageUrl(
-                            s3Util.toProfileListResizedUrl(userDto.getProfileImageUrl())
+                            imageUrlConverter.toProfileListResizedUrl(userDto.getProfileImageUrl())
                     );
                 });
             }

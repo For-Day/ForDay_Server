@@ -1,6 +1,6 @@
 package com.example.ForDay.domain.record.entity;
 
-import com.example.ForDay.domain.record.dto.request.ActivityRecordReqDtoV2;
+import com.example.ForDay.domain.record.command.RecordImageCommand;
 import com.example.ForDay.global.common.mapped.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -41,13 +41,13 @@ public class RecordImage extends BaseTimeEntity {
     @Builder.Default
     private boolean thumbnail = false;
 
-    public static RecordImage of(ActivityRecord activityRecord, ActivityRecordReqDtoV2.ActivityImageReqDto image, boolean thumbnail) {
+    public static RecordImage of(ActivityRecord activityRecord, RecordImageCommand command, boolean thumbnail) {
         return RecordImage.builder()
                 .activityRecord(activityRecord)
-                .imageUrl(image.getImageUrl())
-                .imageOrder(image.getImageOrder())
-                .imageWidth(image.getImageWidth())
-                .imageHeight(image.getImageHeight())
+                .imageUrl(command.imageUrl())
+                .imageOrder(command.imageOrder())
+                .imageWidth(command.imageWidth())
+                .imageHeight(command.imageHeight())
                 .thumbnail(thumbnail)
                 .build();
     }

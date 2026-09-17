@@ -21,20 +21,17 @@ import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 @Transactional
-@ActiveProfiles("test")
-class UserServiceTest {
+class UserServiceTest extends IntegrationTestSupport {
     @Autowired
     UserRepository userRepository;
 
@@ -231,12 +228,13 @@ class UserServiceTest {
         CustomUserDetails userDetails = new CustomUserDetails(userB);
 
         // then
-        // Service에서 CustomException(USER_NOT_FOUND)을 던지는지 검증
+        // 차단당한 유저에게는 대상의 존재 자체를 숨긴다
+        // (ActivityRecordUtil.checkBlockedAndDeletedUser -> ACTIVITY_RECORD_NOT_FOUND)
         CustomException exception = assertThrows(CustomException.class, () -> {
             userService.getUserFeedList(List.of(), null, 10, userDetails, userA.getId());
         });
 
-        assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+        assertEquals(ErrorCode.ACTIVITY_RECORD_NOT_FOUND, exception.getErrorCode());
     }
 
     private ActivityRecord createRecord(User userA, RecordVisibility visibility) {

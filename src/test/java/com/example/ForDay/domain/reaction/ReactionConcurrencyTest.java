@@ -17,14 +17,12 @@ import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
+import com.example.ForDay.support.IntegrationTestSupport;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +32,7 @@ import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@ActiveProfiles("test")
-class ReactToRecordConcurrencyTest {
+class ReactToRecordConcurrencyTest extends IntegrationTestSupport {
 
     @Autowired
     private ReactionService reactionService;

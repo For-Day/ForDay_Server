@@ -2,7 +2,7 @@ package com.example.ForDay.domain.record.dto.response;
 
 import com.example.ForDay.domain.hobby.dto.response.GetHobbyStoryTabsResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import com.querydsl.core.annotations.QueryProjection;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -50,13 +50,13 @@ public class GetActivityRecordByStoryResDto {
         private String hobbyName;
         private boolean recordAuthor;
 
-        public void convertImageUrls(S3Util s3Util) {
+        public void convertImageUrls(ImageUrlConverter imageUrlConverter) {
             if (this.thumbnailUrl != null) {
-                this.thumbnailUrl = s3Util.toFeedThumbResizedUrl(this.thumbnailUrl);
+                this.thumbnailUrl = imageUrlConverter.toFeedThumbResizedUrl(this.thumbnailUrl);
             }
             if (this.userInfo != null && this.userInfo.getProfileImageUrl() != null) {
                 this.userInfo.setProfileImageUrl(
-                        s3Util.toProfileListResizedUrl(this.userInfo.getProfileImageUrl())
+                        imageUrlConverter.toProfileListResizedUrl(this.userInfo.getProfileImageUrl())
                 );
             }
         }

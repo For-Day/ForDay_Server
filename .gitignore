@@ -36,6 +36,13 @@ out/
 ### VS Code ###
 .vscode/
 
-src/main/resources/application.yml
-src/main/resources/application-prod.yml
 src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
+
+# 이슈 #390: application.yml/application-prod.yml은 이제 ${VAR} 플레이스홀더만
+# 담고 있어 git에 커밋한다. 실제 값은 .env(로컬)/GitHub Secrets(배포)로만 관리한다.
+.env
+.env.*
+!.env.example
+
+### Claude Code ###
+.claude/settings.local.json

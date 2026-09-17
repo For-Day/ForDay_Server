@@ -1,51 +1,38 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import { setupGuestTokens, pickTarget, makeStatusCounters, tagStatus, BASE_URL } from './common.js';
 
+/**
+ * #375 재측정 ①·② 단계 - v1(동기 DB) 경로.
+ *
+ * 인덱스 유무는 코드가 아니라 측정 당일 DDL로 전환한다(같은 서버에서 인덱스 있음/없음을
+ * 동시에 살려둘 수 없음 - docs/perf/reaction-load-test.md 참고). 같은 스크립트를
+ * uk_record_user_type 제약을 DROP한 상태(①)와 재생성한 상태(②)로 두 번 실행해서 각각의
+ * 수치를 얻는다.
+ *
+ * 실행: K6_WEB_DASHBOARD=true k6 run --summary-export=stage1-summary.json reaction-test.js
+ */
 export const options = {
   vus: 1000,
   duration: '10s',
 };
 
-const reactionTypes = ['AWESOME', 'GREAT', 'AMAZING', 'FIGHTING'];
+const counters = makeStatusCounters('v1');
 
-// 게스트 로그인해서 토큰 받아오기
 export function setup() {
-  const loginRes = http.post(
-      'http://localhost:8080/auth/guest',
-      JSON.stringify({ guestUserId: "" }),  // JSON.stringify 필수!
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-
-  console.log(`로그인 응답: ${loginRes.body}`); // 응답 전체 출력
-
-  const body = JSON.parse(loginRes.body);
-  const token = body.data.accessToken;
-  console.log(`토큰 발급 완료: ${token}`);
-  return { token };
+  return { tokens: setupGuestTokens() };
 }
 
 export default function (data) {
-  const recordId = randomIntBetween(1, 100);
-  const reactionType = reactionTypes[randomIntBetween(0, 3)];
+  const { userIndex, recordId, reactionType } = pickTarget(__VU, __ITER);
+  const token = data.tokens[userIndex];
 
-  const url = `http://localhost:8080/records/${recordId}/reaction`;
+  const res = http.post(
+      `${BASE_URL}/records/${recordId}/reaction`,
+      JSON.stringify({ reactionType }),
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
+  );
 
-  const payload = JSON.stringify({ reactionType: reactionType });
-
-  const params = {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${data.token}`,  // 토큰 자동 주입
-    },
-  };
-
-  const res = http.post(url, payload, params);
-
-  check(res, {
-    'is status 200': (r) => r.status === 200,
-    'is status 201': (r) => r.status === 201,
-  });
+  tagStatus(counters, res.status);
+  check(res, { '2xx': (r) => r.status >= 200 && r.status < 300 });
 }

@@ -1,7 +1,5 @@
 package com.example.ForDay.domain.app.service;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.example.ForDay.domain.app.dto.request.DeleteS3ImageReqDto;
 import com.example.ForDay.domain.app.dto.request.GeneratePresignedReqDto;
 import com.example.ForDay.domain.app.dto.response.AppMetaDataResDto;
@@ -17,9 +15,9 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.AppSuccessCode;
-import com.example.ForDay.infra.s3.property.S3Properties;
-import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.port.ImageLifecyclePort;
+import com.example.ForDay.global.port.ImageUploadPort;
+import com.example.ForDay.global.port.UploadTarget;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,11 +32,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AppService {
     private final HobbyInfoRepository hobbyInfoRepository;
-    private final S3Service s3Service;
-    private final AmazonS3 amazonS3;
-    private final S3Properties s3Properties;
     private final AppVersionRepository appVersionRepository;
-    private final S3Util s3Util;
+    private final ImageUploadPort imageUploadPort;
+    private final ImageLifecyclePort imageLifecyclePort;
 
     @Transactional(readOnly = true)
     public AppMetaDataResDto getMetaData() {
@@ -67,18 +63,14 @@ public class AppService {
 
         return reqDto.getImages().stream()
                 .map(img -> {
-                    String key = s3Service.generateKey(img.getUsage(), img.getOriginalFilename());
-
-                    GeneratePresignedUrlRequest request = s3Service.createPresignedPutRequest(
-                            s3Properties.getBucket(),
-                            key,
+                    UploadTarget target = imageUploadPort.issueUploadUrl(
+                            img.getUsage(),
+                            img.getOriginalFilename(),
                             img.getContentType()
                     );
 
-                    String uploadUrl = amazonS3.generatePresignedUrl(request).toString();
-                    String fileUrl = s3Service.createFileUrl(key);
-                    log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}, Key: {}", img.getUsage(), key);
-                    return GeneratePresignedUrlResDto.of(uploadUrl, fileUrl, img.getOrder());
+                    log.info("[generatePresignedUrls] URL 생성 완료 - Usage: {}", img.getUsage());
+                    return GeneratePresignedUrlResDto.of(target.uploadUrl(), target.fileUrl(), img.getOrder());
                 })
                 .toList();
     }
@@ -93,7 +85,7 @@ public class AppService {
         }
 
         log.info("[deleteS3Image] S3 이미지 삭제 예약 - URL: {}", imageUrl);
-        s3Util.registerS3DeletionAfterCommit(imageUrl);
+        imageLifecyclePort.deleteAfterCommit(imageUrl);
 
         return new MessageResDto(AppSuccessCode.DELETE_S3_IMAGE_SUCCESS.getMessage());
     }

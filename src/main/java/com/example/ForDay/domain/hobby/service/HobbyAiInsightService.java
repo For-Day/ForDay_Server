@@ -4,7 +4,6 @@ import com.example.ForDay.domain.hobby.dto.AiInsightResult;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.global.ai.service.AiUserSummaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class HobbyAiInsightService {
 
     private final AiCallCountService aiCallCountService;
-    private final AiUserSummaryService aiSummaryService;
+    private final HobbyAiSummaryService hobbyAiSummaryService;
 
     @Value("${ai.max-call-limit}")
     private int maxCallLimit;
@@ -24,7 +23,7 @@ public class HobbyAiInsightService {
         int remaining = maxCallLimit - currentCount;
         boolean isCallRemaining = remaining > 0;
 
-        String summaryText = aiSummaryService.determine(user, hobby);
+        String summaryText = hobbyAiSummaryService.determine(user, hobby);
 
         return new AiInsightResult(summaryText, isCallRemaining, remaining);
     }

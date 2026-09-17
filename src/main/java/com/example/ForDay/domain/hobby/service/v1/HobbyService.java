@@ -9,22 +9,23 @@ import com.example.ForDay.domain.hobby.dto.CoverChangeResult;
 import com.example.ForDay.domain.hobby.dto.StickerContext;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
+import com.example.ForDay.domain.hobby.command.HobbyCreateCommand;
+import com.example.ForDay.domain.hobby.command.HobbyUpdateCommand;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.service.HobbyAiInsightService;
+import com.example.ForDay.domain.hobby.service.HobbyCoverService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.hobby.type.StickerCover;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
 import com.example.ForDay.domain.hobby.validator.HobbyValidator;
 import com.example.ForDay.domain.notification.service.NotificationService;
-import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
 import com.example.ForDay.domain.record.service.TodayRecordRedisService;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiActivityRecommendService;
 import com.example.ForDay.global.ai.service.AiCallCountService;
-import com.example.ForDay.global.ai.service.AiUserSummaryService;
+import com.example.ForDay.domain.hobby.service.HobbyAiSummaryService;
 import com.example.ForDay.global.common.constants.AiMessageConstants;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
@@ -32,9 +33,7 @@ import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.HobbySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.lambda.invoker.CoverLambdaInvoker;
-import com.example.ForDay.infra.s3.service.S3Service;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,8 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
-
-import static com.example.ForDay.global.common.constants.FileStorageConstants.*;
 
 @Slf4j
 @Service
@@ -62,10 +59,9 @@ public class HobbyService {
     private final AiCallCountService aiCallCountService;
     private final ActivityRecordRepository activityRecordRepository;
     private final TodayRecordRedisService todayRecordRedisService;
-    private final AiUserSummaryService aiUserSummaryService;
-    private final S3Service s3Service;
-    private final CoverLambdaInvoker invoker;
-    private final S3Util s3Util;
+    private final HobbyAiSummaryService hobbyAiSummaryService;
+    private final HobbyCoverService hobbyCoverService;
+    private final ImageUrlConverter imageUrlConverter;
     private final ActivityRecommendItemRepository activityRecommendItemRepository;
     private final HobbyAiInsightService hobbyAiInsightService;
     private final AiActivityRecommendService aiActivityRecommendService;
@@ -86,7 +82,7 @@ public class HobbyService {
 
         hobbyValidator.validateMaxInProgressHobbies(currentUser);
         hobbyValidator.validateDuplicateHobby(reqDto, currentUser);
-        Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, reqDto, DEFAULT_GOAL_DAYS));
+        Hobby savedHobby = hobbyRepository.save(Hobby.createNewHobby(currentUser, toCreateCommand(reqDto)));
 
         if (!currentUser.isOnboardingCompleted()) {
             currentUser.completeOnboarding();
@@ -105,7 +101,7 @@ public class HobbyService {
 
         try {
             FastAPIRecommendResDto response = aiActivityRecommendService.requestActivityRecommendAI(currentUser, hobby);
-            String summary = AiMessageConstants.formatHobbySummary(aiUserSummaryService.determine(currentUser, hobby));
+            String summary = AiMessageConstants.formatHobbySummary(hobbyAiSummaryService.determine(currentUser, hobby));
             saveRecommendItems(hobby, response);
 
             return ActivityAIRecommendResDto.of(currentCount, maxCallLimit, summary, response.getActivities());
@@ -331,20 +327,15 @@ public class HobbyService {
         return GetStickerInfoResDto.of(hobby, context, stickers);
     }
 
-    @Transactional
+    // @Transactional을 달지 않는다. HobbyCoverService.changeFromRecord()가 외부 I/O(S3 copy,
+    // Lambda invoke)를 트랜잭션 밖에서 실행하도록 Tx1/Tx2로 나눠뒀는데, 여기서 트랜잭션을 열면
+    // 그 안에 다시 편입되어 분리한 의미가 없어진다.
     public SetHobbyCoverImageResDto setHobbyCoverImage(SetHobbyCoverImageReqDto reqDto, CustomUserDetails user) throws Exception {
         User currentUser = userUtil.getCurrentUser(user);
 
-        CoverChangeResult result;
-        if (isDirectUploadCase(reqDto)) {
-            result = handleDirectUpload(reqDto, currentUser);
-        } else if (isRecordCase(reqDto)) {
-            result = handleFromRecord(reqDto, currentUser);
-        } else {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
-        }
+        CoverChangeResult result = hobbyCoverService.changeCover(reqDto, currentUser);
 
-        return SetHobbyCoverImageResDto.of(result, s3Util.toCoverMainResizedUrl(result.updatedCoverUrl()));
+        return SetHobbyCoverImageResDto.of(result, imageUrlConverter.toCoverMainResizedUrl(result.updatedCoverUrl()));
     }
 
     @Transactional(readOnly = true)
@@ -375,9 +366,31 @@ public class HobbyService {
         }
 
         Hobby hobby = hobbyUtil.getHobbyByUserId(hobbyId, currentUser);
-        hobby.updateHobby(reqDto, reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null);
+        hobby.updateHobby(toUpdateCommand(reqDto));
 
         return UpdateHobbyResDto.from(hobby);
+    }
+
+    private HobbyCreateCommand toCreateCommand(HobbyCreateReqDto reqDto) {
+        return new HobbyCreateCommand(
+                reqDto.getHobbyInfoId(),
+                reqDto.getHobbyName(),
+                reqDto.getHobbyPurpose(),
+                reqDto.getHobbyTimeMinutes(),
+                reqDto.getExecutionCount(),
+                reqDto.getIsDurationSet() ? DEFAULT_GOAL_DAYS : null
+        );
+    }
+
+    private HobbyUpdateCommand toUpdateCommand(UpdateHobbyReqDto reqDto) {
+        return new HobbyUpdateCommand(
+                reqDto.getHobbyInfoId(),
+                reqDto.getHobbyName(),
+                reqDto.getHobbyPurpose(),
+                reqDto.getHobbyTimeMinutes(),
+                reqDto.getExecutionCount(),
+                reqDto.isDurationSet() ? DEFAULT_GOAL_DAYS : null
+        );
     }
 
     @Transactional(readOnly = true)
@@ -427,84 +440,6 @@ public class HobbyService {
     private boolean isTodayRecorded(String userId, Long hobbyId) {
         String key = todayRecordRedisService.createRecordKey(userId, hobbyId);
         return todayRecordRedisService.hasKey(key);
-    }
-
-    private boolean isDirectUploadCase(SetHobbyCoverImageReqDto reqDto) {
-        return reqDto.getHobbyId() != null && StringUtils.hasText(reqDto.getCoverImageUrl());
-    }
-
-    private boolean isRecordCase(SetHobbyCoverImageReqDto reqDto) {
-        return reqDto.getRecordId() != null;
-    }
-
-    /**
-     * Case 1: 직접 업로드된 이미지 URL로 설정
-     */
-    private CoverChangeResult handleDirectUpload(SetHobbyCoverImageReqDto reqDto, User currentUser) {
-        Hobby hobby = hobbyUtil.getHobby(reqDto.getHobbyId());
-        hobbyUtil.verifyHobbyOwner(hobby, currentUser);
-
-        String newUrl = reqDto.getCoverImageUrl();
-        String oldUrl = hobby.getCoverImageUrl();
-
-        if (Objects.equals(oldUrl, newUrl)) {
-            return CoverChangeResult.unchanged(hobby.getId(), oldUrl);
-        }
-        s3Util.validateS3Image(newUrl);
-        s3Util.registerS3DeletionAfterCommit(oldUrl);
-        hobby.updateCoverImage(newUrl);
-
-        return CoverChangeResult.changed(hobby.getId(), newUrl);
-    }
-
-    /**
-     * Case 2: 기존 활동 기록의 사진(또는 스티커 기본 이미지)으로 설정
-     */
-    private CoverChangeResult handleFromRecord(SetHobbyCoverImageReqDto reqDto, User currentUser) throws Exception {
-        ActivityRecord record = activityRecordRepository.findByIdWithHobby(reqDto.getRecordId())
-                .orElseThrow(() -> new CustomException(ErrorCode.ACTIVITY_RECORD_NOT_FOUND));
-
-        if (!Objects.equals(record.getUser(), currentUser)) {
-            throw new CustomException(ErrorCode.NOT_ACTIVITY_RECORD_OWNER);
-        }
-
-        Hobby hobby = record.getHobby();
-        String oldCoverUrl = hobby.getCoverImageUrl();
-        String newCoverUrl = buildCoverUrlFromRecord(record);
-        s3Util.registerS3DeletionAfterCommit(oldCoverUrl);
-        hobby.updateCoverImage(newCoverUrl);
-
-        return CoverChangeResult.changed(hobby.getId(), newCoverUrl);
-    }
-
-    /**
-     * record의 imageUrl이 있으면 S3 복사 + 람다 리사이즈 생성 후 cover 원본 url 반환
-     * 없으면 sticker 기반 기본 cover url 반환
-     */
-    private String buildCoverUrlFromRecord(ActivityRecord record) throws Exception {
-        String recordImageUrl = record.getImageUrl();
-
-        if (StringUtils.hasText(recordImageUrl)) {
-            String srcKey = s3Service.extractKeyFromFileUrl(recordImageUrl);
-
-            String newCoverKey = srcKey.replace(TEMP_ACTIVITY_PATH, TEMP_COVER_PATH);
-            String resizedCoverKey = newCoverKey.replace(TEMP_DIR, THUMB_DIR);
-
-            s3Service.copyObject(srcKey, newCoverKey);
-            requestSetCover(newCoverKey, resizedCoverKey);
-            return s3Service.createFileUrl(newCoverKey);
-        }
-
-        return StickerCover.getUrlBySticker(record.getSticker());
-    }
-
-    private void requestSetCover(String newCoverKey, String resizedCoverKey) throws Exception {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("action", "SET_COVER");
-        payload.put("srcKey", newCoverKey);
-        payload.put("dstKey", resizedCoverKey);
-
-        invoker.invokeSync(payload);
     }
 
     private void saveRecommendItems(Hobby hobby, FastAPIRecommendResDto response) {

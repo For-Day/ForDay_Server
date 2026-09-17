@@ -7,6 +7,7 @@ import com.example.ForDay.domain.hobby.dto.response.GetStickerInfoResDto;
 import com.example.ForDay.domain.hobby.entity.QHobby;
 import com.example.ForDay.domain.reaction.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.dto.ActivityRecordWithUserDto;
+import com.example.ForDay.domain.record.dto.HobbyCardActivityStatDto;
 import com.example.ForDay.domain.record.dto.RecordDetailQueryDto;
 import com.example.ForDay.domain.record.dto.ReportActivityRecordDto;
 import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
@@ -111,7 +112,10 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                                         activityRecordReport.reporter.id.eq(currentUserId)
                                 ).notExists()
                 )
-                .orderBy(record.createdAt.desc())
+                // 커서가 id 기준이므로 정렬도 id로 동점을 끊어야 한다.
+                // createdAt만으로 정렬하면 같은 시각에 생성된 기록의 순서가 undefined라
+                // 페이지 경계에서 누락·중복이 생긴다.
+                .orderBy(record.createdAt.desc(), record.id.desc())
                 .limit(feedSize + 1)
                 .fetch();
     }
@@ -324,6 +328,37 @@ public class ActivityRecordRepositoryImpl implements ActivityRecordRepositoryCus
                         : record.createdAt.desc(), record.id.desc())
                 .limit(1)
                 .fetchOne();
+    }
+
+    @Override
+    public List<HobbyCardActivityStatDto> findTopActivityStatsByHobbyId(Long hobbyId, long limit) {
+        return queryFactory
+                .select(Projections.constructor(HobbyCardActivityStatDto.class,
+                        activity.id,
+                        activity.content,
+                        record.count()
+                ))
+                .from(record)
+                .join(record.activity, activity)
+                .where(
+                        record.hobby.id.eq(hobbyId),
+                        record.deleted.isFalse()
+                )
+                .groupBy(activity.id, activity.content)
+                .orderBy(record.count().desc())
+                .limit(limit)
+                .fetch();
+    }
+
+    @Override
+    public List<Integer> findRecordHoursByActivityIds(List<Long> activityIds) {
+        if (activityIds == null || activityIds.isEmpty()) return Collections.emptyList();
+
+        return queryFactory
+                .select(record.createdAt.hour())
+                .from(record)
+                .where(record.activity.id.in(activityIds), record.deleted.isFalse())
+                .fetch();
     }
 
     private Long getScrapIdIfContextIsScrap(Long currentId, RecordSearchConditionReqDto cond, String currentUserId) {

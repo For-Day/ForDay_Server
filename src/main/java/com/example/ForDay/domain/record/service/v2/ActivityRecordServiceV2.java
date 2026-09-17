@@ -20,6 +20,9 @@ import com.example.ForDay.domain.record.dto.request.RecordSearchConditionReqDto;
 import com.example.ForDay.domain.record.dto.request.UpdateActivityRecordReqDtoV2;
 import com.example.ForDay.domain.record.dto.response.*;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
+import com.example.ForDay.domain.record.command.RecordCreateCommand;
+import com.example.ForDay.domain.record.command.RecordImageCommand;
+import com.example.ForDay.domain.record.command.RecordUpdateCommand;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.entity.RecordImage;
 import com.example.ForDay.domain.record.entity.KeyboardKeyword;
@@ -39,7 +42,8 @@ import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.record.utils.ActivityRecordUtil;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
+import com.example.ForDay.global.port.ImageLifecyclePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -57,7 +61,8 @@ public class ActivityRecordServiceV2 {
     private final UserUtil userUtil;
     private final ActivityRecordReactionRepository recordReactionRepository;
     private final ActivityRecordScrapRepository activityRecordScrapRepository;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
+    private final ImageLifecyclePort imageLifecyclePort;
     private final ReactionRankingService reactionRankingService;
     private final ActivityRecordUtil activityRecordUtil;
     private final NotificationService notificationService;
@@ -98,7 +103,7 @@ public class ActivityRecordServiceV2 {
         Long prevId = activityRecordRepository.findPrevRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
         Long nextId = activityRecordRepository.findNextRecordId(recordId, detail.createdAt(), condition, currentUser.getId(), hobbyIds);
 
-        return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()), currentUser.getId());
+        return GetRecordDetailResDtoV2.of(detail, isRecordOwner, isScraped(detail, currentUser), prevId, nextId, summaries, imageUrlConverter.toProfileMainResizedUrl(detail.writerProfileImageUrl()), currentUser.getId());
     }
 
     @Transactional
@@ -140,7 +145,7 @@ public class ActivityRecordServiceV2 {
         Activity activity = resolveActivity(reqDto, currentUser, hobby);
         activity.record();
 
-        ActivityRecord record = ActivityRecord.ofV2(hobby, activity, currentUser, reqDto);
+        ActivityRecord record = ActivityRecord.of(hobby, activity, currentUser, toCreateCommand(reqDto));
         activityRecordRepository.save(record);
 
         List<RecordImage> images = buildRecordImages(record, reqDto.getImages());
@@ -187,10 +192,10 @@ public class ActivityRecordServiceV2 {
         Activity activity = resolveActivityForUpdate(reqDto.getActivityId(), currentUser, record);
 
         List<RecordImage> oldImages = recordImageRepository.findAllByActivityRecordIdOrderByImageOrderAsc(recordId);
-        oldImages.forEach(img -> s3Util.registerS3DeletionAfterCommit(img.getImageUrl()));
+        oldImages.forEach(img -> imageLifecyclePort.deleteAfterCommit(img.getImageUrl()));
         recordImageRepository.deleteAll(oldImages);
 
-        record.updateRecordV2(activity, reqDto);
+        record.updateRecord(activity, toUpdateCommand(reqDto));
 
         List<RecordImage> newImages = buildRecordImages(record, reqDto.getImages());
         recordImageRepository.saveAll(newImages);
@@ -240,7 +245,7 @@ public class ActivityRecordServiceV2 {
             record.deleteRecord();
         }
 
-        deleteImageUrls.forEach(s3Util::registerS3DeletionAfterCommit);
+        deleteImageUrls.forEach(imageLifecyclePort::deleteAfterCommit);
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
 
@@ -268,7 +273,42 @@ public class ActivityRecordServiceV2 {
     private List<RecordImage> buildRecordImages(ActivityRecord record, List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
         if (images == null || images.isEmpty()) return Collections.emptyList();
         return images.stream()
-                .map(img -> RecordImage.of(record, img, img.getImageOrder() == 1))
+                .map(img -> RecordImage.of(record, toImageCommand(img), img.getImageOrder() == 1))
                 .toList();
+    }
+
+    private RecordCreateCommand toCreateCommand(ActivityRecordReqDtoV2 reqDto) {
+        return new RecordCreateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                extractThumbnailUrl(reqDto.getImages())
+        );
+    }
+
+    private RecordUpdateCommand toUpdateCommand(UpdateActivityRecordReqDtoV2 reqDto) {
+        return new RecordUpdateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                extractThumbnailUrl(reqDto.getImages())
+        );
+    }
+
+    /**
+     * 첫 번째 이미지를 대표 이미지로 쓴다. 이미지 없이 기록할 수 있으므로 null을 허용한다.
+     */
+    private String extractThumbnailUrl(List<ActivityRecordReqDtoV2.ActivityImageReqDto> images) {
+        if (images == null || images.isEmpty()) return null;
+        return images.get(0).getImageUrl();
+    }
+
+    private RecordImageCommand toImageCommand(ActivityRecordReqDtoV2.ActivityImageReqDto image) {
+        return new RecordImageCommand(
+                image.getImageUrl(),
+                image.getImageOrder(),
+                image.getImageWidth(),
+                image.getImageHeight()
+        );
     }
 }
