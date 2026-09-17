@@ -1,0 +1,105 @@
+# 운영 배포용 값. 실제 비밀값은 여기 적지 않고 전부 환경변수(${VAR})로 받는다.
+# 컨테이너 실행 시 -e/--env-file로 주입한다 - .github/workflows/deploy.yml 참고.
+spring:
+  profiles:
+    group:
+      blue: blue, common
+      green: green, common
+
+  application:
+    name: ForDay
+
+---
+# 🔵 blue
+spring:
+  config:
+    activate:
+      on-profile: blue
+
+server:
+  port: 8080
+  env: blue
+serverName: blue_server
+
+---
+# 🟢 green
+spring:
+  config:
+    activate:
+      on-profile: green
+
+server:
+  port: 8080
+  env: green
+serverName: green_server
+
+---
+# 🌐 공통
+spring:
+  config:
+    activate:
+      on-profile: common
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    database: mysql
+    database-platform: org.hibernate.dialect.MySQLDialect
+    generate-ddl: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  # redis host/port는 여기 두지 않는다. deploy.yml의 docker run이 이미
+  # -e SPRING_DATA_REDIS_HOST=redis -e SPRING_DATA_REDIS_PORT=6379 로 직접 주입한다
+  # (forday-net 도커 네트워크 안의 redis 컨테이너를 가리키는 값이라 시크릿이 아니다).
+
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiration: 180
+    refresh-expiration: 14
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: https://api.openai.com/v1
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.6
+
+ai:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.6 # 기존 FastAPI(LangChain) 체인의 ChatOpenAI temperature 값과 동일
+  max-call-limit: 3
+
+server:
+  address: 0.0.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+
+apple:
+  client_id: com.example.forday
+  team_id: ${APPLE_TEAM_ID}
+  key: ${APPLE_KEY_ID}
+  private_key: ${APPLE_PRIVATE_KEY}
+
+cloud:
+  aws:
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}
+    region: ap-northeast-2
+    bucket: forday-s3-bucket
+    endpoint: s3.ap-northeast-2.amazonaws.com
