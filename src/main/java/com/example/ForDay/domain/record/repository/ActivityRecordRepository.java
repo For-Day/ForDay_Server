@@ -36,6 +36,17 @@ public interface ActivityRecordRepository extends JpaRepository<ActivityRecord, 
             "AND ar.memo IS NOT NULL AND ar.deleted = false")
     List<String> findMemosByUserIdAndHobbyId(@Param("userId") String userId, @Param("hobbyId") Long hobbyId);
 
+    /**
+     * AI 활동 요약(최근 7일)용 조회 (이슈 #387).
+     * 기존 FastAPI summarize_user_activity의 past_records 조회를 대체한다.
+     */
+    @Query("SELECT ar FROM ActivityRecord ar " +
+            "WHERE ar.user.id = :userId AND ar.hobby.id = :hobbyId " +
+            "AND ar.createdAt >= :since AND ar.deleted = false " +
+            "ORDER BY ar.createdAt DESC")
+    List<ActivityRecord> findRecentByUserIdAndHobbyId(
+            @Param("userId") String userId, @Param("hobbyId") Long hobbyId, @Param("since") LocalDateTime since);
+
     @Query("SELECT ar FROM ActivityRecord ar " +
             "WHERE ar.hobby.id = :hobbyId " +
             "AND ar.imageUrl IS NOT NULL " +
