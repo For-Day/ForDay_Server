@@ -21,7 +21,10 @@ ForDay (`ForDay_Server`) — 취미 습관 앱("66일 동안 취미 채우기")�
 
 `@Profile("local")`인 `DataInitializer` / `NotificationDataInitializer` / `ReactionInitializer`가 `ApplicationReadyEvent` 시점에 더미 데이터를 넣는다. `local` 외의 프로파일에서는 절대 실행되지 않는다.
 
-`@Profile("measure")`는 응답 시간 비교 측정 전용 슬라이스(`SyncPushNotificationSender`, `TestReactionMeasurementController`)를 켠다. 알림을 트랜잭션 커밋을 기다리지 않고 동기로 즉시 발송해, 정상 경로(Outbox 저장 → `NotificationOutboxRelay` → RabbitMQ)와의 응답 시간 차이를 잰다. 배포는 `blue`/`green` 프로파일로만 뜨므로(§배포 참고) 이 슬라이스는 **프로덕션에는 존재하지 않는다** — `--spring.profiles.active=blue,measure`처럼 부하 측정 전용 인스턴스에서 명시적으로 켤 때만 조립된다. 꺼져 있으면 해당 컨트롤러 경로가 404고, `NotificationService#testProcessReactionNotification`을 직접 호출해도 `IllegalStateException`이 난다.
+`@Profile("measure")`는 부하 테스트 측정 전용 슬라이스를 켠다. 배포는 `blue`/`green` 프로파일로만 뜨므로(§배포 참고) 이 슬라이스는 **프로덕션에는 존재하지 않는다** — `--spring.profiles.active=blue,measure`처럼 부하 측정 전용 인스턴스에서 명시적으로 켤 때만 조립된다. 두 갈래가 있다.
+
+- 응답 시간 비교 측정(`#370`/`#371`): `SyncPushNotificationSender` + `TestReactionMeasurementController#testReactToRecord`. 알림을 트랜잭션 커밋을 기다리지 않고 동기로 즉시 발송해, 정상 경로(Outbox 저장 → `NotificationOutboxRelay` → RabbitMQ)와의 응답 시간 차이를 잰다. 꺼져 있으면 해당 컨트롤러 경로가 404고, `NotificationService#testProcessReactionNotification`을 직접 호출해도 `IllegalStateException`이 난다.
+- 반응 API 4단계 부하 재측정(`#374`/`#375`): `ReactionMeasurementSeeder`(앱 기동 시 `measure.seed.user-count`/`measure.seed.record-count`만큼 게스트 유저·기록을 시드) + `QueueOnlyReactionMeasurementService` + `TestReactionMeasurementController#reactToRecordQueueOnly`(`/records/{recordId}/reaction/measure/queue-only`, Redis Write-Back 큐만 적용하고 분산 락은 뺀 중간 단계). 자세한 절차는 `docs/perf/reaction-load-test.md` 참고.
 
 Swagger UI: `/swagger-ui/index.html`.
 
