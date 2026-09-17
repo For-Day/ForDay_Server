@@ -1,0 +1,79 @@
+# 로컬 전용 값(빈 기본값)은 커밋해도 안전하다. 실제 키/자격증명은 여기 적지 않고
+# 프로젝트 루트의 .env 파일(gitignore 대상)에 넣는다 - .env.example 참고.
+server:
+  port: 8080
+  env: local
+serverName: ForDay_local
+
+spring:
+  config:
+    import: optional:file:.env[.properties]
+
+  profiles:
+    active: local
+  application:
+    name: ForDay
+    env: local
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/forday?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+
+  jpa:
+    database: mysql
+    database-platform: org.hibernate.dialect.MySQLDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  jwt:
+    secret: ${JWT_SECRET:local-only-dev-jwt-secret-do-not-use-in-prod-0000000000}
+    access-expiration: 180 # 분 단위
+    refresh-expiration: 14 # 일 단위
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:local-openai-api-key}
+      base-url: https://api.openai.com/v1
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.6
+
+ai:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.6 # 기존 FastAPI(LangChain) 체인의 ChatOpenAI temperature 값과 동일
+  max-call-limit: 3
+
+apple:
+  client_id: com.example.forday
+  team_id: ${APPLE_TEAM_ID:XXXXXXXX}
+  key: ${APPLE_KEY_ID:YYYYYYYY}
+  private_key: ${APPLE_PRIVATE_KEY:appleprivatekey}
+
+cloud:
+  aws:
+    access-key: ${AWS_ACCESS_KEY:local-aws-access-key}
+    secret-key: ${AWS_SECRET_KEY:local-aws-secret-key}
+    region: ap-northeast-2
+    bucket: forday-s3-bucket
+    endpoint: s3.ap-northeast-2.amazonaws.com
+
+lambda:
+  create-cover-function-name: dummy-local-function
+  # 로컬은 alias가 없으므로 비워둔다(=qualifier 미지정, $LATEST). 운영은 ForDay_Infra가
+  # 만든 prod alias를 참조해야 하므로 prod 값 주입 시 create-cover-function-alias: prod 필요 - 이슈 #356
+  create-cover-function-alias:
+  # 실제 콜드 스타트 분포(p99) 측정 전 잠정치. 측정 후 조정 대상 - 이슈 #357
+  api-call-attempt-timeout-seconds: 10
+  api-call-timeout-seconds: 20
+  max-retries: 1
