@@ -4,6 +4,7 @@ import com.example.ForDay.domain.activity.service.ActivityService;
 import com.example.ForDay.domain.activity.service.OtherActivityService;
 import com.example.ForDay.domain.hobby.dto.request.*;
 import com.example.ForDay.domain.hobby.dto.response.*;
+import com.example.ForDay.domain.hobby.service.SimpleActivityRecommendService;
 import com.example.ForDay.domain.hobby.service.v1.HobbyService;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
 import com.example.ForDay.global.common.response.dto.MessageResDto;
@@ -20,6 +21,7 @@ public class HobbyController implements HobbyControllerDocs {
     private final HobbyService hobbyService;
     private final ActivityService activityService;
     private final OtherActivityService otherActivityService;
+    private final SimpleActivityRecommendService simpleActivityRecommendService;
 
     @Override
     @PostMapping("/create")
@@ -33,6 +35,12 @@ public class HobbyController implements HobbyControllerDocs {
     public ActivityAIRecommendResDto activityAiRecommend(@RequestParam(name = "hobbyId") Long hobbyId,
                                                          @AuthenticationPrincipal CustomUserDetails user) throws Exception {
         return hobbyService.activityAiRecommend(hobbyId, user);
+    }
+
+    @Override
+    @PostMapping("/activities/simple-recommend")
+    public SimpleActivityRecommendResDto simpleActivityRecommend(@RequestBody @Valid SimpleActivityRecommendReqDto reqDto) {
+        return simpleActivityRecommendService.recommend(reqDto);
     }
 
     @GetMapping("/activities/ai/recommend/test")
