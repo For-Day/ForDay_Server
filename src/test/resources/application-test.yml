@@ -1,6 +1,8 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:test
+    # MODE=MySQL - record_reaction_count 원자적 upsert(INSERT ... ON DUPLICATE KEY UPDATE)가
+    # MySQL 전용 문법이라 H2 MySQL 호환 모드가 필요하다.
+    url: jdbc:h2:mem:test;MODE=MySQL
     driver-class-name: org.h2.Driver
     username: sa
     password:
