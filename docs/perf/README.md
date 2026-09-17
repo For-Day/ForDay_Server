@@ -21,15 +21,16 @@
 | 부하 발생기 EC2 | 같은 리전·VPC, k6 설치 |
 | Terraform | `ForDay_Infra`의 `perf_test.tf` — 콘솔이 아니라 이 저장소가 직접 생성/관리(측정 종료 후 `terraform destroy`로 정리하기 위함) |
 
-인스턴스 사양, JVM 옵션, MySQL·Redis 버전은 실제 기동 후 아래에 채운다.
+실제 기동 후 확인한 값(2026-09-17 측정 기준):
 
 | 항목 | 값 |
 | --- | --- |
-| 측정 대상 인스턴스 타입 | (기동 후 채움 — `perf_instance_type` 변수) |
-| k6 발생기 인스턴스 타입 | (기동 후 채움 — `perf_generator_instance_type` 변수) |
-| JVM 옵션 | (기동 후 채움) |
-| MySQL 버전 | (기동 후 채움 — 운영 버전과 대조) |
-| Redis 버전 | (기동 후 채움) |
+| 측정 대상 인스턴스 타입 | `t3.small` — 운영 EC2(`i-03a8bda067b2b14ae`)와 동일 타입·동일 AMI(`ami-0130d8d35bcd2d433`) |
+| k6 발생기 인스턴스 타입 | `t3.small` |
+| JVM 옵션 | 명시적 튜닝 없음(`java -jar app.jar` 기본값) — 힙 크기 등 JVM 옵션 자체가 병목 요인이었는지는 이번 라운드에서 별도로 확인하지 않았다 |
+| MySQL 버전 | `8.0.43` — 운영 RDS(`forday-rds`)와 동일 엔진 버전, 인스턴스 클래스는 `db.t4g.micro`(운영과 다를 수 있음, 운영 RDS 인스턴스 클래스는 확인 안 됨) |
+| Redis 버전 | `redis:latest`(측정 시점 기준) — 운영과 동일 이미지 태그 |
+| RabbitMQ 버전 | `rabbitmq:3-management`(3.13.7) — 운영과 동일 이미지 태그, 계정도 운영과 동일하게 `admin`/`forday` 2계정 구성 |
 
 ## 시드 데이터
 
@@ -78,7 +79,14 @@ k6 `setup()`은 이 패턴화된 `socialId`로 `/auth/guest`를 호출해 시드
 
 각 단계(①~④)는 3회 반복 실행하고 **TPS는 중위값**을 대표값으로 쓴다. 3회 모두의
 `--summary-export` JSON을 `docs/perf/results/<단계>/run-{1,2,3}.json`으로 커밋해 원본을
-남긴다.
+남기는 게 원칙이다.
+
+> **알려진 미비점(2026-09-17 측정)**: 이번 라운드에서는 JSON을 측정 대상 EC2·발생기 EC2
+> 로컬에만 저장하고 레포에 커밋하지 않은 채로 `terraform destroy`를 먼저 실행해버려서,
+> 원본 JSON이 유실됐다. 중위값·p95 등 집계된 수치는 `docs/perf/blog-draft.md`와
+> `docs/perf/reaction-load-test.md`에 남아 있지만, 재계산 가능한 원본 데이터는 없다.
+> 다음 라운드부터는 **`terraform destroy` 실행 전에 `docs/perf/results/`로 scp해 커밋
+> 완료를 확인하는 단계를 정리 체크리스트 맨 앞에 둔다.**
 
 ## 운영 규모와의 차이 명시
 
@@ -95,8 +103,11 @@ k6 `setup()`은 이 패턴화된 `socialId`로 `/auth/guest`를 호출해 시드
 
 ## 측정 종료 후 정리 체크리스트
 
-- [ ] `docs/perf/results/`에 모든 단계의 요약 JSON 커밋 확인
-- [ ] `docs/perf/blog-draft.md`에 실측치 반영
-- [ ] `cd ForDay_Infra && terraform destroy -target=aws_instance.perf_target -target=aws_instance.perf_generator -target=aws_db_instance.perf_db`
-- [ ] 관련 보안그룹(`perf_target_sg`, `perf_generator_sg`)도 함께 정리(위 destroy에 포함되지 않으면 별도 target 추가)
-- [ ] 이슈 `#374`, `#375` 코멘트로 결과 요약 후 상태 갱신
+**반드시 이 순서로** — destroy를 먼저 하면 원본 JSON을 다시 못 가져온다(2026-09-17
+라운드에서 실제로 이 순서를 어겨 원본을 유실했다).
+
+1. [x] `docs/perf/results/`에 모든 단계의 요약 JSON 커밋 확인 — ⚠️ 2026-09-17 라운드는
+   미완료(위 "알려진 미비점" 참고)
+2. [x] `docs/perf/blog-draft.md`에 실측치 반영
+3. [x] `cd ForDay_Infra && terraform destroy -target=aws_instance.perf_target -target=aws_instance.perf_generator -target=aws_db_instance.perf_db -target=aws_db_subnet_group.perf_db -target=aws_security_group.perf_target_sg -target=aws_security_group.perf_generator_sg -target=aws_security_group.perf_db_sg -target=aws_iam_instance_profile.perf_target -target=aws_iam_role_policy_attachment.perf_target_cloudwatch_agent -target=aws_iam_role_policy_attachment.perf_target_ecr_pull -target=aws_iam_role.perf_target`
+4. [x] 이슈 `#374`, `#375` 코멘트로 결과 요약 후 상태 갱신
