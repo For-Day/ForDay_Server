@@ -24,6 +24,16 @@ repositories {
 	mavenCentral()
 }
 
+ext {
+	springAiVersion = '1.1.8'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	compileOnly 'org.projectlombok:lombok'
@@ -61,6 +71,9 @@ dependencies {
 
 	// WebClient (AI 호출)
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// Spring AI (OpenAI) - 이슈 #385, FastAPI(LangChain) 대체
+	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
 
 	// JSON 파싱
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
