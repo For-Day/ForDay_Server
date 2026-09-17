@@ -114,10 +114,7 @@ public class ReactionService {
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
-        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
-        if (result == 0) {
-            recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
-        }
+        recordReactionCountRepository.upsertIncreaseCount(recordId, type.toString());
         reactionRankingService.incrementRankingScore(record.getRecordId());
 
         if(!isRecordOwner(currentUser, record)) {
@@ -143,10 +140,7 @@ public class ReactionService {
         ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
         recordReactionRepository.save(reaction);
 
-        int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
-        if (result == 0) {
-            recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
-        }
+        recordReactionCountRepository.upsertIncreaseCount(recordId, type.toString());
         reactionRankingService.incrementRankingScore(record.getRecordId());
 
         if(!isRecordOwner(currentUser, record)) {
