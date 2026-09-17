@@ -1,241 +1,334 @@
-# 블로그 정리 초안 — 반응 API 부하 테스트 4단계
+# 반응(reaction) API 부하 테스트 — 문제 진단부터 4단계 개선까지
 
-> 이 파일은 실측치로 채워진 초안이다. `(직접 채우기)`로 표시된 자리는 본인 해석·스크린샷이
-> 들어갈 곳이다. 나머지 수치는 측정 전용 환경(#374)에서 4단계를 각 3회 반복 실측한 값이다.
+> 수치는 전부 측정 전용 환경(#374)에서 3회 반복 측정한 실측치다(중위값 기준).
+> `(직접 채우기)` 표시된 자리만 본인 해석·스크린샷을 채우면 된다.
 
-## 용어 정리
+## 목표
 
-- **처리량(Throughput)**: 서비스가 1초당 처리할 수 있는 트래픽 양
-- **TPS(Transaction Per Second)**: 1초당 처리한 트랜잭션 수
-- **지연시간(Latency)**: 요청에 대한 응답 시간
+- **대상 API**: `POST /records/{recordId}/reaction` — 활동 기록에 반응 남기기
+- **우선순위 판단 기준**: 호출 빈도, 동시성 가능성(여러 명이 동시에 같은 데이터 접근), 데이터
+  정합성(틀리면 안 되는 수치), 응답 속도 민감도. 네 조건을 다 만족하는 API라 첫 부하테스트
+  대상으로 골랐다.
+- **목표 TPS**: 기준선(Step 1) 대비 **5배 이상**. 인덱스 추가·비동기 큐·분산 락까지 다
+  넣으면 그 정도는 나올 거라고 예상하고 시작했다.
+- **테스트 환경**: 운영 EC2와 동일한 AMI·인스턴스 타입(t3.small)에 앱·Redis·RabbitMQ를
+  올리고, RDS도 운영과 같은 엔진 버전(MySQL 8.0.43)으로 맞춘 별도 인스턴스를 썼다. 운영
+  EC2에 직접 부하를 걸지 않은 이유는 아래 참고.
 
-## 부하 테스트 결과를 보는 법 — k6 웹 대시보드 3가지 지표
+## 왜 운영 환경에 바로 부하를 걸지 않았나
 
-파레토의 법칙에 따라 아래 3가지만 보면 된다.
+- 운영 EC2는 Redis·RabbitMQ가 앱과 같은 도커 네트워크에 있어 부하가 서비스 전체로 번진다
+- 스토어에 이미 출시된 서비스라 실사용자 장애로 이어진다
+- blue-green이 같은 인스턴스를 써서, 측정 중 배포가 일어나면 컨테이너 교체로 측정이 오염된다
+- 로컬(가정용 인터넷)에서 EC2로 쏘면 서버 한계가 아니라 내 업로드 대역폭·왕복 지연을 재게 된다
 
-1. **HTTP Request Rate** — 1초당 처리한 요청 수 = Throughput. VU를 늘려도 더 이상
-   증가하지 않는 지점이 현재 시스템의 최대 Throughput이다.
-2. **HTTP Request Duration** — 요청당 평균 응답 시간 = Latency. VU가 늘어날수록 서버가
-   처리하지 못한 요청이 대기하면서, Throughput은 늘지 않는데 Latency만 늘어나는 현상이
-   나타난다.
-3. **HTTP Request Failed** — 요청 실패 수. 실패가 있다면 원인을 반드시 분석한다.
-
-해석 순서: ① Rate가 더 이상 늘지 않는 지점을 최대 Throughput으로 본다 → ② Duration이
-비정상적으로 높지 않은지 확인한다(기준은 서비스 성격에 따라 정한다, 예: 1초 초과 시
-이탈률 급증) → ③ Failed가 있으면 원인을 분석한다.
-
-**두 가지 TPS를 함께 본다** — k6의 `http_reqs` rate(raw)는 `DUPLICATE_REACTION`(400)
-거절까지 포함한 전체 요청 처리량이다. 실제 "새 반응이 기록된" 처리량은 상태코드별
-Counter(`*_success`)로 따로 집계했다. 기존(재측정 전) 수치 106 → 598 → 1,108 req/s가
-바로 이 raw 기준이었는데, 신뢰할 수 없었던 이유가 여기 있다 — 아래 표 참고.
+그래서 운영과 동일한 스펙의 **측정 전용 EC2(대상)** + **측정 전용 EC2(k6 발생기)** +
+**별도 RDS**를 새로 띄워서 측정했다. 시드 데이터는 게스트 유저 200명, 기록 1,000건.
 
 ## k6를 고른 이유
 
 - 메모리를 적게 쓰면서 비교적 많은 요청을 보낼 수 있음
 - 사용법이 간단함
 
-## 측정 환경을 운영과 분리한 이유
+## 부하 테스트 결과를 보는 법
 
-- 운영 EC2는 Redis·RabbitMQ가 앱과 같은 도커 네트워크에 있어 부하가 전체로 번짐
-- 스토어에 출시된 서비스라 실사용자 장애로 이어짐
-- blue-green이 같은 인스턴스를 써서 배포가 측정을 오염시킴
-- 로컬(가정용 인터넷)에서 쏘면 서버 한계가 아니라 내 업로드 대역폭·왕복 지연을 재게 됨
+k6가 보여주는 값이 많아 보이지만, 파레토의 법칙에 따라 아래 3가지만 보면 된다.
 
-측정 환경: 측정 대상 EC2(t3.small, 운영과 동일 AMI·사양) + 이 EC2에 직접 띄운 Redis·
-RabbitMQ 컨테이너, 별도 RDS(db.t4g.micro, MySQL 8.0.43 — 운영과 동일 엔진 버전), k6
-발생기 EC2(t3.small) 별도. 시드 데이터는 게스트 유저 200명·기록 1,000건
-(`ReactionMeasurementSeeder`).
+1. **HTTP Request Rate** — 1초당 처리한 요청 수 = Throughput(TPS). VU를 늘려도 더 이상
+   증가하지 않는 지점이 현재 시스템의 최대 Throughput이다.
+2. **HTTP Request Duration** — 요청당 응답 시간 = Latency. VU가 늘어날수록 서버가 처리
+   못한 요청이 대기하면서, Throughput은 안 느는데 Latency만 늘어나는 현상이 나타난다.
+3. **HTTP Request Failed** — 요청 실패 수. 실패가 있으면 원인을 반드시 분석한다.
 
-## 대상 API
+해석 순서: ① Rate가 더 이상 늘지 않는 지점을 최대 Throughput으로 본다 → ② Duration이
+비정상적으로 높지 않은지 확인한다 → ③ Failed가 있으면 원인을 분석한다.
 
-- `POST /records/{recordId}/reaction` — 활동 기록에 반응 남기기 (이 글의 대상)
-- (참고) `GET /records/stories` — 소식페이지 기록 목록 조회. 여러 유저가 동시에 자주
-  호출하는 피드성 API라 트래픽이 몰릴 가능성이 높지만, 이 글에서는 다루지 않는다.
-
-우선순위 판단 기준: 호출 빈도, 동시성 가능성(여러 명이 동시에 같은 데이터 접근),
-데이터 정합성(틀리면 안 되는 수치), 응답 속도 민감도.
+**두 가지 숫자를 구분해서 본다** — k6의 `http_reqs`(raw)는 `DUPLICATE_REACTION`(400)
+거절 응답까지 포함한 전체 처리량이다. "새 반응이 실제로 기록된" 처리량은 상태코드별
+Counter(`*_success`)로 따로 뽑았다. 아래 모든 단계에서 이 둘을 같이 적는다.
 
 ---
 
-## Step 1: 기준선 (동기 DB, 인덱스 없음)
+# 1. 기록에 반응 남기기
+
+## Step 1 — 기준선 측정
+
+동기 처리 경로(`ReactionService.reactToRecord`)를 그대로 부하테스트했다.
 
 ```js
-// scripts/k6/reaction-test.js — uk_record_user_type 유니크 제약을 DROP한 상태로 실행
+// scripts/k6/reaction-test.js
+import http from 'k6/http';
+import { check } from 'k6';
+import { setupGuestTokens, pickTarget, makeStatusCounters, tagStatus, BASE_URL } from './common.js';
+
+export const options = {
+  vus: 1000,
+  duration: '10s',
+};
+
+const counters = makeStatusCounters('v1');
+
+// 시드된 게스트 유저(measure_user_1..200) 각각으로 로그인해 서로 다른 토큰 200개를 발급한다.
+// (실수했던 첫 시도: setup()에서 토큰을 1개만 발급했더니 1,000 VU가 전부 같은 유저로
+//  요청하는 꼴이 돼서, 대부분 DUPLICATE_REACTION 거절 응답 속도를 재고 있었다 — 아래
+//  "측정 스크립트 자체의 버그" 참고)
+export function setup() {
+  return { tokens: setupGuestTokens() };
+}
+
+export default function (data) {
+  const { userIndex, recordId, reactionType } = pickTarget(__VU, __ITER);
+  const token = data.tokens[userIndex];
+
+  const res = http.post(
+      `${BASE_URL}/records/${recordId}/reaction`,
+      JSON.stringify({ reactionType }),
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
+  );
+
+  tagStatus(counters, res.status);
+  check(res, { '2xx': (r) => r.status >= 200 && r.status < 300 });
+}
 ```
 
-### 1. 측정 결과 해석
+```bash
+K6_WEB_DASHBOARD=true k6 run --summary-export=stage1-summary.json scripts/k6/reaction-test.js
+```
 
-| 지표 | run1 | run2 | run3 | **중위값** |
+**결과 (3회 측정, 중위값)**
+
+| 지표 | run1 | run2 | run3 | 중위값 |
 | --- | --- | --- | --- | --- |
-| Raw TPS (http_reqs rate) | 189.7 | 231.9 | 252.0 | **231.9** |
-| 보정 TPS (성공만, `v1_success`) | 167.9 | 208.7 | 210.4 | **208.7** |
+| Raw TPS (`http_reqs`) | 189.7 | 231.9 | 252.0 | **231.9** |
+| 보정 TPS (`v1_success`, 실제 반영된 요청만) | 167.9 | 208.7 | 210.4 | **208.7** |
 | Request Duration p95 | 5,399ms | 4,648ms | 4,346ms | **4,648ms** |
 
-- **측정 대상 EC2 CPU**: 평균 32%, **최대 75%**
-- **RDS CPU**: 낮음(4~37%) / **RDS 여유 메모리**: 107~127MB로 빠듯(db.t4g.micro 1GB 중)
+- 측정 대상 EC2 CPU: 평균 32%, **최대 75%**
+- RDS CPU: 4~37%(낮음) / RDS 여유 메모리: 107~127MB(db.t4g.micro 1GB 중 — 빠듯)
 
-### 2. TPS·병목 판단
-
-`(직접 채우기 — 예시: EC2 CPU가 75%까지 튀고 p95가 4.6초까지 늘어난 걸 보면, 인덱스 없는
-existsBy 조회가 풀스캔에 가까워지면서 DB 응답 자체가 느려졌고 그게 애플리케이션 스레드를
-오래 붙잡아 EC2 CPU까지 끌어올린 것으로 보인다. RDS 자체 CPU는 낮아서 "DB 서버가
-바쁜 게 아니라 비효율적인 쿼리가 커넥션을 오래 점유해 EC2 쪽 처리량이 막힌" 패턴에
-가깝다.)`
-
-### 3. 개선 조치
-
-`activity_record_reactions`에 `(activity_record_id, reacted_user_id, reaction_type)`
-복합 유니크 인덱스(`uk_record_user_type`) 추가.
+`http_reqs: 231.9/s` — 목표(기준선의 5배, 약 1,044/s)까지는 한참 남았다는 걸 첫 측정부터
+알 수 있었다.
 
 ---
 
-## Step 2: 복합 인덱스 추가
+## reactToRecord() 코드에서 병목이 우려되는 부분 짚어보기
 
-### 1. 측정 결과 해석
+```java
+@Transactional
+public ReactToRecordResDto reactToRecord(Long recordId, RecordReactionType type, CustomUserDetails user) {
+    User currentUser = userUtil.getCurrentUser(user); // socialId로 유저 조회
 
-| 지표 | run1 | run2 | run3 | **중위값** |
+    ReportActivityRecordDto record = activityRecordUtil.getValidRecord(recordId);
+    if (!isRecordOwner(currentUser, record)) {
+        activityRecordUtil.validateAccess(currentUser.getId(), record.getWriterId(), record.isWriterDeleted(), record.getVisibility());
+    }
+    validateDuplicateReaction(recordId, currentUser.getId(), type);
+
+    ActivityRecordReaction reaction = ActivityRecordReaction.of(activityRecordRepository.getReferenceById(recordId), userRepository.getReferenceById(currentUser.getId()), type);
+    recordReactionRepository.save(reaction);
+
+    int result = recordReactionCountRepository.increaseCount(recordId, type.toString());
+    if (result == 0) {
+        recordReactionCountRepository.save(ActivityRecordReactionCount.init(recordId, type));
+    }
+    reactionRankingService.incrementRankingScore(record.getRecordId());
+
+    if (!isRecordOwner(currentUser, record)) {
+        notificationService.processReactionNotification(currentUser, userRepository.getReferenceById(record.getWriterId()), type, record.getRecordId(), record.getImageUrl());
+    }
+
+    return ReactToRecordResDto.of(type, recordId);
+}
+```
+
+한 줄씩 "이게 왜 느릴 수 있는가"를 따져봤다.
+
+1. **`userUtil.getCurrentUser(user)`** — `socialId`로 유저를 조회한다. `users` 테이블에
+   `uk_users_social_id` 유니크 인덱스가 이미 있어서(예전 이슈에서 추가됨) 이 줄 자체는
+   병목이 아니었다 — 확인 결과 제외.
+2. **`getValidRecord(recordId)`** — `recordId`는 PK라 조회는 빠르다. 다만 나중에 작성자
+   정보가 필요해서 `User`를 미리 조인해온다.
+3. **`validateAccess(...)`** — 현재 유저가 작성자가 아닐 때만 실행되는 친구 관계 조회.
+   `friend_relations`에 `idx_requester_target`/`idx_target_requester` 복합 인덱스가 이미
+   있어서 이 줄도 제외.
+4. **`validateDuplicateReaction(...)`** — `existsByRecordIdAndUserIdAndType`으로 이미
+   반응을 남겼는지 DB에 물어본다. **여기가 진짜 의심 지점이었다** — `activity_record_reactions`
+   테이블에 `(activity_record_id, reacted_user_id, reaction_type)` 복합 인덱스가 없어서,
+   요청마다 이 조회가 비효율적인 스캔에 가까웠을 것으로 추정.
+5. **반응 저장(`insert`)** — 나중에 Redis Write-Back으로 옮길 대상.
+6. **카운트 증가(`update`/`insert`)** — 이것도 나중에 Redis Write-Back으로 옮길 대상.
+
+`(직접 채우기 — 예시: EC2 CPU가 75%까지 튀고 p95가 4.6초까지 늘어난 걸 보면, 인덱스 없는
+existsBy 조회가 커넥션을 오래 붙잡고 있었고 그게 EC2 CPU까지 끌어올린 것으로 보인다.
+RDS 자체 CPU는 낮았던 걸 보면 "DB 서버가 바쁜 게 아니라 비효율적인 쿼리가 연결을
+오래 점유해서 처리량이 막힌" 패턴에 가깝다.)`
+
+**개선 조치**: `activity_record_reactions`에 `(activity_record_id, reacted_user_id,
+reaction_type)` 복합 유니크 인덱스(`uk_record_user_type`) 추가.
+
+---
+
+## Step 2 — 복합 인덱스 추가 후 재측정
+
+같은 스크립트, 같은 엔드포인트. 인덱스만 추가하고 다시 돌렸다.
+
+| 지표 | run1 | run2 | run3 | 중위값 |
 | --- | --- | --- | --- | --- |
 | Raw TPS | 358.1 | 393.1 | 349.4 | **358.1** |
 | 보정 TPS | 324.0 | 218.2 | 310.7 | **310.7** |
 | Request Duration p95 | 3,051ms | 2,798ms | 3,184ms | **3,051ms** |
 
-- **측정 대상 EC2 CPU**: 평균 31%, 최대 **55%**
-- **RDS CPU**: 25~32% / **RDS 여유 메모리**: 100~103MB (Step 1과 비슷하게 빠듯)
+- 측정 대상 EC2 CPU: 평균 31%, 최대 **55%**(75%에서 하락)
+- RDS CPU: 25~32%
 
-run2의 보정 TPS(218.2)가 유독 낮은 건 `v1_duplicate`가 2,182건으로 튀었기 때문이다 —
-직전 대시보드 데모 실행이 남긴 조합과 우연히 겹친 것으로 보인다(RUN_SEED가 시간 기반이라
-짧은 간격의 두 실행이 겹칠 수 있음). 중위값 계산에는 포함하되, 참고용으로 남긴다.
+`http_reqs: 358.1/s` — 기준선 대비 raw 기준 약 **1.5배**, 보정 기준 **+49%** 증가했다.
+목표(5배)에는 한참 못 미치지만, 방향은 맞았다.
 
-### 2. TPS·병목 판단 — Step 1 대비
+### 더 개선할 포인트 찾기
 
-**Raw TPS: 231.9 → 358.1 (+54%) / 보정 TPS: 208.7 → 310.7 (+49%)**
+**1. 중복 체크(`validateDuplicateReaction`)** — 인덱스를 추가해도 여전히 요청마다 DB를
+직접 왕복한다. `insert`/`update`도 마찬가지로 동기 처리라, HTTP 스레드가 DB 커밋까지
+전부 들고 있는 구조 자체가 다음 병목이라고 판단했다.
 
-`(직접 채우기 — 예시: EC2 CPU 최대치가 75%→55%로 내려간 것과 p95가 거의 1.6초 줄어든 걸
-보면, 인덱스가 실제로 existsBy 조회 비용을 크게 낮췄다고 해석된다. 다만 여전히 TPS
-300~400대에서 머무는 걸 보면 동기 처리 구조(HTTP 스레드가 insert+update+커밋을 끝까지
-들고 있는 것) 자체가 다음 병목일 가능성이 있다.)`
+- **해결 방향**: 반응 저장과 카운트 반영을 Redis Write-Back 큐로 비동기 처리한다 — 요청
+  스레드는 큐에 push만 하고 즉시 응답, 실제 DB 반영은 스케줄러가 배치로 나중에 처리.
 
-### 3. 개선 조치
+**2. 권한·유효성 체크 캐싱(`getValidRecord`, `validateAccess`)** — 검토는 했지만 이번
+라운드에서는 채택하지 않았다(이유는 글 마지막 "검토했지만 채택 안 함" 참고).
 
-반응 insert·카운트 update를 Redis Write-Back 큐로 비동기 처리 — 요청 스레드는 큐에
-push만 하고 즉시 응답, 실제 DB 반영은 `ReactionScheduler`가 별도로 배치 처리.
+**개선 조치**: Redis Write-Back 큐(`ReactionScheduler`) 도입.
 
 ---
 
-## Step 3: Redis Write-Back 큐 적용 (분산 락 없음)
+## Step 3 — Redis Write-Back 큐 적용 (분산 락은 아직 없음)
 
 중복확인은 여전히 DB `existsBy...` 조회지만, insert/count 반영을 Redis 큐로 비동기
 처리한다(`QueueOnlyReactionMeasurementService`,
-`/records/{recordId}/reaction/measure/queue-only`).
+`/records/{recordId}/reaction/measure/queue-only` — 4단계 비교를 위해 이번에 만든
+측정 전용 경로).
 
-### 1. 측정 결과 해석
-
-| 지표 | run1 | run2 | run3 | **중위값** |
+| 지표 | run1 | run2 | run3 | 중위값 |
 | --- | --- | --- | --- | --- |
 | Raw TPS | 243.3 | 355.5 | 159.9 | **243.3** |
 | 보정 TPS (`queue_only_success`) | 103.9 | 294.8 | 146.0 | **146.0** |
 | Request Duration p95 | 1,893ms | 2,107ms | 1,826ms | **1,893ms** |
 
-- **측정 대상 EC2 CPU**: 최대 68%대 → 백로그 처리 구간에서 5% 미만으로 급락(비동기라
-  HTTP 스레드는 빨리 풀리지만, 뒤에서 큐가 쌓이는 중)
-- **RDS CPU**: 9~21% (Step 1·2보다 오히려 낮음 — 배치가 밀려서 실제 반영이 지연됐기 때문)
+- 측정 대상 EC2 CPU: 최대 68%대 → 백로그 처리 구간에서 5% 미만으로 급락
+- RDS CPU: 9~21%(Step 1·2보다 오히려 낮음 — 배치 반영이 밀려서)
 
-### 2. TPS·병목 판단 — Step 2 대비
+`http_reqs: 243.3/s` — **Step 2(358.1)보다 오히려 떨어졌다.** 예상과 정반대 결과라
+원인을 파고들었다.
 
-**Raw TPS: 358.1 → 243.3 (-32%) / 보정 TPS: 310.7 → 146.0 (-53%)**
+### 왜 떨어졌는지 — 실측으로 찾은 진짜 문제
 
-`(직접 채우기 — 예시: 예상과 반대로 Step 2보다 떨어졌다. Request Duration p95는
-오히려 줄었는데(개별 HTTP 응답은 빨라짐) 보정 TPS는 반토막 난 게 모순처럼 보이지만,
-실제로는 "응답은 빨리 주지만 실제 반영이 밀린다"는 뜻이다. 분산 락 없이 큐만 있으니
-중복 요청까지 전부 큐에 쌓이고, 스케줄러가 1초에 최대 1,000건만 처리할 수 있는데 유입이
-그보다 많아지는 순간 큐가 무한정 쌓인다.)`
+`reaction_queue_size` 지표를 실행 중에 계속 관찰했더니, 큐가 최대 **20,521**까지
+쌓이는 걸 확인했다. 응답 시간(p95 1,893ms)은 오히려 줄었는데 처리량은 반토막 난 게
+모순처럼 보였지만, 실제로는 "응답은 빨리 주지만 실제 반영은 계속 밀린다"는 뜻이었다.
 
-### 한계점 — 실측 중 발견한 문제
+문제는 여기서 끝나지 않았다. 앱 로그에서 이런 에러가 반복됐다.
 
-이 단계에서 실행할 때마다 `reaction_queue_size`가 최대 **20,521**까지 쌓이는 걸
-확인했다. 문제는 단순히 처리 지연에서 끝나지 않았다 — 백로그가 쌓인 상태에서
-`ReactionScheduler`가 최대 1,000건씩 묶어 `INSERT`하는 배치 트랜잭션이 FK 제약
-(`reacted_user_id → users`) 때문에 해당 유저 행에 락을 걸고, 이게 **전혀 무관한
-게스트 로그인(유저 `last_activity_at` UPDATE)까지 최대 37초씩 블로킹**시켰다.
-심할 때는 k6 `setup()`의 로그인 시퀀스 전체가 60초 타임아웃으로 실패했다.
+```
+Lock wait timeout exceeded; try restarting transaction
+[update users set ... where user_id=?]
+```
 
-즉 "분산 락 없는 Write-Back 큐"는 응답 시간만 보면 개선처럼 보이지만, **큐 유입을
-제한하는 장치가 없어서 부하가 조금만 튀어도 무한정 쌓이고, 그 여파가 반응 기능과
-무관한 다른 쓰기 경로까지 마비시킬 수 있다.** 이게 바로 Step 4에서 분산 락이
-"성능"이 아니라 "안정성"을 위해 필요한 이유다.
+`ReactionScheduler`가 최대 1,000건씩 묶어 `INSERT`하는 배치 트랜잭션이, FK 제약
+(`reacted_user_id → users`) 때문에 해당 유저 행에 락을 걸고 있었다. 큐가 20,000건
+넘게 밀린 상태에서 이 배치가 오래 걸리다 보니, **반응 기능과 전혀 무관한 게스트
+로그인(유저 `last_activity_at` UPDATE)까지 최대 37초씩 블로킹**됐다. 심할 때는 k6
+`setup()`의 로그인 시퀀스 전체가 60초 타임아웃으로 실패했다.
 
-### 3. 개선 조치
+즉 "분산 락 없는 Write-Back 큐"는:
+- 중복 요청까지 전부 큐에 쌓인다(락이 없어서 걸러지지 않음)
+- 스케줄러는 1초에 최대 1,000건만 처리 가능한데 유입이 이걸 넘으면 큐가 무한정 쌓인다
+- 쌓인 큐를 처리하는 배치가 **반응과 무관한 다른 쓰기 경로까지 마비**시킬 수 있다
 
-Redis SETNX 기반 분산 락(`ReactionRedisLockService`)을 중복확인·큐 push 앞단에 추가 —
-같은 (기록, 유저, 타입) 조합의 재요청을 TTL 5초 동안 원천 차단해 큐 유입 자체를 억제.
+**개선 조치**: Redis SETNX 기반 분산 락(`ReactionRedisLockService`)을 중복확인·큐 push
+앞단에 추가 — 같은 (기록, 유저, 타입) 조합의 재요청을 TTL 5초 동안 원천 차단해서 큐
+유입 자체를 억제한다.
 
 ---
 
-## Step 4: Redis 분산 락(SETNX) 적용
+## Step 4 — Redis 분산 락(SETNX) 적용
 
-중복확인·큐 push 모두 `ReactionRedisLockService`(SETNX + TTL 5초)를 거친다. 운영과
-동일한 v2 경로(`/api/v2/records/{recordId}/reaction`).
+### 1. 중복이 발생할 수 있는 시나리오: "클라이언트 연타"
 
-### 1. 측정 결과 해석
+사용자가 반응 버튼을 누를 때, 네트워크 상태가 불안정하거나 화면이 즉시 반응하지
+않으면 사용자는 버튼을 여러 번 누르게 된다.
 
-| 지표 | run1 | run2 | run3 | **중위값** |
+- **T=0ms**: 첫 번째 클릭 요청이 서버에 도착
+- **T=10ms**: 두 번째 클릭 요청이 서버에 도착
+- **문제 발생**: 비동기 큐(Write-Back) 구조에서 Redis 체크가 없다면(Step 3처럼), 두
+  요청 모두 큐에 들어가고 나중에 스케줄러가 DB에 반영할 때 유니크 제약 위반으로 벌크
+  저장이 실패한다 — Step 3에서 실제로 관측했다.
+
+### 2. Redis `setIfAbsent`(SETNX)가 중복을 막는 원리
+
+`setIfAbsent`는 Redis의 **원자적(Atomic) 특성**을 이용한 전략이다.
+
+**① 원자성** — Redis는 싱글 스레드로 명령을 처리하기 때문에, 1ms 안에 100개의 요청이
+몰려와도 Redis 입장에서는 '누가 먼저 왔는지' 순서가 명확히 정해진다. 가장 먼저 도착한
+요청은 `lockKey`를 생성하고 `true`를 반환받아 성공하고, 0.001초 뒤에 온 나머지 요청들은
+이미 키가 존재하므로 `false`를 반환받아 즉시 예외로 거절된다.
+
+**② 찰나의 락** — `Duration.ofSeconds(5)`로 TTL을 짧게 둬서, 반응 데이터 자체가 아니라
+"방금 반응했다"는 사실만 5초간 기억한다. 이 덕분에 중복 데이터가 큐에 들어가는 것 자체를
+막고, 메모리 점유도 낮게 유지된다. 설령 중복이 큐에 들어가더라도 DB의 유니크 제약이
+최종 방어선이 된다.
+
+### 3. 측정 결과
+
+```js
+// scripts/k6/reaction-test-redis.js — 엔드포인트만 /api/v2/records/{recordId}/reaction으로 다름
+```
+
+| 지표 | run1 | run2 | run3 | 중위값 |
 | --- | --- | --- | --- | --- |
 | Raw TPS | 430.8 | 399.7 | 394.2 | **399.7** |
 | 보정 TPS (`redis_lock_success`) | 411.0 | 381.5 | 364.0 | **381.5** |
 | Request Duration p95 | 2,664ms | 2,358ms | 2,572ms | **2,358~2,664ms** |
 
+`http_reqs: 399.7/s` — 기준선 대비 raw 기준 약 **1.7배**, 보정 기준 **+83%** 증가.
+목표였던 5배(약 1,044/s)에는 미치지 못했지만, 4단계 중 raw·보정 TPS 모두 최고치를
+기록했다.
+
 - 중복 거절(`redis_lock_duplicate`) 75~239건 — Step 1·3(수백~수천 건)과 비교하면
-  압도적으로 적다. 락이 정확히 "진짜 중복"만 걸러낸다는 뜻.
-- 큐 적체: 3회 누적으로도 최대 **6,112**에서 멈췄다(Step 3의 20,521과 대조) — 락이
-  유입 자체를 억제해 스케줄러가 감당 가능한 수준을 넘지 않았다.
-- `(EC2/RDS CPU·메모리 — 직접 콘솔 캡처해서 채우기, 이 구간은 CloudWatch 5분 지연으로
-  이 문서 작성 시점엔 아직 반영 전이었음)`
+  압도적으로 적다. 이번엔 실패율이 높은 게 아니라 오히려 **가장 낮았다** — 락이 정확히
+  "진짜 중복"만 걸러내고 큐 유입 자체를 억제했다는 뜻이다.
+- 큐 적체: 3회 누적으로도 최대 **6,112**에서 멈췄다(Step 3의 20,521과 대조).
 
-### 2. TPS·병목 판단 — Step 3 대비, 그리고 전체 종합
-
-**Step 3 대비 — Raw TPS: 243.3 → 399.7 (+64%) / 보정 TPS: 146.0 → 381.5 (+161%)**
-**Step 1(기준선) 대비 — Raw TPS: 231.9 → 399.7 (+72%) / 보정 TPS: 208.7 → 381.5 (+83%)**
-
-`(직접 채우기 — 예시: 4단계 중 raw·보정 TPS 모두 최고치를 기록했고, 동시에 중복 거절
-비율과 큐 적체 모두 가장 낮았다. 처리량과 안정성을 동시에 잡은 유일한 단계라고 해석한다.)`
-
-### 3. 왜 SETNX가 중복을 막는가
-
-**클라이언트 연타 시나리오**: 사용자가 반응 버튼을 여러 번 누르면(네트워크 지연,
-화면 미반응 등) 짧은 시간차로 여러 요청이 도착한다. 비동기 큐(Write-Back) 구조에서
-Redis 체크가 없다면(Step 3처럼) 같은 데이터가 큐에 중복으로 들어가거나, 나중에
-스케줄러가 DB에 반영할 때 유니크 제약 위반으로 벌크 저장이 실패할 수 있다.
-
-**원자성**: Redis는 싱글 스레드로 명령을 처리하므로, 1ms 안에 100개 요청이 몰려와도
-'누가 먼저 왔는지' 순서가 명확하다 — 가장 먼저 온 요청만 락 생성에 성공(`true`)하고
-나머지는 `false`를 받아 즉시 예외로 거절된다.
-
-**찰나의 락**: `Duration.ofSeconds(5)`로 TTL을 짧게 둬서, 반응 데이터 자체가 아니라
-"방금 반응했다"는 사실만 5초간 기억한다. 이 덕분에 중복 데이터가 큐에 들어가는 것 자체를
-막고, 메모리 점유도 낮게 유지된다. 설령 중복이 큐에 들어가더라도 DB의 유니크 제약이
-최종 방어선이 된다.
+`(직접 채우기 — 예시: 처리량과 안정성을 동시에 잡은 유일한 단계였다. 다만 목표로 잡았던
+5배에는 못 미쳤는데, 그 이유는 v1 경로의 existsBy 조회나 EC2 CPU 자체가 여전히 남은
+병목이기 때문으로 보인다 — 아래 "남은 병목" 참고.)`
 
 ---
 
 ## 종합 비교
 
-| 단계 | Raw TPS(중위) | 보정 TPS(중위) | p95 | 중복/락 거절 | 큐 최대 적체 | 비고 |
-| --- | --- | --- | --- | --- | --- | --- |
-| ① 기준선 | 231.9 | 208.7 | 4,648ms | 낮음 | - | EC2 CPU 최대 75% |
-| ② 인덱스 추가 | 358.1 | 310.7 | 3,051ms | 낮음 | - | Step 1 대비 +49%(보정) |
-| ③ Redis Write-Back만 | 243.3 | 146.0 | 1,893ms | 매우 높음 | **20,521** | Step 2보다 오히려 -53%(보정) — 한계점 참고 |
-| ④ Redis 분산 락 | 399.7 | **381.5** | 2,358ms | 낮음 | 6,112 | 전체 최고치, Step 1 대비 +83%(보정) |
+| 단계 | Raw TPS(중위) | 보정 TPS(중위) | p95 | 중복/락 거절 | 큐 최대 적체 |
+| --- | --- | --- | --- | --- | --- |
+| ① 기준선 | 231.9 | 208.7 | 4,648ms | 낮음 | - |
+| ② 인덱스 추가 | 358.1 | 310.7 | 3,051ms | 낮음 | - |
+| ③ Redis Write-Back만 | 243.3 | 146.0 | 1,893ms | 매우 높음 | **20,521** |
+| ④ Redis 분산 락 | 399.7 | **381.5** | 2,358ms | 낮음 | 6,112 |
 
-**기존(재측정 전) 수치와의 비교**: 기존 106 → 598 → 1,108 req/s는 k6 스크립트가 게스트
-토큰을 1개만 발급해 1,000 VU가 전부 같은 유저로 요청한 결과였다(#375). 재측정한 raw
-TPS(232~400대)가 기존 수치보다 훨씬 낮게 나온 것 자체가, 기존 수치의 상당 부분이
-`DUPLICATE_REACTION` 거절 응답을 처리한 속도였음을 보여준다 — 정상적인 다중 사용자
-트래픽에서는 처음부터 이 정도 수준이었을 가능성이 크다.
+**목표 대비**: 기준선(208.7) 대비 5배(약 1,044)를 목표로 잡았지만, 최종 달성치는
+381.5(+83%)로 **목표에 도달하지 못했다.** 정직하게 남겨두는 이유는, 이 격차 자체가
+다음에 무엇을 더 해야 하는지 보여주는 지표이기 때문이다 — "남은 병목과 다음 단계" 참고.
+
+### 측정 스크립트 자체의 버그 (재측정 전 수치와의 차이)
+
+처음 이 4단계를 측정했을 때는 k6 스크립트의 `setup()`이 게스트 토큰을 1개만 발급해서
+1,000 VU 전부가 같은 유저로 요청했다. `recordId(1~100) x type(4)` = 400개 조합뿐이라,
+대부분의 요청이 실제 쓰기 경로가 아니라 `DUPLICATE_REACTION`(400) 거절 응답을 처리한
+속도였을 가능성이 크다. 위 표의 수치는 게스트 유저 200명을 실제로 발급하고 (기록,
+유저, 타입) 조합 충돌을 최소화하도록 스크립트를 고친 뒤 재측정한 값이다.
 
 ## 남은 병목과 다음 단계
 
 - `activity_record_reactions.existsBy...` DB 조회는 4단계에서도 v1 경로(`/records/{id}/reaction`)에는 그대로 남아 있다 — v2(락) 경로로 트래픽을 전면 전환하지 않는 한 사라지지 않는다.
-- Redis Write-Back 큐(`ReactionScheduler`)는 1초마다 최대 1,000건만 MySQL로 내려쓴다. Step 4에서도 3회 누적으로 6,112까지 쌓인 걸 보면, 이 상한 자체가 언젠가는 병목이 될 수 있다 — 정확한 포화 유입률 측정은 `#376`에서 스파이크 시나리오로 별도로 다룬다.
+- Redis Write-Back 큐(`ReactionScheduler`)는 1초마다 최대 1,000건만 MySQL로 내려쓴다. Step 4에서도 3회 누적으로 6,112까지 쌓인 걸 보면, 이 상한 자체가 언젠가는 병목이 될 수 있다 — 정확한 포화 유입률 측정은 별도 스파이크 테스트 이슈에서 다룬다.
+- 목표 5배에 못 미친 만큼, EC2 인스턴스 확장이나 `getValidRecord`/`validateAccess` 캐싱 같은 다음 레버가 남아 있다.
 - 이번 측정 중 별도로 발견한 사전 존재 버그: `record_reaction_count` 초기 행 생성(`increaseCount` 실패 시 `save`)이 동시 요청 시 MySQL 데드락을 일으킨다(check-then-insert 경쟁 상태) — `INSERT ... ON DUPLICATE KEY UPDATE` 원자적 upsert로 수정.
 
 ## 더 개선할 수 있었던 포인트 (검토했지만 채택 안 함)
@@ -246,4 +339,4 @@ TPS(232~400대)가 기존 수치보다 훨씬 낮게 나온 것 자체가, 기�
 
 **권한·유효성 체크 캐싱**(`getValidRecord`, `validateAccess`): 기록·친구 관계 정보를
 캐싱하면 DB 호출을 없앨 수 있지만, 분산 락 쪽이 더 직접적이고 안정성까지 잡는 해법이라
-우선순위를 뒤로 미뤘다.
+우선순위를 뒤로 미뤘다. 목표 TPS에 못 미친 지금, 다음 라운드에서 시도해볼 1순위 후보다.
