@@ -43,19 +43,9 @@ jobs:
           json: ${{ secrets.FIREBASE_JSON }}
           dir: "src/main/resources/"
 
-      # 테스트 자체는 application-test.yml로 자립하지만, 배포와 같은 조건을 만들어
-      # 이 파일이 정상인지 함께 확인한다.
-      - name: Create application.yml
-        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
-
-      # 이 파일은 배포 시 그대로 jar에 담기므로 비어 있으면 운영 기동이 위험하다.
-      # 값은 출력하지 않고 최상위 키 이름만 확인한다.
-      - name: Inspect injected application.yml (keys only)
-        run: |
-          echo "줄 수: $(wc -l < ./src/main/resources/application.yml)"
-          echo "최상위 키:"
-          grep -E '^[a-zA-Z][a-zA-Z0-9_-]*:' ./src/main/resources/application.yml | sed 's/:.*//' | sort -u
-
+      # application.yml/application-prod.yml은 이제 실제 값 없이 ${VAR} 플레이스홀더만
+      # 담아 git에 커밋되어 있다(이슈 #390). application-test.yml이 필요한 값을 전부
+      # 자체적으로 채우므로(문서 자체 comment 참고) 테스트 실행에는 시크릿 주입이 필요 없다.
       - name: Run tests
         run: |
           chmod +x ./gradlew
