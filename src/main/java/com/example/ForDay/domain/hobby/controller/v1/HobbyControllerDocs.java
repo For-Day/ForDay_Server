@@ -163,6 +163,27 @@ public interface HobbyControllerDocs {
                                                   @AuthenticationPrincipal CustomUserDetails user) throws Exception;
 
     @Operation(
+            summary = "취미 생성 전 AI 활동 미리 추천 (상태 없음)",
+            description = "아직 만들지 않은 취미의 이름/목적/가용 시간만으로 AI가 활동 6개를 추천합니다. " +
+                    "과거 기록 조회나 호출 횟수 제한이 없는 상태 없는(stateless) 엔드포인트입니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "추천 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "입력값 유효성 검사 실패",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 400, \"success\": false, \"data\": {\"errorClassName\": \"VALIDATION_ERROR\", \"message\": \"{hobbyName=hobbyName은 필수입니다.}\"}}"))
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "AI 응답 파싱 실패",
+                    content = @Content(examples = @ExampleObject(value = "{\"status\": 422, \"success\": false, \"data\": {\"errorClassName\": \"AI_RESPONSE_INVALID\", \"message\": \"AI 응답 형식이 올바르지 않아 데이터를 처리할 수 없습니다.\"}}"))
+            )
+    })
+    @PostMapping("/activities/simple-recommend")
+    SimpleActivityRecommendResDto simpleActivityRecommend(@RequestBody @Valid SimpleActivityRecommendReqDto reqDto);
+
+    @Operation(
             summary = "다른 포비들의 활동 조회 (더미 데이터 기반)",
             description = "초기 유저 데이터가 없을 때, AI가 비슷한 조건의 다른 유저들이 할 법한 인기 활동 3개를 생성하여 반환합니다."
     )
