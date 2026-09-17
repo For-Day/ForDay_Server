@@ -7,10 +7,23 @@ serverName: ForDay_local
 
 spring:
   config:
-    import: optional:file:.env[.properties]
+    import:
+      - optional:file:.env[.properties]
+      # Spring Boot의 프로필별 파일 자동 로드 규칙은 application-{프로필명}.yml만
+      # 찾는다. 배포는 SPRING_PROFILES_ACTIVE=blue/green을 쓰는데 파일명은
+      # application-prod.yml이라 이름이 안 맞아 지금까지 이 파일이 전혀 로드되지
+      # 않고 있었다(blue/green 전용 설정이 통째로 죽어 있던 상태 - 배포 사고로
+      # 발견). 명시적으로 import해서 blue/green/common on-profile 문서가 실제로
+      # 평가되게 한다. 로컬/테스트는 blue/green/common 프로필이 활성화되지 않으니
+      # 이 파일을 가져와도 영향이 없다.
+      - classpath:application-prod.yml
 
   profiles:
-    active: local
+    # active가 아니라 default를 쓴다. active는 이 파일이 항상 로드되는 기본
+    # 문서라 다른 어떤 프로필을 지정해도 "local"이 함께 활성화되는 문제가 있다
+    # (배포 시 SPRING_PROFILES_ACTIVE=green을 줬는데도 응답이 local로 나온 사고
+    # 원인). default는 외부에서 활성 프로필을 지정하지 않았을 때만 적용된다.
+    default: local
   application:
     name: ForDay
     env: local
