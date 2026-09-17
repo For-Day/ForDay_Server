@@ -17,6 +17,7 @@ import com.example.ForDay.domain.hobby.dto.response.RecordActivityResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.service.HobbyCardService;
 import com.example.ForDay.domain.hobby.utils.HobbyUtil;
+import com.example.ForDay.domain.record.command.RecordCreateCommand;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.record.service.StickerInfoCacheService;
@@ -28,7 +29,7 @@ import com.example.ForDay.global.common.response.dto.MessageResDto;
 import com.example.ForDay.global.common.response.message.ActivitySuccessCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.port.ImageLifecyclePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,7 @@ public class ActivityService {
     private final HobbyUtil hobbyUtil;
     private final HobbyCardService hobbyCardService;
     private final ActivityUtil activityUtil;
-    private final S3Util s3Util;
+    private final ImageLifecyclePort imageLifecyclePort;
     private final ActivityBulkRepository activityBulkRepository;
     private final StickerInfoCacheService recordRedisService;
     private final ActivityCacheService activityCacheService;
@@ -67,9 +68,9 @@ public class ActivityService {
 
         hobby.validateCanRecord();
         todayRecordRedisService.validateNotRecordedToday(currentUser.getId(), hobby.getId());
-        s3Util.validateS3Image(reqDto.getImageUrl());
+        imageLifecyclePort.validateExists(reqDto.getImageUrl());
 
-        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
+        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, toCreateCommand(reqDto));
         activity.record();
         currentUser.obtainSticker();
         activityRecordRepository.save(activityRecord);
@@ -96,9 +97,9 @@ public class ActivityService {
 
         if (isCheckStickerFull(hobby)) throw new CustomException(ErrorCode.STICKER_COMPLETION_REACHED);
         hobby.validateInProgress();
-        s3Util.validateS3Image(reqDto.getImageUrl());
+        imageLifecyclePort.validateExists(reqDto.getImageUrl());
 
-        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, reqDto);
+        ActivityRecord activityRecord = ActivityRecord.of(hobby, activity, currentUser, toCreateCommand(reqDto));
 
         activity.record();
         currentUser.obtainSticker();
@@ -214,6 +215,15 @@ public class ActivityService {
         }
         return Objects.equals(hobby.getCurrentStickerNum().intValue(), STICKER_COMPLETE_COUNT)
                 && Objects.equals(hobby.getGoalDays().intValue(), STICKER_COMPLETE_COUNT);
+    }
+
+    private RecordCreateCommand toCreateCommand(RecordActivityReqDto reqDto) {
+        return new RecordCreateCommand(
+                reqDto.getSticker(),
+                reqDto.getMemo(),
+                reqDto.getVisibility(),
+                reqDto.getImageUrl()
+        );
     }
 
     private void validateTargetUser(String currentUserId, ActivityRecordCollectInfo target) {

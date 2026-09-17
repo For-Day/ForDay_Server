@@ -25,7 +25,8 @@ import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.port.ImageLifecyclePort;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -66,7 +67,8 @@ class ActivityRecordServiceV2Test {
     @Mock private HobbyRepository hobbyRepository;
     @Mock private ActivityRepository activityRepository;
     @Mock private RecordImageRepository recordImageRepository;
-    @Mock private S3Util s3Util;
+    @Mock private ImageLifecyclePort imageLifecyclePort;
+    @Mock private ImageUrlConverter imageUrlConverter;
     @Mock private ReactionRankingService reactionRankingService;
     @Mock private ReactionRedisLockService reactionRedisLockService;
 

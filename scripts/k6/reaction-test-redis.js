@@ -1,51 +1,34 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import { setupGuestTokens, pickTarget, makeStatusCounters, tagStatus, BASE_URL } from './common.js';
 
+/**
+ * #375 재측정 ④ 단계 - Redis Write-Back 큐 + 분산 락(SETNX) 적용, v2 경로.
+ * 중복확인·큐 push 모두 ReactionRedisLockService를 거친다(운영과 동일 경로).
+ *
+ * 실행: K6_WEB_DASHBOARD=true k6 run --summary-export=stage4-summary.json reaction-test-redis.js
+ */
 export const options = {
   vus: 1000,
   duration: '10s',
 };
 
-const reactionTypes = ['AWESOME', 'GREAT', 'AMAZING', 'FIGHTING'];
+const counters = makeStatusCounters('redis_lock');
 
-// 게스트 로그인해서 토큰 받아오기a
 export function setup() {
-  const loginRes = http.post(
-      'http://localhost:8080/auth/guest',
-      JSON.stringify({ guestUserId: "" }),  // JSON.stringify 필수!
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-
-  console.log(`로그인 응답: ${loginRes.body}`); // 응답 전체 출력
-
-  const body = JSON.parse(loginRes.body);
-  const token = body.data.accessToken;
-  console.log(`토큰 발급 완료: ${token}`);
-  return { token };
+  return { tokens: setupGuestTokens() };
 }
 
 export default function (data) {
-  const recordId = randomIntBetween(1, 100);
-  const reactionType = reactionTypes[randomIntBetween(0, 3)];
+  const { userIndex, recordId, reactionType } = pickTarget(__VU, __ITER);
+  const token = data.tokens[userIndex];
 
-  const url = `http://localhost:8080/api/v2/records/${recordId}/reaction`;
+  const res = http.post(
+      `${BASE_URL}/api/v2/records/${recordId}/reaction`,
+      JSON.stringify({ reactionType }),
+      { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
+  );
 
-  const payload = JSON.stringify({ reactionType: reactionType });
-
-  const params = {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${data.token}`,  // 토큰 자동 주입
-    },
-  };
-
-  const res = http.post(url, payload, params);
-
-  check(res, {
-    'is status 200': (r) => r.status === 200,
-    'is status 201': (r) => r.status === 201,
-  });
+  tagStatus(counters, res.status);
+  check(res, { '2xx': (r) => r.status >= 200 && r.status < 300 });
 }

@@ -10,6 +10,19 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # 테스트가 실제로 접속하는 Redis. 자세한 배경은 .github/workflows/test.yml 참고.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +30,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Create Firebase JSON
         uses: jsdaniell/create-json@v1.2.2
@@ -25,13 +39,27 @@ jobs:
           json: ${{ secrets.FIREBASE_JSON }}
           dir: "src/main/resources/"
 
-      - name: Create application.yml
-        run: echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
+      # application.yml/application-prod.yml은 이제 실제 값 없이 ${VAR} 플레이스홀더만
+      # 담아 git에 커밋되어 있다(이슈 #390). 실제 값은 컨테이너 기동 시 아래 deploy
+      # job의 docker run -e 로 개별 시크릿에서 주입한다.
 
-      - name: Build Spring Boot
+      # clean은 여기서 한 번만 한다. 뒤의 build가 컴파일 결과를 재사용하도록
+      # 테스트와 빌드를 나눠 실행해, 실패 지점이 어느 단계인지 바로 드러나게 한다.
+      - name: Run tests
         run: |
           chmod +x ./gradlew
-          ./gradlew clean build -x test
+          ./gradlew clean test
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/test
+          retention-days: 7
+
+      - name: Build Spring Boot
+        run: ./gradlew build -x test
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -112,6 +140,16 @@ jobs:
               -e SPRING_RABBITMQ_HOST=rabbitmq \
               -e SPRING_RABBITMQ_USERNAME=forday \
               -e SPRING_RABBITMQ_PASSWORD=forday1234 \
+              -e DB_URL="${{ secrets.DB_URL }}" \
+              -e DB_USERNAME="${{ secrets.DB_USERNAME }}" \
+              -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              -e APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}" \
+              -e APPLE_KEY_ID="${{ secrets.APPLE_KEY_ID }}" \
+              -e APPLE_PRIVATE_KEY="${{ secrets.APPLE_PRIVATE_KEY }}" \
+              -e AWS_ACCESS_KEY="${{ secrets.AWS_ACCESS_KEY }}" \
+              -e AWS_SECRET_KEY="${{ secrets.AWS_SECRET_KEY }}" \
               839983937363.dkr.ecr.ap-northeast-2.amazonaws.com/forday:latest
           
             echo "▶ 헬스 체크 시작"

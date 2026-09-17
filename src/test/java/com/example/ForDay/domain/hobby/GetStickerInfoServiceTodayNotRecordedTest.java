@@ -16,10 +16,9 @@ import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.domain.record.service.TodayRecordRedisService;
+import com.example.ForDay.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
-@SpringBootTest
 @Transactional
-@ActiveProfiles("test")
-class GetStickerInfoServiceTodayNotRecordedTest {
+class GetStickerInfoServiceTodayNotRecordedTest extends IntegrationTestSupport {
 
     @Autowired
     private HobbyService hobbyService;

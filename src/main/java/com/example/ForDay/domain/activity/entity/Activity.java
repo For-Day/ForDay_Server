@@ -1,6 +1,5 @@
 package com.example.ForDay.domain.activity.entity;
 
-import com.example.ForDay.domain.activity.dto.ActivityRecordCollectInfo;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.common.error.exception.CustomException;

@@ -8,6 +8,7 @@ import com.example.ForDay.domain.term.dto.response.RegisterTermsConsentResDto;
 import com.example.ForDay.domain.term.dto.response.ServiceTermsResponseDto;
 import com.example.ForDay.domain.term.entity.TermsArticle;
 import com.example.ForDay.domain.term.entity.TermsDocument;
+import com.example.ForDay.domain.term.command.TermsConsentCommand;
 import com.example.ForDay.domain.term.entity.UserTermsConsent;
 import com.example.ForDay.domain.term.repository.TermsDocumentRepository;
 import com.example.ForDay.domain.term.repository.UserTermsConsentRepository;
@@ -100,7 +101,7 @@ public class TermsService {
             throw new CustomException(ErrorCode.TERMS_CONSENT_ALREADY_EXISTS);
         }
 
-        userTermsConsentRepository.save(UserTermsConsent.create(reqDto, currentUser.getId()));
+        userTermsConsentRepository.save(UserTermsConsent.create(toConsentCommand(reqDto), currentUser.getId()));
 
         if(reqDto.isRecordPushConsent()) {
             setUserRecordPushEnabled(currentUser);
@@ -109,6 +110,15 @@ public class TermsService {
         userRepository.save(currentUser);
 
         return RegisterTermsConsentResDto.of();
+    }
+
+    private TermsConsentCommand toConsentCommand(RegisterTermsConsentReqDto reqDto) {
+        return new TermsConsentCommand(
+                reqDto.isServiceConsent(),
+                reqDto.isAgeOver14Consent(),
+                reqDto.isPrivateConsent(),
+                reqDto.isRecordPushConsent()
+        );
     }
 
     private void setUserRecordPushEnabled(User user) {

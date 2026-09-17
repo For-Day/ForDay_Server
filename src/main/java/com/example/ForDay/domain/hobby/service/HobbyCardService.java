@@ -8,7 +8,8 @@ import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.global.ai.service.AiHobbyCardService;
-import com.example.ForDay.infra.s3.service.S3Service;
+import com.example.ForDay.global.port.ImageUrlPort;
+import com.example.ForDay.global.port.ImageLifecyclePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,8 @@ public class HobbyCardService {
 
     private final ActivityRecordRepository activityRecordRepository;
     private final HobbyCardRepository hobbyCardRepository;
-    private final S3Service s3Service;
+    private final ImageUrlPort imageUrlPort;
+    private final ImageLifecyclePort imageLifecyclePort;
     private final AiHobbyCardService aiHobbyCardService;
 
     public HobbyCard createHobbyCard(User user, Hobby hobby) {
@@ -47,11 +49,11 @@ public class HobbyCardService {
         }
 
         try {
-            String coverImageKey = s3Service.extractKeyFromFileUrl(coverImageUrl);
+            String coverImageKey = imageUrlPort.extractKeyFromFileUrl(coverImageUrl);
             String hobbyCardImageKey = coverImageKey.replace(TEMP_COVER_PATH, TEMP_HOBBY_CARD_PATH);
-            s3Service.copyObject(coverImageKey, hobbyCardImageKey);
+            imageLifecyclePort.copy(coverImageKey, hobbyCardImageKey);
 
-            String hobbyCardImageUrl = s3Service.createFileUrl(hobbyCardImageKey);
+            String hobbyCardImageUrl = imageUrlPort.createFileUrl(hobbyCardImageKey);
             log.info("[HobbyCard] S3 이미지 복사 완료 - {} -> {}", coverImageKey, hobbyCardImageKey);
             return hobbyCardImageUrl;
 

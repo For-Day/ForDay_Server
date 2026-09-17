@@ -1,6 +1,8 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:test
+    # MODE=MySQL - record_reaction_count 원자적 upsert(INSERT ... ON DUPLICATE KEY UPDATE)가
+    # MySQL 전용 문법이라 H2 MySQL 호환 모드가 필요하다.
+    url: jdbc:h2:mem:test;MODE=MySQL
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -19,8 +21,82 @@ spring:
     redis:
       host: localhost
       port: 6379
+      # 테스트는 전용 DB를 쓴다. IntegrationTestSupport가 매 테스트 전에 flushDb를
+      # 호출하므로, 개발용 데이터가 들어 있는 0번과 반드시 분리해야 한다.
+      database: 1
 
   jwt:
     secret: test-secret
     access-expiration: 180
     refresh-expiration: 7
+
+  ai:
+    openai:
+      # 실제 자격증명이 아니다. ChatModel 빈 생성 시점에는 네트워크 호출이 없고,
+      # AI 서비스 테스트는 ChatClient를 목으로 교체하므로 실제 호출로 이어지지 않는다.
+      api-key: test-openai-api-key
+      base-url: https://api.openai.com/v1
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.6
+
+# 아래 값은 테스트가 application.yml(= 배포 시크릿)에 의존하지 않도록 여기서 직접 채운다.
+# 프로파일별 설정이 application.yml을 덮으므로, 시크릿 구조가 바뀌어도 테스트는 영향받지 않는다.
+# 어느 것도 실제 자격증명이 아니며, 외부를 호출하는 테스트도 없다.
+cloud:
+  aws:
+    access-key: test-access-key
+    secret-key: test-secret-key
+    region: ap-northeast-2
+    bucket: test-bucket
+    endpoint: s3.ap-northeast-2.amazonaws.com
+
+aws:
+  region: ap-northeast-2
+
+lambda:
+  create-cover-function-name: test-cover-function
+
+fastapi:
+  url: http://localhost:8000
+
+ai:
+  model: gpt-4o-mini
+  temperature: 0.6
+  max-call-limit: 10
+
+apple:
+  client_id: test-client-id
+  team_id: test-team-id
+  key: test-key-id
+  private_key: test-private-key
+
+discord:
+  webhook:
+    # 실제 웹훅이 아니다. DiscordAlertPort는 관련 테스트에서 전부 목으로 교체되므로
+    # 이 값으로 실제 HTTP 호출이 나가는 테스트는 없다.
+    notification-url: https://discord.com/api/webhooks/test/test
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+  # 테스트/CI 환경에는 RabbitMQ 브로커가 없다(redis만 서비스 컨테이너로 띄움 - deploy.yml).
+  # 기본 RabbitHealthIndicator를 그대로 두면 연결 실패로 전체 health가 DOWN(503)이 되므로,
+  # 테스트 프로파일에서만 끈다. 실제 배포 환경에서는 이 값을 설정하지 않아
+  # RabbitMQ 상태가 health에 그대로 반영된다.
+  health:
+    rabbit:
+      enabled: false
+
+server:
+  port: 8080
+  env: test
+
+serverName: test-server

@@ -18,7 +18,7 @@ import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import com.example.ForDay.global.oauth.CustomUserDetails;
 import com.example.ForDay.global.util.UserUtil;
-import com.example.ForDay.infra.s3.util.S3Util;
+import com.example.ForDay.global.util.ImageUrlConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +35,7 @@ public class ActivityRecordServiceV3 {
     private final RecordImageRepository recordImageRepository;
     private final ActivityRecordUtil activityRecordUtil;
     private final UserUtil userUtil;
-    private final S3Util s3Util;
+    private final ImageUrlConverter imageUrlConverter;
     private final NotificationService notificationService;
 
     @Transactional
@@ -71,7 +71,7 @@ public class ActivityRecordServiceV3 {
                 scraped,
                 summaries,
                 images,
-                s3Util.toProfileMainResizedUrl(detail.writerProfileImageUrl()),
+                imageUrlConverter.toProfileMainResizedUrl(detail.writerProfileImageUrl()),
                 currentUser.getId(),
                 prevId,
                 nextId

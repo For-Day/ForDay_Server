@@ -1,0 +1,60 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [ "dev", "release", "main" ]
+  push:
+    branches: [ "dev" ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # @SpringBootTest는 application-test.yml의 localhost:6379에 실제로 접속한다.
+    # DB는 H2 인메모리, RabbitMQ는 연결 실패해도 컨텍스트가 뜨므로 Redis만 띄운다.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      # FcmConfig가 이 JSON을 classpath에서 실제로 읽으므로 테스트에도 필요하다.
+      - name: Create Firebase JSON
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json"
+          json: ${{ secrets.FIREBASE_JSON }}
+          dir: "src/main/resources/"
+
+      # application.yml/application-prod.yml은 이제 실제 값 없이 ${VAR} 플레이스홀더만
+      # 담아 git에 커밋되어 있다(이슈 #390). application-test.yml이 필요한 값을 전부
+      # 자체적으로 채우므로(문서 자체 comment 참고) 테스트 실행에는 시크릿 주입이 필요 없다.
+      - name: Run tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/test
+          retention-days: 7

@@ -51,7 +51,9 @@ public class HobbyServiceV2 {
 
         List<Hobby> hobbies = new ArrayList<>();
         for (int i = 0; i < reqDto.getHobbyList().size(); i++) {
-            hobbies.add(Hobby.createNewHobbyV2(currentUser, reqDto.getHobbyList().get(i), nextStartSeq + i));
+            HobbyCreateReqDtoV2.HobbyInfo info = reqDto.getHobbyList().get(i);
+            hobbies.add(Hobby.createNewHobbyV2(
+                    currentUser, info.getHobbyInfoId(), info.getHobbyName(), nextStartSeq + i));
         }
 
         List<Hobby> savedHobbies = hobbyRepository.saveAll(hobbies);
