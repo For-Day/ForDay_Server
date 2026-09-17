@@ -30,6 +30,17 @@ spring:
     access-expiration: 180
     refresh-expiration: 7
 
+  ai:
+    openai:
+      # 실제 자격증명이 아니다. ChatModel 빈 생성 시점에는 네트워크 호출이 없고,
+      # AI 서비스 테스트는 ChatClient를 목으로 교체하므로 실제 호출로 이어지지 않는다.
+      api-key: test-openai-api-key
+      base-url: https://api.openai.com/v1
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.6
+
 # 아래 값은 테스트가 application.yml(= 배포 시크릿)에 의존하지 않도록 여기서 직접 채운다.
 # 프로파일별 설정이 application.yml을 덮으므로, 시크릿 구조가 바뀌어도 테스트는 영향받지 않는다.
 # 어느 것도 실제 자격증명이 아니며, 외부를 호출하는 테스트도 없다.
@@ -51,6 +62,8 @@ fastapi:
   url: http://localhost:8000
 
 ai:
+  model: gpt-4o-mini
+  temperature: 0.6
   max-call-limit: 10
 
 apple:
