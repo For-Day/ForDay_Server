@@ -14,11 +14,11 @@
   ![QueryDSL](https://img.shields.io/badge/QUERYDSL-005571?style=for-the-badge)
 
 - **Infra**  
+  ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+  ![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)
   ![EC2](https://img.shields.io/badge/EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
   ![S3](https://img.shields.io/badge/S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white)
-  ![RDS](https://img.shields.io/badge/RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white)
   ![Lambda](https://img.shields.io/badge/Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)
-  ![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
 
 - **AI**  
   ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
@@ -31,6 +31,11 @@
 <br>
 
 ## 🌍 아키텍처 구조
+
+> 2026-09-17 k3s(Kubernetes) + ArgoCD 기반으로 마이그레이션 완료. 아래 다이어그램은
+> 이전(EC2 blue/green + Nginx + RDS) 구조로, 최신화 필요. 현재 구조는
+> [ForDay_GitOps](https://github.com/For-Day/ForDay_GitOps) 참고.
+
 ![INFRA](./assets/infra.png)
 
 <br>
