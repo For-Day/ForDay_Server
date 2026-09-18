@@ -5,29 +5,38 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.notification.entity.ReactionNotification;
-import com.example.ForDay.domain.notification.repository.NotificationRepository;
+import com.example.ForDay.domain.notification.document.NotificationDocument;
+import com.example.ForDay.domain.notification.repository.NotificationDocumentRepository;
 import com.example.ForDay.domain.notification.type.NotificationType;
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
-import com.example.ForDay.domain.record.type.RecordReactionType;
 import com.example.ForDay.domain.record.type.RecordVisibility;
 import com.example.ForDay.domain.user.entity.User;
 import com.example.ForDay.domain.user.repository.UserRepository;
 import com.example.ForDay.domain.user.type.Role;
 import com.example.ForDay.domain.user.type.SocialType;
+import com.example.ForDay.global.mongo.service.MongoSequenceGeneratorService;
 import com.example.ForDay.support.IntegrationTestSupport;
-import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * 이슈 #408 - 알림 도메인이 MongoDB로 옮겨간 뒤의 {@code updateImageUrlByRecordId} 동작을
+ * 검증한다. {@code notifications} 컬렉션은 JPA {@code @Transactional} 롤백 대상이 아니라서
+ * (별도 저장소) 이 클래스에 {@code @Transactional}을 붙여도 Mongo 쪽 데이터는 롤백되지
+ * 않는다 - {@link #tearDown()}에서 직접 지운다. {@code @Transactional}은 MySQL 쪽
+ * 픽스처(User/Hobby/Activity/ActivityRecord)만 롤백하기 위해 유지한다.
+ */
 @Transactional
 class NotificationServiceTest extends IntegrationTestSupport {
-
-    @Autowired
-    private NotificationService notificationService;
 
     @Autowired
     private UserRepository userRepository;
@@ -42,10 +51,13 @@ class NotificationServiceTest extends IntegrationTestSupport {
     private ActivityRecordRepository recordRepository;
 
     @Autowired
-    private NotificationRepository notificationRepository;
+    private NotificationDocumentRepository notificationDocumentRepository;
 
     @Autowired
-    private EntityManager em;
+    private MongoSequenceGeneratorService sequenceGeneratorService;
+
+    private Long recordId;
+    private final List<Long> createdNotificationIds = new java.util.ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -103,66 +115,51 @@ class NotificationServiceTest extends IntegrationTestSupport {
                 .imageUrl("기록 이미지 url")
                 .build();
         recordRepository.save(record);
+        recordId = record.getId();
 
-        // 알림 ReactionNotification
-        ReactionNotification reactionNotification1 =
-                ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, "알림 메세지1", RecordReactionType.AMAZING, record.getId(), record.getImageUrl());
-        ReactionNotification reactionNotification2 =
-                ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, "알림 메세지2", RecordReactionType.GREAT, record.getId(), record.getImageUrl());
-        ReactionNotification reactionNotification3 =
-                ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, "알림 메세지3", RecordReactionType.AWESOME, record.getId(), record.getImageUrl());
+        // 알림 3건 (전부 같은 기록을 가리킴)
+        saveReactionNotification(receiver, sender, "알림 메세지1", record.getImageUrl());
+        saveReactionNotification(receiver, sender, "알림 메세지2", record.getImageUrl());
+        saveReactionNotification(receiver, sender, "알림 메세지3", record.getImageUrl());
+    }
 
-        notificationRepository.save(reactionNotification1);
-        notificationRepository.save(reactionNotification2);
-        notificationRepository.save(reactionNotification3);
+    @AfterEach
+    void tearDown() {
+        createdNotificationIds.forEach(notificationDocumentRepository::deleteById);
+    }
+
+    private void saveReactionNotification(User receiver, User sender, String message, String imageUrl) {
+        long id = sequenceGeneratorService.generateSequence(NotificationDocument.SEQUENCE_NAME);
+        NotificationDocument document = NotificationDocument.create(
+                id, receiver.getId(), sender.getId(), sender.getProfileImageUrl(),
+                NotificationType.RECORD_REACTION, message, imageUrl,
+                Map.of("reactionType", "GREAT", "recordId", recordId));
+        notificationDocumentRepository.save(document);
+        createdNotificationIds.add(id);
     }
 
     @Test
     void 기록_이미지_업데이트시_notification_imageUrl_변경_확인() {
         // given
-        ActivityRecord record = recordRepository.findAll().get(0);
         String newImageUrl = "https://new-image-url.com/image.jpg";
 
         // when
-        notificationRepository.updateImageUrlByRecordId(record.getId(), newImageUrl);
-
-        em.flush();
-        em.clear();
+        notificationDocumentRepository.updateImageUrlByRecordId(recordId, newImageUrl);
 
         // then
-        var notifications = notificationRepository.findAll();
-
-        for (var notification : notifications) {
-            if (notification instanceof ReactionNotification) {
-                org.assertj.core.api.Assertions.assertThat(((ReactionNotification) notification).getImageUrl())
-                        .isEqualTo(newImageUrl);
-            }
-        }
+        List<NotificationDocument> notifications = notificationDocumentRepository.findAllById(createdNotificationIds);
+        assertThat(notifications).hasSize(3);
+        notifications.forEach(n -> assertThat(n.getImageUrl()).isEqualTo(newImageUrl));
     }
 
     @Test
     void 기록_삭제시_연관된_notification_imageUrl이_null로_변경되는지_확인() {
-        // given
-        ActivityRecord record = recordRepository.findAll().get(0);
-        Long recordId = record.getId();
-
         // when
-        notificationRepository.updateImageUrlByRecordId(recordId, null);
-
-        em.flush();
-        em.clear();
+        notificationDocumentRepository.updateImageUrlByRecordId(recordId, null);
 
         // then
-        var notifications = notificationRepository.findAll();
-
-        org.assertj.core.api.Assertions.assertThat(notifications).isNotEmpty();
-        for (var notification : notifications) {
-            if (notification instanceof ReactionNotification) {
-                org.assertj.core.api.Assertions.assertThat(((ReactionNotification) notification).getImageUrl())
-                        .isNull();
-            }
-        }
+        List<NotificationDocument> notifications = notificationDocumentRepository.findAllById(createdNotificationIds);
+        assertThat(notifications).hasSize(3);
+        notifications.forEach(n -> assertThat(n.getImageUrl()).isNull());
     }
-
-
 }

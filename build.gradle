@@ -48,6 +48,9 @@ dependencies {
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	testRuntimeOnly 'com.h2database:h2'
 
+	// MongoDB (이슈 #406~#408 - 알림/AI 이력 도메인 부분 도입)
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
 	// querydsl
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
 	annotationProcessor "com.querydsl:querydsl-apt:${dependencyManagement.importedProperties['querydsl.version']}:jakarta"

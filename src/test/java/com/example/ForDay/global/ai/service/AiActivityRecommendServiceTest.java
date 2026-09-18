@@ -5,11 +5,13 @@ import com.example.ForDay.domain.hobby.dto.response.FastAPIRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.document.AiCallLog;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -20,9 +22,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -36,13 +40,14 @@ class AiActivityRecommendServiceTest {
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
     @Mock private ActivityRecordRepository activityRecordRepository;
+    @Mock private AiCallLogService aiCallLogService;
     @Mock private User user;
     @Mock private Hobby hobby;
 
     private AiActivityRecommendService sut;
 
     private void givenHobbyAndChatClient() {
-        sut = new AiActivityRecommendService(chatClient, activityRecordRepository);
+        sut = new AiActivityRecommendService(chatClient, activityRecordRepository, aiCallLogService);
 
         given(user.getId()).willReturn(USER_ID);
         given(hobby.getId()).willReturn(HOBBY_ID);
@@ -76,6 +81,12 @@ class AiActivityRecommendServiceTest {
             FastAPIRecommendResDto result = sut.requestActivityRecommendAI(user, hobby);
 
             assertThat(result.getActivities()).hasSize(1);
+
+            ArgumentCaptor<AiCallLog> captor = ArgumentCaptor.forClass(AiCallLog.class);
+            verify(aiCallLogService).record(captor.capture());
+            assertThat(captor.getValue().isSuccess()).isTrue();
+            assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
+            assertThat(captor.getValue().getHobbyId()).isEqualTo(HOBBY_ID);
         }
     }
 
@@ -92,6 +103,7 @@ class AiActivityRecommendServiceTest {
 
             assertThatThrownBy(() -> sut.requestActivityRecommendAI(user, hobby))
                     .isInstanceOf(CustomException.class);
+            verify(aiCallLogService).record(any());
         }
 
         @Test
@@ -102,6 +114,7 @@ class AiActivityRecommendServiceTest {
 
             assertThatThrownBy(() -> sut.requestActivityRecommendAI(user, hobby))
                     .isInstanceOf(CustomException.class);
+            verify(aiCallLogService).record(any());
         }
     }
 }
