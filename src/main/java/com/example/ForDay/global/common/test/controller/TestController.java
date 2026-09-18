@@ -39,7 +39,7 @@ public class TestController {
     )
     @GetMapping("/health_check")
     public TestResponseDto healthCheck() {
-        return new TestResponseDto("테스트에 성공하였습니다~~!!", serverPort, serverEnv, serverName);
+        return new TestResponseDto("테스트에 성공하였습니다~~!!!!!!!!!", serverPort, serverEnv, serverName);
     }
 
     @GetMapping("/auth/check")
