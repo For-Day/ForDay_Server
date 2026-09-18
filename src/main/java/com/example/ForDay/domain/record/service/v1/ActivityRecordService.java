@@ -5,7 +5,7 @@ import com.example.ForDay.domain.activity.utils.ActivityUtil;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.notification.repository.NotificationRepository;
+import com.example.ForDay.domain.notification.repository.NotificationDocumentRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.repository.ActivityRecordReactionRepository;
 import com.example.ForDay.domain.recent.service.RecentRedisService;
@@ -64,7 +64,7 @@ public class ActivityRecordService {
     private final TodayRecordRedisService todayRecordRedisService;
     private final StickerInfoCacheService stickerInfoCacheService;
     private final NotificationService notificationService;
-    private final NotificationRepository notificationRepository;
+    private final NotificationDocumentRepository notificationDocumentRepository;
     private final RecordCacheService recordCacheService;
 
     // 이제 사용 x
@@ -151,7 +151,7 @@ public class ActivityRecordService {
             record.getHobby().deleteRecord();
             todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), record.getHobby().getId());
             activityRecordRepository.delete(record);
-            notificationRepository.updateImageUrlByRecordId(record.getId(), null);
+            notificationDocumentRepository.updateImageUrlByRecordId(record.getId(), null);
         } else {
             record.deleteRecord();
         }
@@ -219,7 +219,7 @@ public class ActivityRecordService {
         }
         imageLifecyclePort.validateExists(newImageUrl);
         imageLifecyclePort.deleteAfterCommit(oldImageUrl);
-        notificationRepository.updateImageUrlByRecordId(recordId, newImageUrl);
+        notificationDocumentRepository.updateImageUrlByRecordId(recordId, newImageUrl);
     }
 
     private RecordUpdateCommand toUpdateCommand(UpdateActivityRecordReqDto reqDto) {
