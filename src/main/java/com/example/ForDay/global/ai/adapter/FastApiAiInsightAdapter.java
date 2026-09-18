@@ -2,11 +2,15 @@ package com.example.ForDay.global.ai.adapter;
 
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.global.ai.document.AiCallLog;
+import com.example.ForDay.global.ai.service.AiCallLogService;
+import com.example.ForDay.global.ai.type.AiCallType;
 import com.example.ForDay.global.port.AiInsightPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -65,26 +69,58 @@ public class FastApiAiInsightAdapter implements AiInsightPort {
 
     private final ChatClient chatClient;
     private final ActivityRecordRepository activityRecordRepository;
+    private final AiCallLogService aiCallLogService;
+
+    @Value("${ai.model}")
+    private String model;
+
+    @Value("${ai.temperature}")
+    private double temperature;
 
     @Override
     public String requestActivitySummary(String userId, Long hobbyId, String hobbyName) {
+        Map<String, Object> promptVariables = null;
         try {
             List<ActivityRecord> recentRecords = activityRecordRepository.findRecentByUserIdAndHobbyId(
                     userId, hobbyId, LocalDateTime.now().minusDays(RECENT_DAYS));
 
-            String prompt = USER_SUMMARY_PROMPT.render(Map.of(
+            promptVariables = Map.of(
                     "hobbyName", hobbyName,
                     "pastActivities", formatRecords(recentRecords)
-            ));
+            );
+            String prompt = USER_SUMMARY_PROMPT.render(promptVariables);
 
             String summary = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
 
-            return StringUtils.hasText(summary) ? summary.strip() : "";
+            boolean success = StringUtils.hasText(summary);
+            aiCallLogService.record(AiCallLog.builder()
+                    .userId(userId)
+                    .hobbyId(hobbyId)
+                    .callType(AiCallType.USER_SUMMARY)
+                    .model(model)
+                    .temperature(temperature)
+                    .prompt(promptVariables)
+                    .rawResponse(summary)
+                    .success(success)
+                    .errorCode(success ? null : "EMPTY_RESPONSE")
+                    .build());
+
+            return success ? summary.strip() : "";
         } catch (Exception e) {
             log.error("AI 요약 요청 실패 | userId: {}, hobbyId: {}, error: {}", userId, hobbyId, e.getMessage());
+            aiCallLogService.record(AiCallLog.builder()
+                    .userId(userId)
+                    .hobbyId(hobbyId)
+                    .callType(AiCallType.USER_SUMMARY)
+                    .model(model)
+                    .temperature(temperature)
+                    .prompt(promptVariables)
+                    .success(false)
+                    .errorCode(e.getClass().getSimpleName())
+                    .build());
         }
         return "";
     }
