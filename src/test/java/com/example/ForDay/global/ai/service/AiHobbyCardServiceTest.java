@@ -4,10 +4,13 @@ import com.example.ForDay.domain.activity.dto.response.FastAPIHobbyCardResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.record.dto.HobbyCardActivityStatDto;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.document.AiCallLog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -17,6 +20,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -35,14 +39,18 @@ class AiHobbyCardServiceTest {
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
     @Mock private ActivityRecordRepository activityRecordRepository;
+    @Mock private AiCallLogService aiCallLogService;
     @Mock private Hobby hobby;
+    @Mock private User user;
 
     private AiHobbyCardService sut;
 
     private void given공통() {
-        sut = new AiHobbyCardService(chatClient, activityRecordRepository);
+        sut = new AiHobbyCardService(chatClient, activityRecordRepository, aiCallLogService);
         given(hobby.getId()).willReturn(HOBBY_ID);
         given(hobby.getHobbyName()).willReturn("독서");
+        given(hobby.getUser()).willReturn(user);
+        given(user.getId()).willReturn("user-1");
     }
 
     @Nested
@@ -60,6 +68,7 @@ class AiHobbyCardServiceTest {
 
             assertThat(result.getContent()).isEqualTo("꾸준히 쌓아온 기록들이 멋진 결실을 맺었네요!");
             verify(chatClient, never()).prompt();
+            verify(aiCallLogService, never()).record(any());
         }
     }
 
@@ -84,6 +93,12 @@ class AiHobbyCardServiceTest {
             FastAPIHobbyCardResDto result = sut.requestHobbyCardContentAI(hobby);
 
             assertThat(result.getContent()).isEqualTo("주로 아침시간을 활용한 독서활동");
+
+            ArgumentCaptor<AiCallLog> captor = ArgumentCaptor.forClass(AiCallLog.class);
+            verify(aiCallLogService).record(captor.capture());
+            assertThat(captor.getValue().isSuccess()).isTrue();
+            assertThat(captor.getValue().getUserId()).isEqualTo("user-1");
+            assertThat(captor.getValue().getHobbyId()).isEqualTo(HOBBY_ID);
         }
     }
 }

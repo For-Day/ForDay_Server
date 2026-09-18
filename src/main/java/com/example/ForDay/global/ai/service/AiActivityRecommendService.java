@@ -4,11 +4,14 @@ import com.example.ForDay.domain.hobby.dto.response.FastAPIRecommendResDto;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
 import com.example.ForDay.domain.user.entity.User;
+import com.example.ForDay.global.ai.document.AiCallLog;
+import com.example.ForDay.global.ai.type.AiCallType;
 import com.example.ForDay.global.common.error.exception.CustomException;
 import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -88,25 +91,46 @@ public class AiActivityRecommendService {
 
     private final ChatClient chatClient;
     private final ActivityRecordRepository activityRecordRepository;
+    private final AiCallLogService aiCallLogService;
+
+    @Value("${ai.model}")
+    private String model;
+
+    @Value("${ai.temperature}")
+    private double temperature;
 
     public FastAPIRecommendResDto requestActivityRecommendAI(User user, Hobby hobby) {
         String pastActivitiesText = buildPastActivitiesText(user, hobby);
 
-        String prompt = ACTIVITY_RECOMMEND_PROMPT.render(Map.of(
+        Map<String, Object> promptVariables = Map.of(
                 "hobbyName", hobby.getHobbyName(),
                 "hobbyPurpose", hobby.getHobbyPurpose(),
                 "hobbyTimeMinutes", hobby.getHobbyTimeMinutes(),
                 "executionCount", hobby.getExecutionCount(),
                 "goalDays", hobby.getGoalDays() != null ? hobby.getGoalDays() : 0,
                 "pastActivities", pastActivitiesText
-        ));
+        );
+        String prompt = ACTIVITY_RECOMMEND_PROMPT.render(promptVariables);
 
         FastAPIRecommendResDto response = chatClient.prompt()
                 .user(prompt)
                 .call()
                 .entity(FastAPIRecommendResDto.class);
 
-        if (response == null || response.getActivities() == null || response.getActivities().isEmpty()) {
+        boolean success = response != null && response.getActivities() != null && !response.getActivities().isEmpty();
+        aiCallLogService.record(AiCallLog.builder()
+                .userId(user.getId())
+                .hobbyId(hobby.getId())
+                .callType(AiCallType.ACTIVITY_RECOMMEND)
+                .model(model)
+                .temperature(temperature)
+                .prompt(promptVariables)
+                .rawResponse(response)
+                .success(success)
+                .errorCode(success ? null : ErrorCode.AI_RESPONSE_INVALID.name())
+                .build());
+
+        if (!success) {
             throw new CustomException(ErrorCode.AI_RESPONSE_INVALID);
         }
         return response;

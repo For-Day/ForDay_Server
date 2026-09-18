@@ -46,6 +46,13 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+    # host/port/database를 분리한다(uri 대신). k8s에서는 자격증명(username/password)이
+    # ExternalSecret에서 별도로 오므로 하나의 uri 문자열로 합쳐 넣을 수 없다 - prod쪽
+    # 설정(application-prod.yml)과 형태를 맞춘다. 로컬은 인증 없는 MongoDB를 가정한다.
+    mongodb:
+      host: ${MONGO_HOST:localhost}
+      port: ${MONGO_PORT:27017}
+      database: ${MONGO_DATABASE:forday}
 
   jwt:
     secret: ${JWT_SECRET:local-only-dev-jwt-secret-do-not-use-in-prod-0000000000}
