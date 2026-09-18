@@ -24,6 +24,13 @@ spring:
       # 테스트는 전용 DB를 쓴다. IntegrationTestSupport가 매 테스트 전에 flushDb를
       # 호출하므로, 개발용 데이터가 들어 있는 0번과 반드시 분리해야 한다.
       database: 1
+    mongodb:
+      # MongoClient는 지연 연결이라 CI에 실제 Mongo가 없어도 컨텍스트 기동에는
+      # 영향이 없다(RabbitMQ와 동일한 이유). AI/알림 서비스 테스트는 Repository를
+      # 목으로 교체하므로 실제 접속이 필요한 테스트는 없다.
+      host: localhost
+      port: 27017
+      database: forday_test
 
   jwt:
     secret: test-secret
@@ -93,6 +100,11 @@ management:
   # RabbitMQ 상태가 health에 그대로 반영된다.
   health:
     rabbit:
+      enabled: false
+    # RabbitMQ와 같은 이유 - CI에는 실제 MongoDB가 없어 MongoHealthIndicator가
+    # health를 DOWN으로 만든다(ActuatorEndpointAccessTest가 /actuator/health에 200을
+    # 기대함).
+    mongo:
       enabled: false
 
 server:
