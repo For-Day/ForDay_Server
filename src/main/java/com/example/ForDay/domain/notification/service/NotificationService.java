@@ -6,11 +6,8 @@ import com.example.ForDay.domain.notification.dto.response.GetNotificationListRe
 import com.example.ForDay.domain.notification.dto.response.GetPushNotificationToggleResDto;
 import com.example.ForDay.domain.notification.dto.response.SendPushMessageResDto;
 import com.example.ForDay.domain.notification.dto.response.UpdatePushNotificationToggleResDto;
-import com.example.ForDay.domain.notification.entity.Notification;
 import com.example.ForDay.domain.notification.entity.NotificationOutbox;
-import com.example.ForDay.domain.notification.entity.ReactionNotification;
 import com.example.ForDay.domain.notification.repository.NotificationOutboxRepository;
-import com.example.ForDay.domain.notification.repository.NotificationRepository;
 import com.example.ForDay.domain.notification.type.NotificationFilterType;
 import com.example.ForDay.domain.notification.type.NotificationType;
 import com.example.ForDay.domain.notification.utils.NotificationMessageGenerator;
@@ -31,18 +28,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
-    private final NotificationRepository notificationRepository;
+    private final NotificationDocumentService notificationDocumentService;
     private final NotificationOutboxRepository notificationOutboxRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final ObjectMapper objectMapper;
@@ -61,7 +58,7 @@ public class NotificationService {
         if (!currentUser.isRecordPushEnabled()) {
             return GetNotificationListResDto.notPushEnabled();
         }
-        return notificationRepository.getNotificationList(filterType, lastNotificationId, pageSize, currentUser);
+        return notificationDocumentService.getNotificationList(filterType, lastNotificationId, pageSize, currentUser);
     }
 
     @Transactional
@@ -87,21 +84,41 @@ public class NotificationService {
     }
 
     /**
-     * 알림 저장과 "발행해야 한다"는 사실을 같은 트랜잭션 안에서 원자적으로 커밋한다
-     * (Outbox 패턴). 예전에는 저장 후 {@code AFTER_COMMIT} 이벤트로 RabbitMQ를 직접
-     * 호출했는데, 그 방식은 (1) 발행이 실패하면 재시도 없이 유실되고 (2) 발행 중 예외가
-     * 트랜잭션 밖으로 전파돼 DB에는 이미 커밋된 리액션이 클라이언트에는 500으로 보이는
-     * 문제가 있었다. 실제 발행은 {@link NotificationOutboxRelay}가 별도로 맡는다.
+     * 알림 저장(MongoDB)과 "발행해야 한다"는 사실(MySQL Outbox)을 서로 다른 저장소에
+     * 나눠 기록한다(이슈 #406/#408). Outbox는 신뢰성이 가장 중요해 트랜잭션이 보장되는
+     * MySQL에 그대로 두고, 알림 본문만 스키마가 유연한 MongoDB로 옮겼다.
+     *
+     * <p>MongoDB(standalone, 복제셋 아님)는 다중 문서 트랜잭션을 지원하지 않고, 이 메서드
+     * 자체도 호출자({@code ReactionService#reactToRecord})의 MySQL {@code @Transactional}
+     * 안에서 실행될 뿐 Mongo 쓰기와 하나의 트랜잭션으로 묶이지는 않는다. 그래서 쓰기 순서로
+     * 정합성을 최대한 맞춘다 - 알림 문서를 Outbox보다 먼저 저장하고, 실패하면 예외를 던져
+     * 감싸고 있는 MySQL 트랜잭션(리액션 + Outbox)을 롤백시킨다. 반대 방향(Mongo 저장 성공
+     * 후 MySQL이 롤백되는 경우)의 고아 문서는 이번 마이그레이션 범위에서 허용하기로 했다
+     * (이슈 #408 "범위 밖" 참고).
+     *
+     * <p>예전에는 저장 후 {@code AFTER_COMMIT} 이벤트로 RabbitMQ를 직접 호출했는데, 그
+     * 방식은 (1) 발행이 실패하면 재시도 없이 유실되고 (2) 발행 중 예외가 트랜잭션 밖으로
+     * 전파돼 DB에는 이미 커밋된 리액션이 클라이언트에는 500으로 보이는 문제가 있었다.
+     * 실제 발행은 {@link NotificationOutboxRelay}가 별도로 맡는다.
      * 배경: {@code docs/adr/0002-notification-publish-after-commit.md}
      */
     public void processReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
         String notificationContent = NotificationMessageGenerator.generateReactionContent(sender.getNickname(), reactionType.getDescription()); // notification 내용
         String pushReactionBody = NotificationMessageGenerator.generatePushReactionBody(receiver.getNickname(), reactionType.getDescription()); // 푸시 알림 body 내용
 
-        ReactionNotification savedNotification =
-                notificationRepository.save(
-                        ReactionNotification.create(receiver, sender, NotificationType.RECORD_REACTION, notificationContent, reactionType, recordId, imageUrl)
-                );
+        Map<String, Object> payload = Map.of(
+                "reactionType", reactionType.name(),
+                "recordId", recordId
+        );
+
+        Long notificationId;
+        try {
+            notificationId = notificationDocumentService.save(
+                    receiver.getId(), sender.getId(), sender.getProfileImageUrl(),
+                    NotificationType.RECORD_REACTION, notificationContent, imageUrl, payload);
+        } catch (Exception e) {
+            throw new IllegalStateException("알림 저장 실패", e);
+        }
 
         List<String> tokens = findActiveRecordDeviceToken(receiver);
 
@@ -111,9 +128,9 @@ public class NotificationService {
                     tokens,
                     sender.getNickname(),
                     pushReactionBody,
-                    NotificationMessageGenerator.createDataForReaction(recordId, savedNotification.getId())
+                    NotificationMessageGenerator.createDataForReaction(recordId, notificationId)
             );
-            notificationOutboxRepository.save(NotificationOutbox.pending(savedNotification.getId(), toJson(event)));
+            notificationOutboxRepository.save(NotificationOutbox.pending(notificationId, toJson(event)));
         }
     }
 
@@ -195,15 +212,15 @@ public class NotificationService {
         return Objects.equals(pushEnabled, active);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // MongoDB(standalone)는 트랜잭션을 지원하지 않아 @Transactional(REQUIRES_NEW)를 더는
+    // 붙이지 않는다 - 붙여도 이 메서드 안에서는 JPA 리소스를 건드리지 않으므로 아무 의미가
+    // 없고, 단일 문서 findById+save는 그 자체로 원자적이라 트랜잭션이 필요하지 않다.
     public void markAsReadIfUnread(Long notificationId) {
         log.info("읽음 표시 시작");
-        if (notificationId != null) {
-            notificationRepository.findById(notificationId).ifPresent(Notification::markAsRead);
-        }
+        notificationDocumentService.markAsReadIfUnread(notificationId);
     }
 
     public boolean unreadNotificationExists(User user) {
-        return notificationRepository.existsByReceiverIdAndIsReadFalse(user.getId());
+        return notificationDocumentService.unreadNotificationExists(user.getId());
     }
 }
