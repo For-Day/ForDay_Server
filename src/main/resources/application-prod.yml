@@ -66,6 +66,7 @@ spring:
       database: ${MONGO_DATABASE:forday}
       username: ${MONGO_USERNAME}
       password: ${MONGO_PASSWORD}
+      auto-index-creation: true
 
   jwt:
     secret: ${JWT_SECRET}

@@ -25,12 +25,15 @@ spring:
       # 호출하므로, 개발용 데이터가 들어 있는 0번과 반드시 분리해야 한다.
       database: 1
     mongodb:
-      # MongoClient는 지연 연결이라 CI에 실제 Mongo가 없어도 컨텍스트 기동에는
-      # 영향이 없다(RabbitMQ와 동일한 이유). AI/알림 서비스 테스트는 Repository를
-      # 목으로 교체하므로 실제 접속이 필요한 테스트는 없다.
+      # AiCallLogServiceTest 등 순수 단위 테스트는 Repository를 목으로 교체해 실제
+      # 접속이 필요 없지만(MongoClient는 지연 연결이라 컨텍스트 기동 자체는 Mongo 없이도
+      # 가능 - RabbitMQ와 동일한 이유), NotificationServiceTest/
+      # NotificationTransactionalPublishTest는 @SpringBootTest로 실제 MongoDB에 쓰기
+      # 때문에 Redis와 마찬가지로 로컬/CI에 실제 MongoDB(27017)가 떠 있어야 한다.
       host: localhost
       port: 27017
       database: forday_test
+      auto-index-creation: true
 
   jwt:
     secret: test-secret

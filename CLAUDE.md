@@ -17,7 +17,7 @@ ForDay (`ForDay_Server`) — 취미 습관 앱("66일 동안 취미 채우기")�
 ./gradlew test --tests "*.HobbyServiceV2Test*MyHobbySettingDeletableTest"  # 단일 @Nested 클래스
 ```
 
-로컬 실행에는 MySQL(3306의 `forday` DB)과 Redis(6379)가 필요하다. RabbitMQ와 FCM 푸시는 해당 기능을 실제로 호출할 때만 사용된다. 테스트는 `@ActiveProfiles("test")`로 H2 인메모리(`src/test/resources/application-test.yml`)를 쓰지만, `@SpringBootTest` 테스트는 여전히 **실제 로컬 Redis에 접속**하므로 Redis 없이는 통합 테스트가 실패한다. QueryDSL Q클래스는 애노테이션 프로세서가 생성하므로, `@Entity`를 수정한 뒤에는 새 `Q*` 필드를 참조하기 전에 빌드를 다시 해야 한다.
+로컬 실행에는 MySQL(3306의 `forday` DB), Redis(6379), MongoDB(27017)가 필요하다(알림/AI 이력 도메인이 MongoDB로 옮겨간 이슈 #406~#408 이후). RabbitMQ와 FCM 푸시는 해당 기능을 실제로 호출할 때만 사용된다. 테스트는 `@ActiveProfiles("test")`로 H2 인메모리(`src/test/resources/application-test.yml`)를 쓰지만, `@SpringBootTest` 테스트는 여전히 **실제 로컬 Redis/MongoDB에 접속**하므로 (`NotificationServiceTest` 등 알림 관련 테스트는 MongoDB, 그 외 다수는 Redis) 둘 다 없이는 통합 테스트가 실패한다. QueryDSL Q클래스는 애노테이션 프로세서가 생성하므로, `@Entity`를 수정한 뒤에는 새 `Q*` 필드를 참조하기 전에 빌드를 다시 해야 한다.
 
 `@Profile("local")`인 `DataInitializer` / `NotificationDataInitializer` / `ReactionInitializer`가 `ApplicationReadyEvent` 시점에 더미 데이터를 넣는다. `local` 외의 프로파일에서는 절대 실행되지 않는다.
 
@@ -65,7 +65,7 @@ Spring Data JPA + QueryDSL. 복잡한 조회는 `XxxRepository` / `XxxRepository
 
 ### 알림
 
-인앱 알림 저장(`Notification`)과 푸시 발송(RabbitMQ → FCM)이 분리되어 있고, 그 사이를 **Outbox 패턴**으로 잇는다. `NotificationService#processReactionNotification`이 `Notification`과 `NotificationOutbox`(발행 대기 행)를 같은 트랜잭션 안에서 함께 커밋하고, 별도의 `NotificationOutboxRelay`(`@Scheduled(fixedDelay = 1000)`)가 PENDING 행을 읽어 RabbitMQ 토픽 익스체인지(`notification.exchange`)로 발행한다 → `NotificationConsumer`가 기기 토큰별로 FCM을 발송하며, 개별 토큰 실패는 로그만 남기고 계속 진행한다. 발행이 실패하면 outbox 행은 PENDING으로 남아 다음 주기에 재시도되고, 최초 실패·복구 시 Discord 웹훅으로 운영 알림이 간다(`DiscordAlertPort`). 배경과 대안 비교: `docs/adr/0002-notification-publish-after-commit.md`. 트랜잭션 서비스 메서드 안에서 FCM을 직접 발송하지 말 것(ArchUnit S5로 강제됨, `docs/architecture-rules.md`).
+인앱 알림 본문(`NotificationDocument`, MongoDB `notifications` 컬렉션)과 푸시 발송(RabbitMQ → FCM) 사이를 **Outbox 패턴**으로 잇는다(이슈 #406/#408). `NotificationService#processReactionNotification`이 알림 문서를 MongoDB에 먼저 저장하고, 성공하면 `NotificationOutbox`(발행 대기 행, MySQL)를 저장한다 — MongoDB(standalone, 복제셋 아님)는 다중 문서 트랜잭션이 없어 두 저장을 하나의 트랜잭션으로 묶을 수 없으므로, Mongo 저장 실패 시 예외를 던져 감싸고 있는 리액션 트랜잭션(Outbox 포함)을 롤백시키는 방식으로 정합성을 최대한 맞춘다(반대 방향 - Mongo 성공 후 MySQL 롤백되는 고아 문서는 허용). 알림 ID는 Mongo 기본 ObjectId가 아니라 `MongoSequenceGeneratorService`(counters 컬렉션 기반 auto-increment 대체 패턴)가 발급한 Long 값이다 - 기존 앱이 `notificationId`를 숫자로 다루는 API 계약을 유지하기 위함. 이후 별도의 `NotificationOutboxRelay`(`@Scheduled(fixedDelay = 1000)`)가 PENDING 행을 읽어 RabbitMQ 토픽 익스체인지(`notification.exchange`)로 발행한다 → `NotificationConsumer`가 기기 토큰별로 FCM을 발송하며, 개별 토큰 실패는 로그만 남기고 계속 진행한다. 발행이 실패하면 outbox 행은 PENDING으로 남아 다음 주기에 재시도되고, 최초 실패·복구 시 Discord 웹훅으로 운영 알림이 간다(`DiscordAlertPort`). 배경과 대안 비교: `docs/adr/0002-notification-publish-after-commit.md`. 트랜잭션 서비스 메서드 안에서 FCM을 직접 발송하지 말 것(ArchUnit S5로 강제됨, `docs/architecture-rules.md`). 옛 JPA 기반(`Notification`/`ReactionNotification`/`CommentNotification`/`NotificationRepository`, SINGLE_TABLE 상속)은 신규 쓰기가 전부 끊겼지만 롤백 대비용으로 코드는 남겨뒀다 - 새로 작성하는 코드에서 참조하지 말 것.
 
 ### AI
 

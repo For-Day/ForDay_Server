@@ -13,8 +13,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # @SpringBootTest는 application-test.yml의 localhost:6379에 실제로 접속한다.
-    # DB는 H2 인메모리, RabbitMQ는 연결 실패해도 컨텍스트가 뜨므로 Redis만 띄운다.
+    # @SpringBootTest는 application-test.yml의 localhost:6379/27017에 실제로 접속한다.
+    # DB는 H2 인메모리, RabbitMQ는 연결 실패해도 컨텍스트가 뜨므로 Redis/MongoDB만 띄운다
+    # (알림 도메인이 MongoDB로 옮겨간 이슈 #408 이후로 MongoDB도 필요해졌다).
     services:
       redis:
         image: redis:7-alpine
@@ -22,6 +23,15 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping:1})'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
