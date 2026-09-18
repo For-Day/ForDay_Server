@@ -2,10 +2,13 @@ package com.example.ForDay.global.ai.adapter;
 
 import com.example.ForDay.domain.record.entity.ActivityRecord;
 import com.example.ForDay.domain.record.repository.ActivityRecordRepository;
+import com.example.ForDay.global.ai.document.AiCallLog;
+import com.example.ForDay.global.ai.service.AiCallLogService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -20,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -34,12 +38,13 @@ class FastApiAiInsightAdapterTest {
     @Mock private ChatClient.ChatClientRequestSpec requestSpec;
     @Mock private ChatClient.CallResponseSpec callResponseSpec;
     @Mock private ActivityRecordRepository activityRecordRepository;
+    @Mock private AiCallLogService aiCallLogService;
     @Mock private ActivityRecord activityRecord;
 
     private FastApiAiInsightAdapter sut;
 
     private void givenChatClient() {
-        sut = new FastApiAiInsightAdapter(chatClient, activityRecordRepository);
+        sut = new FastApiAiInsightAdapter(chatClient, activityRecordRepository, aiCallLogService);
 
         given(chatClient.prompt()).willReturn(requestSpec);
         given(requestSpec.user(anyString())).willReturn(requestSpec);
@@ -63,6 +68,12 @@ class FastApiAiInsightAdapterTest {
             String result = sut.requestActivitySummary(USER_ID, HOBBY_ID, HOBBY_NAME);
 
             assertThat(result).isEqualTo("주로 아침시간에 독서활동을 하셨네요!");
+
+            ArgumentCaptor<AiCallLog> captor = ArgumentCaptor.forClass(AiCallLog.class);
+            verify(aiCallLogService).record(captor.capture());
+            assertThat(captor.getValue().isSuccess()).isTrue();
+            assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
+            assertThat(captor.getValue().getHobbyId()).isEqualTo(HOBBY_ID);
         }
     }
 
@@ -81,6 +92,11 @@ class FastApiAiInsightAdapterTest {
             String result = sut.requestActivitySummary(USER_ID, HOBBY_ID, HOBBY_NAME);
 
             assertThat(result).isEmpty();
+
+            ArgumentCaptor<AiCallLog> captor = ArgumentCaptor.forClass(AiCallLog.class);
+            verify(aiCallLogService).record(captor.capture());
+            assertThat(captor.getValue().isSuccess()).isFalse();
+            assertThat(captor.getValue().getErrorCode()).isEqualTo("RuntimeException");
         }
     }
 }

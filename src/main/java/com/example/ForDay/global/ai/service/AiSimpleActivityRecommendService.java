@@ -2,10 +2,14 @@ package com.example.ForDay.global.ai.service;
 
 import com.example.ForDay.domain.hobby.dto.request.SimpleActivityRecommendReqDto;
 import com.example.ForDay.domain.hobby.dto.response.FastAPIRecommendResDto;
+import com.example.ForDay.global.ai.document.AiCallLog;
+import com.example.ForDay.global.ai.type.AiCallType;
+import com.example.ForDay.global.common.error.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -79,18 +83,39 @@ public class AiSimpleActivityRecommendService {
             """);
 
     private final ChatClient chatClient;
+    private final AiCallLogService aiCallLogService;
+
+    @Value("${ai.model}")
+    private String model;
 
     public FastAPIRecommendResDto requestSimpleActivityRecommendAI(SimpleActivityRecommendReqDto reqDto) {
-        String prompt = SIMPLE_ACTIVITY_RECOMMEND_PROMPT.render(Map.of(
+        Map<String, Object> promptVariables = Map.of(
                 "hobbyName", reqDto.getHobbyName(),
                 "hobbyPurpose", reqDto.getHobbyPurpose(),
                 "hobbyTimeMinutes", reqDto.getHobbyTimeMinutes()
-        ));
+        );
+        String prompt = SIMPLE_ACTIVITY_RECOMMEND_PROMPT.render(promptVariables);
 
-        return chatClient.prompt()
+        FastAPIRecommendResDto response = chatClient.prompt()
                 .options(OpenAiChatOptions.builder().temperature(TEMPERATURE).build())
                 .user(prompt)
                 .call()
                 .entity(FastAPIRecommendResDto.class);
+
+        // userId/hobbyId가 없다 - 취미 생성 전 상태 없는(stateless) 호출이라
+        // 이 시점엔 둘 다 존재하지 않는다(클래스 Javadoc 참고). 성공/실패 판정만
+        // 남기고, 예외를 던질지는 호출부(SimpleActivityRecommendService)가 결정한다.
+        boolean success = response != null && response.getActivities() != null && !response.getActivities().isEmpty();
+        aiCallLogService.record(AiCallLog.builder()
+                .callType(AiCallType.SIMPLE_RECOMMEND)
+                .model(model)
+                .temperature(TEMPERATURE)
+                .prompt(promptVariables)
+                .rawResponse(response)
+                .success(success)
+                .errorCode(success ? null : ErrorCode.AI_RESPONSE_INVALID.name())
+                .build());
+
+        return response;
     }
 }
