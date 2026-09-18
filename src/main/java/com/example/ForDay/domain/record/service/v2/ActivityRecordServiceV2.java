@@ -5,7 +5,7 @@ import com.example.ForDay.domain.activity.repository.ActivityRepository;
 import com.example.ForDay.domain.hobby.entity.Hobby;
 import com.example.ForDay.domain.hobby.repository.HobbyRepository;
 import com.example.ForDay.domain.hobby.type.HobbyStatus;
-import com.example.ForDay.domain.notification.repository.NotificationRepository;
+import com.example.ForDay.domain.notification.repository.NotificationDocumentRepository;
 import com.example.ForDay.domain.notification.service.NotificationService;
 import com.example.ForDay.domain.reaction.service.ReactionRedisLockService;
 import com.example.ForDay.domain.record.repository.ActivityRecordReportRepository;
@@ -70,7 +70,7 @@ public class ActivityRecordServiceV2 {
     private final HobbyRepository hobbyRepository;
     private final ActivityRepository activityRepository;
     private final RecordImageRepository recordImageRepository;
-    private final NotificationRepository notificationRepository;
+    private final NotificationDocumentRepository notificationDocumentRepository;
     private final StickerInfoCacheService stickerInfoCacheService;
     private final RecordCacheService recordCacheService;
     private final ActivityRecordReportRepository activityRecordReportRepository;
@@ -201,7 +201,7 @@ public class ActivityRecordServiceV2 {
         recordImageRepository.saveAll(newImages);
 
         String newThumbnailUrl = newImages.isEmpty() ? null : newImages.get(0).getImageUrl();
-        notificationRepository.updateImageUrlByRecordId(recordId, newThumbnailUrl);
+        notificationDocumentRepository.updateImageUrlByRecordId(recordId, newThumbnailUrl);
 
         stickerInfoCacheService.evictRecordCache(record.getHobby().getId(), currentUser.getId());
         recordCacheService.evictRecordCache(record.getId());
@@ -239,7 +239,7 @@ public class ActivityRecordServiceV2 {
             record.getHobby().deleteRecord();
             todayRecordRedisService.deleteTodayRecordKey(currentUser.getId(), record.getHobby().getId());
             activityRecordRepository.delete(record);
-            notificationRepository.updateImageUrlByRecordId(recordId, null);
+            notificationDocumentRepository.updateImageUrlByRecordId(recordId, null);
         } else {
             recordImageRepository.deleteAll(recordImages);
             record.deleteRecord();

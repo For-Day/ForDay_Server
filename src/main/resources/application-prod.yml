@@ -53,9 +53,20 @@ spring:
       ddl-auto: update
     show-sql: false
 
-  # redis host/port는 여기 두지 않는다. deploy.yml의 docker run이 이미
-  # -e SPRING_DATA_REDIS_HOST=redis -e SPRING_DATA_REDIS_PORT=6379 로 직접 주입한다
-  # (forday-net 도커 네트워크 안의 redis 컨테이너를 가리키는 값이라 시크릿이 아니다).
+  # redis host/port는 여기 두지 않는다. k8s 매니페스트(ForDay_GitOps)가 이미
+  # SPRING_DATA_REDIS_HOST/PORT를 클러스터 서비스 이름으로 직접 주입한다
+  # (forday-data 네임스페이스 안의 redis 서비스를 가리키는 값이라 시크릿이 아니다).
+
+  data:
+    mongodb:
+      # host/database는 비민감정보라 ForDay_GitOps 차트의 ConfigMap성 env로 주입되고,
+      # username/password만 AWS Secrets Manager(forday/prod/mongodb)에서 온다.
+      host: ${MONGO_HOST}
+      port: ${MONGO_PORT:27017}
+      database: ${MONGO_DATABASE:forday}
+      username: ${MONGO_USERNAME}
+      password: ${MONGO_PASSWORD}
+      auto-index-creation: true
 
   jwt:
     secret: ${JWT_SECRET}

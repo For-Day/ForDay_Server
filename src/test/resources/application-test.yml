@@ -24,6 +24,16 @@ spring:
       # 테스트는 전용 DB를 쓴다. IntegrationTestSupport가 매 테스트 전에 flushDb를
       # 호출하므로, 개발용 데이터가 들어 있는 0번과 반드시 분리해야 한다.
       database: 1
+    mongodb:
+      # AiCallLogServiceTest 등 순수 단위 테스트는 Repository를 목으로 교체해 실제
+      # 접속이 필요 없지만(MongoClient는 지연 연결이라 컨텍스트 기동 자체는 Mongo 없이도
+      # 가능 - RabbitMQ와 동일한 이유), NotificationServiceTest/
+      # NotificationTransactionalPublishTest는 @SpringBootTest로 실제 MongoDB에 쓰기
+      # 때문에 Redis와 마찬가지로 로컬/CI에 실제 MongoDB(27017)가 떠 있어야 한다.
+      host: localhost
+      port: 27017
+      database: forday_test
+      auto-index-creation: true
 
   jwt:
     secret: test-secret
@@ -93,6 +103,11 @@ management:
   # RabbitMQ 상태가 health에 그대로 반영된다.
   health:
     rabbit:
+      enabled: false
+    # RabbitMQ와 같은 이유 - CI에는 실제 MongoDB가 없어 MongoHealthIndicator가
+    # health를 DOWN으로 만든다(ActuatorEndpointAccessTest가 /actuator/health에 200을
+    # 기대함).
+    mongo:
       enabled: false
 
 server:
