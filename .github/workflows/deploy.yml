@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 테스트가 실제로 접속하는 Redis. 자세한 배경은 .github/workflows/test.yml 참고.
+    # 테스트가 실제로 접속하는 Redis/MongoDB. 자세한 배경은 .github/workflows/test.yml 참고.
     services:
       redis:
         image: redis:7-alpine
@@ -19,6 +19,15 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping:1})'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
