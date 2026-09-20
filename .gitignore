@@ -46,3 +46,6 @@ src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
 
 ### Claude Code ###
 .claude/settings.local.json
+
+### Docs (local-only, not tracked) ###
+/docs/
