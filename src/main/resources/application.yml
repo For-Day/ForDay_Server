@@ -71,6 +71,20 @@ spring:
           model: gpt-4o-mini
           temperature: 0.6
 
+# 로컬 측정용 지표 노출. application-prod.yml에도 management 블록이 있지만 그쪽은
+# blue/green 프로필에서만 로드되므로 로컬(기본 프로필)에는 actuator가 전혀 열리지 않았다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+  metrics:
+    distribution:
+      # prod쪽은 percentiles만 켜져 있는데, 그건 앱이 계산한 값이라 Prometheus에서
+      # histogram_quantile()로 집계할 수 없다. 버킷을 내보내야 Grafana가 p95를 그린다.
+      percentiles-histogram:
+        http.server.requests: true
+
 ai:
   provider: openai
   model: gpt-4o-mini

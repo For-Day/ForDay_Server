@@ -37,6 +37,12 @@ public class SecurityConfig {
                         // 제한돼 있어 다른 actuator 하위 경로는 애초에 존재하지 않는다.
                         .requestMatchers("/actuator/health", "/actuator/prometheus")
                         .permitAll()
+                        // 측정 결과 조회 경로. 이 아래 컨트롤러는 전부 @Profile("measure")로
+                        // 게이트돼 있어 local/blue/green에는 빈 자체가 없다(= 404). 부하 테스트
+                        // 중 브라우저로 바로 열어 수치를 확인·캡처하려고 인증을 뺀다.
+                        // 새 컨트롤러를 /measure 아래 둘 때는 반드시 같은 프로파일 가드를 붙일 것.
+                        .requestMatchers("/measure/**")
+                        .permitAll()
                         .requestMatchers(
                                 "/auth/kakao", "/auth/apple", "/auth/guest", "/auth/refresh")
                         .permitAll()

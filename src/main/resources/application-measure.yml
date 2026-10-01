@@ -1,0 +1,71 @@
+# measure 프로파일 전용 설정. 알림 파이프라인 4단계 측정에서만 쓴다.
+#
+# 실행: --spring.profiles.active=measure
+# (application.yml의 spring.profiles.default=local은 active를 주면 적용되지 않으므로
+#  local 프로필 설정은 켜지지 않는다. 단 application.yml 본문은 항상 로드되므로
+#  여기서 덮어써야 하는 값들이 아래에 있다.)
+
+spring:
+  rabbitmq:
+    listener:
+      simple:
+        # 4단계의 핵심 - 브로커를 두면 소비자를 늘려 발송 처리량을 확보할 수 있다.
+        # 3단계(아웃박스 단독)는 릴레이가 @Scheduled 단일 스레드라 외부 I/O를 직렬 처리해
+        # 초당 3.1건에서 막혔다. 여기서는 20개 컨슈머가 병렬로 FCM을 호출한다.
+        concurrency: 20
+        max-concurrency: 20
+  jpa:
+    # application.yml이 로컬 편의를 위해 켜둔 값. 초당 수백 건 구간에서 SQL을 전부
+    # 콘솔에 찍으면 동기 I/O가 병목이 되어, 측정 대상이 알림 경로가 아니라 로거가 된다.
+    show-sql: false
+
+server:
+  tomcat:
+    # 이게 꺼져 있으면 Micrometer가 tomcat_threads_busy_threads를 아예 내보내지 않는다
+    # (세션 지표만 나온다). 스레드 고갈이 이 실험의 핵심 증거인데 그래프가 빈 채로 남는다.
+    mbeanregistry:
+      enabled: true
+    threads:
+      # Spring Boot 기본값과 같은 값이다. 명시하는 이유는 측정 결과에 "스레드 200개 기준"
+      # 이라고 쓸 때 그 근거가 설정 파일에 남아 있어야 하기 때문 - 기본값에 기대면
+      # 버전이 바뀌었을 때 같은 수치가 재현되지 않는다.
+      max: 200
+
+management:
+  server:
+    # actuator를 별도 포트(= 별도 톰캣 커넥터 + 전용 스레드풀)로 뺀다.
+    #
+    # 1차 측정에서 부하 85초 내내 Prometheus 스크레이핑이 전부 실패했다(up=0). 8080 커넥터가
+    # 포화되면서 앱이 자기 지표 엔드포인트조차 응답하지 못했고, 그래서 정작 증거가 필요한
+    # 구간의 그래프가 통째로 비었다. 관측 대상과 관측 경로가 같은 자원을 쓰면 장애 순간에
+    # 관측이 먼저 죽는다.
+    #
+    # 측정 대상인 8080의 스레드풀(200)은 그대로다 - 관측 경로만 분리한 것이라 측정값 자체를
+    # 바꾸지 않는다.
+    port: 8081
+
+measure:
+  push:
+    # 측정 단계 전환 스위치. sync = 1단계(요청 스레드에서 FCM 호출),
+    # async = 2단계(@Async로 분리). 엔드포인트와 k6 스크립트는 그대로 두고 이 값만 바꾼다.
+    # 실행 중 덮어쓰려면: --measure.push.mode=async
+    mode: sync
+    # FCM 왕복 지연 대체값. 이 시간만큼 요청 스레드(1단계) 또는 워커 스레드(2~4단계)가
+    # 점유된다. 스레드 고갈 임계점이 이 값에 직접 좌우되므로, 측정 결과에 반드시 함께 기록한다.
+    latency-ms: 300
+  outbox:
+    # 3단계(direct) = 브로커 없이 릴레이가 직접 FCM 발송 / 4단계(rabbit) = RabbitMQ 경유.
+    target: rabbit
+    # 발송 성공 직후 예외를 던질 확률. 0이면 주입 없음. 중복 재현 실험에서만 올린다.
+    fail-after-dispatch-rate: 0
+  seed:
+    user-count: 200
+    record-count: 1000
+
+logging:
+  level:
+    # 알림 경로의 건별 INFO 로그를 끈다. 켜두면 요청 1건마다 파일/콘솔 I/O가 끼어
+    # 단계 간 비교가 오염된다(특히 1단계와 4단계의 로그 건수가 다르다).
+    com.example.ForDay.domain.notification: WARN
+    com.example.ForDay.global.measure: WARN
+    org.hibernate.SQL: WARN
