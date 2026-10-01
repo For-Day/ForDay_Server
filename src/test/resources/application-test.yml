@@ -13,6 +13,13 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
     show-sql: true
 
+  flyway:
+    # db/migration은 MySQL 전용 DDL(LONGTEXT, ALTER DATABASE ... COLLATE 등)이라
+    # H2에 적용할 수 없다. 단위/통합 테스트는 기존처럼 ddl-auto: create로 H2에
+    # 스키마를 만들어 빠르게 돌리고, 마이그레이션 자체의 검증은 실제 MySQL을 띄우는
+    # CI 잡(.github/workflows/test.yml)에서 따로 한다.
+    enabled: false
+
   h2:
     console:
       enabled: true

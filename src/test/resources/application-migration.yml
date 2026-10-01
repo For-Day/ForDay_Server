@@ -1,0 +1,32 @@
+# 마이그레이션 검증 전용 프로파일.
+#
+# application-test.yml(H2 + ddl-auto: create + Flyway 비활성)과 함께 활성화해서
+# 쓴다(@ActiveProfiles({"test", "migration"})). 뒤에 오는 프로파일이 이기므로
+# datasource와 flyway/jpa 설정만 여기서 덮고, 나머지 테스트 값은 test 프로파일에서
+# 그대로 가져온다.
+#
+# 왜 별도 프로파일인가: db/migration의 DDL은 MySQL 전용(LONGTEXT,
+# ALTER DATABASE ... COLLATE)이라 H2에 적용할 수 없다. 단위/통합 테스트는 H2로
+# 빠르게 돌리고, "마이그레이션이 실제 MySQL에 적용되는가 + 적용 결과가 엔티티와
+# 맞는가"만 실제 MySQL을 띄워 따로 검증한다.
+spring:
+  datasource:
+    # 기본값은 CI(test.yml의 migration job)가 띄우는 MySQL 서비스 컨테이너를 가리킨다.
+    # 로컬에서 3306이 이미 점유돼 있으면 MIGRATION_DB_PORT 등으로 덮어쓴다.
+    url: jdbc:mysql://${MIGRATION_DB_HOST:localhost}:${MIGRATION_DB_PORT:3306}/${MIGRATION_DB_NAME:forday}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MIGRATION_DB_USERNAME:root}
+    password: ${MIGRATION_DB_PASSWORD:root}
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      # Flyway가 만든 스키마와 엔티티가 어긋나면 컨텍스트 기동이 실패해야 한다.
+      # 이게 이 프로파일의 존재 이유다.
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1

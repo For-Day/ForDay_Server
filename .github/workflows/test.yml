@@ -16,6 +16,9 @@ jobs:
     # @SpringBootTest는 application-test.yml의 localhost:6379/27017에 실제로 접속한다.
     # DB는 H2 인메모리, RabbitMQ는 연결 실패해도 컨텍스트가 뜨므로 Redis/MongoDB만 띄운다
     # (알림 도메인이 MongoDB로 옮겨간 이슈 #408 이후로 MongoDB도 필요해졌다).
+    #
+    # db/migration의 마이그레이션 검증은 MySQL이 필요해서 아래 migration job으로
+    # 분리했다. 이 job은 기존처럼 H2로 빠르게 돌리고, 두 job은 병렬로 실행된다.
     services:
       redis:
         image: redis:7-alpine
@@ -67,4 +70,81 @@ jobs:
         with:
           name: test-report
           path: build/reports/tests/test
+          retention-days: 7
+
+  # db/migration이 실제 MySQL에 적용되는지, 적용 결과가 엔티티와 맞는지 검증한다.
+  #
+  # 왜 별도 job인가: 위 test job은 H2 인메모리로 돌아 MySQL 전용 DDL(LONGTEXT,
+  # ALTER DATABASE ... COLLATE)을 검증할 수 없다. 운영은 ddl-auto: none이라
+  # Hibernate가 스키마를 검증하지 않으므로, 엔티티와 스키마의 불일치를 잡는 곳이
+  # 여기뿐이다. 이 job이 실패하면 스키마가 어긋난 채 배포되는 것을 막는 장치가 없다.
+  migration:
+    runs-on: ubuntu-latest
+
+    services:
+      # 운영은 MySQL 8.0.37(bitnami, ForDay_GitOps apps/mysql.yaml)이다. 여기서는
+      # 공식 이미지의 8.0 계열을 쓴다 - DDL 동작은 같고 태그 관리가 단순하다.
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: forday
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      # MigrationVerificationTest는 @SpringBootTest라 전체 컨텍스트를 띄운다.
+      # test job과 같은 이유로 Redis/MongoDB가 필요하다.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      # FcmConfig가 이 JSON을 classpath에서 실제로 읽는다(test job과 동일).
+      - name: Create Firebase JSON
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json"
+          json: ${{ secrets.FIREBASE_JSON }}
+          dir: "src/main/resources/"
+
+      # application-migration.yml의 접속 정보 기본값이 localhost:3306/forday,
+      # root/root라 추가 환경변수 주입이 필요 없다.
+      - name: Run migration verification
+        run: |
+          chmod +x ./gradlew
+          ./gradlew migrationTest
+
+      - name: Upload migration test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-test-report
+          path: build/reports/tests/migrationTest
           retention-days: 7
