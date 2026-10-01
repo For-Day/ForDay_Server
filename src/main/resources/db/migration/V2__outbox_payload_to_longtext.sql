@@ -1,0 +1,28 @@
+-- notification_outbox.payload를 TINYTEXT에서 LONGTEXT로 바꾼다.
+--
+-- 왜 필요한가
+--   NotificationOutbox.payload는 @Lob String인데 length를 지정하지 않았다.
+--   Hibernate 6은 그 경우 기본 length(255)를 적용하고, MySQL에서는 그것이
+--   tinytext(상한 255바이트)로 생성된다. 실제 payload는 FCM 토큰과 landingUrl이
+--   들어가 약 399바이트라 INSERT가 "Data too long for column 'payload'"로
+--   100% 실패한다. 아웃박스 저장이 반응 트랜잭션 안에 있어 반응 API 자체가
+--   500을 반환한다. 부하 테스트에서 발견했다(docs/perf/notification-pipeline.md).
+--
+--   엔티티에 columnDefinition = "LONGTEXT"를 명시해도 기존 컬럼은 바뀌지 않는다.
+--   ddl-auto: update는 컬럼 추가만 하고 타입 변경은 하지 않기 때문이다. 그래서
+--   이 ALTER가 따로 필요하고, 바로 이것이 자동 DDL에 스키마를 맡길 수 없는 이유다.
+--
+-- 안전성
+--   적용 시점(2026-10-01) 운영 notification_outbox는 0행이었다. 컷오버(2026-09-17)
+--   이후 반응이 한 건도 없어 아웃박스 경로를 탄 적이 없기 때문이다. 타입 변경은
+--   ALGORITHM=COPY로 테이블을 재구축하지만 복사할 행이 없어 즉시 끝난다.
+--   행이 쌓인 뒤라면 락 범위와 소요를 다시 재야 한다.
+--
+-- 멱등성
+--   이미 LONGTEXT인 컬럼에 다시 실행해도 성공한다. 운영에 손으로 먼저 적용한 뒤
+--   Flyway를 baseline(V1)으로 붙이면 이 V2가 한 번 더 실행되는데, 그때 아무 일도
+--   일어나지 않는다.
+--
+-- NOT NULL을 유지한다. MODIFY는 컬럼 정의를 통째로 교체하므로 생략하면 nullable이 된다.
+
+ALTER TABLE notification_outbox MODIFY payload LONGTEXT NOT NULL;
