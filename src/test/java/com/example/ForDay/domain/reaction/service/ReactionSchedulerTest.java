@@ -128,7 +128,7 @@ class ReactionSchedulerTest {
             reactionScheduler.saveReactionsToDb();
 
             // THEN: 빈 배치에 대해 불필요한 DB/Redis 호출이 나가지 않는다
-            verify(recordReactionRepository, never()).saveAll(anyList());
+            verify(recordReactionRepository, never()).bulkInsert(anyList());
             verify(listOperations, never()).leftPop(anyString());
         }
 
@@ -142,11 +142,6 @@ class ReactionSchedulerTest {
             // 사전 중복 확인 결과 기존에 저장된 조합이 없는 상황
             given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
                     .willReturn(Collections.emptyList());
-
-            ActivityRecord activityRecord = ActivityRecord.builder().build();
-            User user = User.builder().build();
-            given(activityRecordRepository.getReferenceById(42L)).willReturn(activityRecord);
-            given(userRepository.getReferenceById("user-123")).willReturn(user);
             given(recordReactionCountRepository.increaseCountBy(42L, RecordReactionType.GREAT.toString(), 1L))
                     .willReturn(1);
 
@@ -154,13 +149,13 @@ class ReactionSchedulerTest {
             reactionScheduler.saveReactionsToDb();
 
             // THEN: split[0]=userId, split[1]=recordId 순서로 올바르게 파싱되어 저장됐는지 확인
-            ArgumentCaptor<List<ActivityRecordReaction>> captor = ArgumentCaptor.forClass(List.class);
-            verify(recordReactionRepository).saveAll(captor.capture());
-            List<ActivityRecordReaction> saved = captor.getValue();
+            ArgumentCaptor<List<ReactionKeyDto>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordReactionRepository).bulkInsert(captor.capture());
+            List<ReactionKeyDto> saved = captor.getValue();
             assertThat(saved).hasSize(1);
-            assertThat(saved.get(0).getActivityRecord()).isEqualTo(activityRecord);
-            assertThat(saved.get(0).getReactedUser()).isEqualTo(user);
-            assertThat(saved.get(0).getReactionType()).isEqualTo(RecordReactionType.GREAT);
+            assertThat(saved.get(0).recordId()).isEqualTo(42L);
+            assertThat(saved.get(0).userId()).isEqualTo("user-123");
+            assertThat(saved.get(0).type()).isEqualTo(RecordReactionType.GREAT);
 
             // THEN: DB 반영(저장+카운트)이 전부 끝난 뒤에만 처리한 건수(1건)만큼 processing 큐를 정리한다
             verify(listOperations, times(1)).leftPop(PROCESSING_QUEUE);
@@ -176,20 +171,17 @@ class ReactionSchedulerTest {
                     .willReturn(null);
             given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
                     .willReturn(List.of(new ReactionKeyDto(1L, "user-1", RecordReactionType.GREAT)));
-
-            given(activityRecordRepository.getReferenceById(2L)).willReturn(ActivityRecord.builder().build());
-            given(userRepository.getReferenceById("user-2")).willReturn(User.builder().build());
             given(recordReactionCountRepository.increaseCountBy(2L, RecordReactionType.AWESOME.toString(), 1L))
                     .willReturn(1);
 
             // WHEN
             reactionScheduler.saveReactionsToDb();
 
-            // THEN: 사전 중복으로 걸러진 (recordId=1) 건은 saveAll 대상에서 빠지고, 나머지 1건만 저장 시도된다
-            ArgumentCaptor<List<ActivityRecordReaction>> captor = ArgumentCaptor.forClass(List.class);
-            verify(recordReactionRepository).saveAll(captor.capture());
+            // THEN: 사전 중복으로 걸러진 (recordId=1) 건은 bulkInsert 대상에서 빠지고, 나머지 1건만 저장 시도된다
+            ArgumentCaptor<List<ReactionKeyDto>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordReactionRepository).bulkInsert(captor.capture());
             assertThat(captor.getValue()).hasSize(1);
-            assertThat(captor.getValue().get(0).getReactionType()).isEqualTo(RecordReactionType.AWESOME);
+            assertThat(captor.getValue().get(0).type()).isEqualTo(RecordReactionType.AWESOME);
 
             // THEN: 걸러진 건은 카운트도 증가하지 않는다
             verify(recordReactionCountRepository, never())
@@ -216,7 +208,7 @@ class ReactionSchedulerTest {
             given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
                     .willReturn(Collections.emptyList());
             willThrow(new DataIntegrityViolationException("duplicate"))
-                    .given(recordReactionRepository).saveAll(anyList());
+                    .given(recordReactionRepository).bulkInsert(anyList());
 
             // 건별 재시도에서는 첫 건(u1:1:GREAT)만 실제로 저장에 성공하고,
             // 두 번째 건(u2:2:AWESOME)은 그 사이 먼저 저장된 중복이라 스킵된다.
@@ -248,8 +240,6 @@ class ReactionSchedulerTest {
                     .willReturn(null);
             given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
                     .willReturn(Collections.emptyList());
-            given(activityRecordRepository.getReferenceById(1L)).willReturn(ActivityRecord.builder().build());
-            given(userRepository.getReferenceById(anyString())).willReturn(User.builder().build());
             given(recordReactionCountRepository.increaseCountBy(1L, RecordReactionType.GREAT.toString(), 3L))
                     .willReturn(1);
 
@@ -273,8 +263,6 @@ class ReactionSchedulerTest {
                     .willReturn(null);
             given(recordReactionRepository.findExistingKeysByRecordIds(anyCollection()))
                     .willReturn(Collections.emptyList());
-            given(activityRecordRepository.getReferenceById(1L)).willReturn(ActivityRecord.builder().build());
-            given(userRepository.getReferenceById(anyString())).willReturn(User.builder().build());
             given(recordReactionCountRepository.increaseCountBy(1L, RecordReactionType.AMAZING.toString(), 2L))
                     .willReturn(0);
 

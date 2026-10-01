@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.record.controller.v1;
 
 import com.example.ForDay.domain.reaction.service.QueueOnlyReactionMeasurementService;
+import com.example.ForDay.domain.reaction.service.ReactionAsyncMeasurementService;
 import com.example.ForDay.domain.reaction.service.ReactionService;
 import com.example.ForDay.domain.record.dto.request.ReactToRecordReqDto;
 import com.example.ForDay.domain.record.dto.response.ReactToRecordResDto;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestReactionMeasurementController {
     private final ReactionService reactionService;
     private final QueueOnlyReactionMeasurementService queueOnlyReactionMeasurementService;
+    private final ReactionAsyncMeasurementService reactionAsyncMeasurementService;
 
     /**
      * 동기 알림 발송({@link ReactionService#testReactToRecord})을 호출하기 위한 측정 전용
@@ -51,5 +53,16 @@ public class TestReactionMeasurementController {
                                                         @RequestBody ReactToRecordReqDto reqDto,
                                                         @AuthenticationPrincipal CustomUserDetails user) {
         return queueOnlyReactionMeasurementService.reactToRecordQueueOnly(recordId, reqDto.getReactionType(), user);
+    }
+
+    /**
+     * #375 4단계 재측정(멘토 피드백 반영판)의 2단계 - Spring {@code @Async}만 적용.
+     * {@link ReactionAsyncMeasurementService} 참고.
+     */
+    @PostMapping("/{recordId}/reaction/measure/async")
+    public ReactToRecordResDto reactToRecordAsync(@PathVariable(name = "recordId") Long recordId,
+                                                    @RequestBody ReactToRecordReqDto reqDto,
+                                                    @AuthenticationPrincipal CustomUserDetails user) {
+        return reactionAsyncMeasurementService.reactToRecordAsync(recordId, reqDto.getReactionType(), user);
     }
 }

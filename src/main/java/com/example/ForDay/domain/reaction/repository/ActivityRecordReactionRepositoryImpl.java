@@ -1,5 +1,6 @@
 package com.example.ForDay.domain.reaction.repository;
 
+import com.example.ForDay.domain.reaction.dto.ReactionKeyDto;
 import com.example.ForDay.domain.reaction.entity.ActivityRecordReaction;
 import com.example.ForDay.domain.reaction.entity.QActivityRecordReaction;
 import com.example.ForDay.domain.record.dto.response.GetRecordReactionUsersResDto;
@@ -14,7 +15,9 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +26,39 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ActivityRecordReactionRepositoryImpl implements ActivityRecordReactionRepositoryCustom {
     private final JPAQueryFactory queryFactory;
+    private final JdbcTemplate jdbcTemplate;
     private QActivityRecordReaction activityRecordReaction = QActivityRecordReaction.activityRecordReaction;
     private QUser user = QUser.user;
+
+    /**
+     * JdbcTemplate로 직접 다중 VALUES INSERT를 만든다 - JPA saveAll()/영속성 컨텍스트를
+     * 거치지 않으므로 엔티티를 만들 필요도, 1차 캐시에 올릴 필요도 없다(ReactionScheduler가
+     * 곧바로 버릴 데이터라 캐시할 이유가 없음). 유니크 제약 위반은 Spring이
+     * DataIntegrityViolationException으로 번역해주므로 ReactionScheduler의 기존
+     * catch 블록이 그대로 동작한다.
+     */
+    @Override
+    public void bulkInsert(List<ReactionKeyDto> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+
+        String valuesClause = String.join(", ",
+                Collections.nCopies(rows.size(), "(?, ?, ?, false, NOW(), NOW())"));
+        String sql = "INSERT INTO activity_record_reactions " +
+                "(activity_record_id, reacted_user_id, reaction_type, read_writer, created_at, updated_at) " +
+                "VALUES " + valuesClause;
+
+        Object[] args = new Object[rows.size() * 3];
+        int i = 0;
+        for (ReactionKeyDto row : rows) {
+            args[i++] = row.recordId();
+            args[i++] = row.userId();
+            args[i++] = row.type().name();
+        }
+
+        jdbcTemplate.update(sql, args);
+    }
 
     @Override
     public List<RecordReactionType> findAllMyReactions(Long activityRecordId, String currentUserId) {

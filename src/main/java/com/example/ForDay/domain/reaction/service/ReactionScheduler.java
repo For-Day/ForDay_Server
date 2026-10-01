@@ -99,20 +99,23 @@ public class ReactionScheduler {
         }
 
         // 실제로 DB에 반영된(=중복이 아니라 새로 저장된) 건만 카운트 반영 대상이 된다.
+        // saveAll()은 JDBC 배치 설정이 없으면 건당 INSERT를 그대로 보낸다 - 진짜 벌크
+        // 인서트(다중 VALUES 한 문장)로 반영하려면 bulkInsert()를 써야 한다.
         List<ParsedReaction> savedReactions;
         if (newReactions.isEmpty()) {
             savedReactions = List.of();
         } else {
-            List<ActivityRecordReaction> reactions = newReactions.stream().map(this::toEntity).toList();
+            List<ReactionKeyDto> rows = newReactions.stream()
+                    .map(parsed -> new ReactionKeyDto(parsed.recordId(), parsed.userId(), parsed.type()))
+                    .toList();
             try {
-                recordReactionRepository.saveAll(reactions);
-                recordReactionRepository.flush();
+                recordReactionRepository.bulkInsert(rows);
                 savedReactions = newReactions;
             } catch (DataIntegrityViolationException e) {
                 // 사전 확인 이후에도 실패하는 경우는 레이스 컨디션(예: 큐를 거치지 않는
-                // v1 동기 반응 API가 사전 확인과 saveAll 사이에 같은 조합을 먼저 저장한 경우)뿐인
+                // v1 동기 반응 API가 사전 확인과 INSERT 사이에 같은 조합을 먼저 저장한 경우)뿐인
                 // 극히 드문 케이스다. 건별로 재시도해 이번에도 중복인 건만 스킵한다.
-                log.warn("사전 확인 이후에도 벌크 저장이 실패했습니다(레이스 컨디션 추정). 건별 저장으로 전환합니다.");
+                log.warn("사전 확인 이후에도 벌크 INSERT가 실패했습니다(레이스 컨디션 추정). 건별 저장으로 전환합니다.");
                 savedReactions = saveIndividually(newReactions);
             }
         }
