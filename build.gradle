@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'jacoco'
 	id 'org.springframework.boot' version '3.5.9'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -84,6 +85,10 @@ dependencies {
 	// jdk (s3)
 	implementation 'com.amazonaws:aws-java-sdk-s3:1.12.676'
 
+	// measure 프로파일 전용 - "서버에서 동기로 리사이즈했다면" 가상 시나리오 재현/측정에만 쓴다.
+	// 프로덕션은 Lambda가 리사이즈하므로 이 라이브러리를 실제 요청 경로에서 쓰지 않는다.
+	implementation 'net.coobird:thumbnailator:0.4.20'
+
 	// lambda invoke
 	implementation platform("software.amazon.awssdk:bom:2.25.0")
 	implementation "software.amazon.awssdk:lambda"
@@ -111,4 +116,27 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
 	useJUnitPlatform()
 	defaultCharacterEncoding = 'UTF-8'
+	finalizedBy tasks.named('jacocoTestReport')
+}
+
+// 커버리지 측정 대상을 스티커판 조회 로직으로 한정한다. 전체를 집계하면 인프라/설정
+// 클래스가 섞여 "이 기능을 얼마나 덮었는가"라는 질문에 답하지 못한다.
+// HobbyService는 무관한 메서드가 많아 제외하고, getStickerInfo의 분기가 모여 있는
+// StickerContext를 중심으로 본다. $Builder 등 Lombok 생성 내부 클래스까지 포함하려고
+// 클래스명 뒤에 와일드카드를 둔다.
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		html.required = true
+		xml.required = true
+	}
+	classDirectories.setFrom(
+			files(classDirectories.files.collect {
+				fileTree(dir: it, includes: [
+						'**/domain/hobby/dto/StickerContext*.class',
+						'**/domain/hobby/dto/response/GetStickerInfoResDto*.class',
+						'**/domain/record/service/StickerInfoCacheService*.class'
+				])
+			})
+	)
 }

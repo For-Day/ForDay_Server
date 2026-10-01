@@ -35,8 +35,8 @@ public class GetStickerInfoResDto {
                 ctx.getTotalPage(),
                 ctx.getSize(),
                 ctx.getTotalStickerNum(),
-                ctx.getCurrentPage() > 1,      // hasPrevious
-                ctx.getCurrentPage() < ctx.getTotalPage(), // hasNext
+                ctx.hasPrevious(),
+                ctx.hasNext(),
                 stickers
         );
     }
