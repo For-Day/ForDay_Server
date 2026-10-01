@@ -47,6 +47,12 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
 	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	// Flyway - 스키마 변경을 db/migration의 버전 파일로 관리한다. ddl-auto에 맡기면
+	// 변경이 PR diff에 보이지 않고, 기존 컬럼 타입 변경이 반영되지 않는다.
+	// flyway-mysql: Flyway 10 이후 MySQL 지원이 별도 모듈로 분리됐다.
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-mysql'
 	testRuntimeOnly 'com.h2database:h2'
 
 	// MongoDB (이슈 #406~#408 - 알림/AI 이력 도메인 부분 도입)
@@ -114,9 +120,26 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	// migration 태그는 실제 MySQL이 필요하므로 기본 test에서 제외한다. CI에서는
+	// 별도 job(MySQL 서비스 컨테이너)이 migrationTest 태스크로 돌린다.
+	useJUnitPlatform {
+		excludeTags 'migration'
+	}
 	defaultCharacterEncoding = 'UTF-8'
 	finalizedBy tasks.named('jacocoTestReport')
+}
+
+// db/migration이 실제 MySQL에 적용되는지, 그 결과가 엔티티와 맞는지만 검증한다.
+// localhost:3306에 MySQL 8이 필요하다(CI: test.yml의 migration job).
+tasks.register('migrationTest', Test) {
+	description = 'Flyway 마이그레이션을 실제 MySQL에 적용하고 엔티티와 대조한다.'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'migration'
+	}
+	defaultCharacterEncoding = 'UTF-8'
 }
 
 // 커버리지 측정 대상을 스티커판 조회 로직으로 한정한다. 전체를 집계하면 인프라/설정
