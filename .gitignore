@@ -46,3 +46,17 @@ src/main/resources/forday-2ae94-firebase-adminsdk-fbsvc-e11f290048.json
 
 ### Claude Code ###
 .claude/settings.local.json
+
+### 측정 산출물 ###
+# k6 이미지 리사이즈 측정 픽스처 - 휴대폰 사진 크기(약 6.4MB) JPEG 5장, 합계 약 31MB.
+# 재생성 가능한 테스트 입력이라 커밋하지 않는다. 측정할 때 scripts/k6/fixtures/ 아래에
+# sample1.jpg ~ sample5.jpg(4032x3024급 실사진)를 직접 두면 image-resize-sync.js가 읽는다.
+scripts/k6/fixtures/
+
+# 애플리케이션/부하 테스트 실행 로그. 측정 결론은 docs/perf/*.md에 표로 남기고
+# 원본 로그는 커밋하지 않는다.
+*.log
+
+# 운영 스키마 덤프(1단계 기준선 수집 산출물). 스키마의 정본은
+# src/main/resources/db/migration/ 아래 Flyway 마이그레이션이다.
+prod-schema-*.sql
