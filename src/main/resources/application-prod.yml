@@ -50,8 +50,19 @@ spring:
     database-platform: org.hibernate.dialect.MySQLDialect
     generate-ddl: false
     hibernate:
-      ddl-auto: update
+      # none - 운영에서는 Hibernate가 스키마를 읽지도 쓰지도 않는다.
+      #
+      # validate를 쓰지 않은 이유: replicaCount가 1이라(ForDay_GitOps values.yaml)
+      # 검증 실패가 곧 파드 기동 실패이고 그게 전면 중단이 된다. 엔티티와 스키마의
+      # 불일치는 배포 전에 알아야 하는 정보이므로 CI에서 잡고(test.yml의 마이그레이션
+      # 검증 잡), 운영 기동 경로에서는 그 실패 가능성을 아예 뺀다.
+      ddl-auto: none
     show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
 
   # redis host/port는 여기 두지 않는다. k8s 매니페스트(ForDay_GitOps)가 이미
   # SPRING_DATA_REDIS_HOST/PORT를 클러스터 서비스 이름으로 직접 주입한다
