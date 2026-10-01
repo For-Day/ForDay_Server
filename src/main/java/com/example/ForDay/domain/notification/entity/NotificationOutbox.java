@@ -44,8 +44,16 @@ public class NotificationOutbox extends BaseTimeEntity {
     private Long notificationId;
 
     // NotificationEventDto를 직렬화한 JSON. 릴레이가 이걸 그대로 역직렬화해 발행한다.
+    //
+    // columnDefinition을 명시한다. @Lob만 붙이고 length를 생략하면 Hibernate 6은 기본
+    // length(255)를 적용해 MySQL에서 tinytext(상한 255바이트)를 만든다. 실제 페이로드는
+    // FCM 토큰과 landingUrl이 들어가 400바이트 안팎이라, 이 상태에서는 outbox 삽입이
+    // "Data too long for column 'payload'"로 100% 실패한다 - 부하 테스트에서 발견했다.
+    //
+    // 주의: ddl-auto:update는 이미 만들어진 컬럼의 타입을 바꾸지 않는다. 기존 DB에는
+    // ALTER TABLE notification_outbox MODIFY payload LONGTEXT NOT NULL 을 따로 적용해야 한다.
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String payload;
 
     @Enumerated(EnumType.STRING)

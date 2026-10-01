@@ -2,12 +2,10 @@ package com.example.ForDay.domain.notification.service;
 
 import com.example.ForDay.domain.notification.entity.NotificationOutbox;
 import com.example.ForDay.domain.notification.repository.NotificationOutboxRepository;
-import com.example.ForDay.global.rabbitmq.config.RabbitMqConfig;
 import com.example.ForDay.global.rabbitmq.dto.NotificationEventDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationOutboxItemPublisher {
 
     private final NotificationOutboxRepository outboxRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final NotificationEventDispatcher eventDispatcher;
     private final ObjectMapper objectMapper;
 
     /**
@@ -44,7 +42,7 @@ public class NotificationOutboxItemPublisher {
 
         try {
             NotificationEventDto dto = objectMapper.readValue(event.getPayload(), NotificationEventDto.class);
-            rabbitTemplate.convertAndSend(RabbitMqConfig.NOTIFICATION_EXCHANGE, RabbitMqConfig.NOTIFICATION_ROUTING_KEY, dto);
+            eventDispatcher.dispatch(dto);
 
             boolean wasFailing = event.hadFailed();
             event.markPublished();

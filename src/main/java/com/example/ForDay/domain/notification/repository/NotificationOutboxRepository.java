@@ -1,6 +1,7 @@
 package com.example.ForDay.domain.notification.repository;
 
 import com.example.ForDay.domain.notification.entity.NotificationOutbox;
+import com.example.ForDay.domain.notification.type.OutboxStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,4 +25,8 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from NotificationOutbox o where o.id = :id")
     Optional<NotificationOutbox> findByIdForUpdate(@Param("id") Long id);
+
+    // measure 프로파일의 측정 결과 조회용. PENDING이 줄지 않고 쌓이는지를 보는 것이
+    // 아웃박스 단계의 핵심 관찰 지표다.
+    long countByStatus(OutboxStatus status);
 }

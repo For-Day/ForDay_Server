@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,10 +48,10 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final PushSenderPort pushSenderPort;
     // measure 프로파일에서만 빈으로 존재한다. 생성자 주입 대신 ObjectProvider로 받아
-    // NotificationService 조립 시점에 SyncPushNotificationSender가 없어도(local/test/prod)
-    // 실패하지 않게 한다. SyncPushNotificationSender가 이 서비스를 다시 참조하므로
-    // 즉시 주입이었다면 순환 의존이 됐을 것이다.
-    private final ObjectProvider<SyncPushNotificationSender> syncPushNotificationSenderProvider;
+    // NotificationService 조립 시점에 라우터가 없어도(local/test/prod) 실패하지 않게 한다.
+    // 라우터가 들고 있는 발송기들이 이 서비스를 다시 참조하므로 즉시 주입이었다면
+    // 순환 의존이 됐을 것이다.
+    private final ObjectProvider<MeasurePushRouter> measurePushRouterProvider;
 
     @Transactional(readOnly = true)
     public GetNotificationListResDto getNotificationList(NotificationFilterType filterType, Long lastNotificationId, Integer pageSize, CustomUserDetails user) {
@@ -124,6 +125,7 @@ public class NotificationService {
 
         if (!tokens.isEmpty()) {
             NotificationEventDto event = NotificationEventDto.of(
+                    notificationId,
                     receiver,
                     tokens,
                     sender.getNickname(),
@@ -156,13 +158,13 @@ public class NotificationService {
      * 방어적으로 예외를 던진다.
      */
     public void testProcessReactionNotification(User sender, User receiver, RecordReactionType reactionType, Long recordId, String imageUrl) {
-        SyncPushNotificationSender syncSender = syncPushNotificationSenderProvider.getIfAvailable();
-        if (syncSender == null) {
+        MeasurePushRouter router = measurePushRouterProvider.getIfAvailable();
+        if (router == null) {
             throw new IllegalStateException(
-                    "SyncPushNotificationSender는 'measure' 프로파일에서만 등록된다. " +
+                    "MeasurePushRouter는 'measure' 프로파일에서만 등록된다. " +
                             "--spring.profiles.active에 measure를 포함해 실행했는지 확인할 것.");
         }
-        syncSender.sendReactionNotificationSync(sender, receiver, reactionType, recordId, imageUrl);
+        router.sendReactionNotification(sender, receiver, reactionType, recordId, imageUrl);
     }
 
     @Transactional(readOnly = true)
@@ -195,6 +197,7 @@ public class NotificationService {
         User currentUser = userUtil.getCurrentUser(user);
 
         NotificationEventDto eventDto = NotificationEventDto.of(
+                reqDto.getNotificationId(),
                 currentUser,
                 List.of(reqDto.getFcmToken()),
                 NotificationMessageGenerator.REACTION_TITLE,
@@ -203,7 +206,7 @@ public class NotificationService {
         );
 
         pushSenderPort.send(new PushMessage(
-                reqDto.getFcmToken(), eventDto.getTitle(), eventDto.getBody(), eventDto.getData()));
+                eventDto.getNotificationId(), reqDto.getFcmToken(), eventDto.getTitle(), eventDto.getBody(), eventDto.getData()));
 
         return new SendPushMessageResDto(NotificationSuccessCode.SEND_NOTIFICATION_SUCCESS.getMessage());
     }

@@ -19,6 +19,7 @@ public class NotificationConsumer {
     private final NotificationService notificationService;
     private final PushSenderPort pushSenderPort;
     private final UserRepository userRepository;
+    private final NotificationDeduplicator deduplicator;
 
     @RabbitListener(queues = RabbitMqConfig.NOTIFICATION_QUEUE)
     public void consumeRecordNotification(NotificationEventDto eventDto) {
@@ -31,17 +32,30 @@ public class NotificationConsumer {
             return;
         }
 
+        // 아웃박스와 브로커는 둘 다 at-least-once다 - 같은 알림이 두 번 도착하는 것은 정상
+        // 동작이며, 딱 한 번 보내는 책임은 받는 쪽에 있다.
+        if (!deduplicator.claim(eventDto.getNotificationId())) {
+            log.info("[RabbitMQ] 이미 발송된 알림이라 건너뜁니다 - notificationId: {}", eventDto.getNotificationId());
+            return;
+        }
+
         log.info("[FCM] 발송 시작 - 유저 ID: {}, 토큰 개수: {}개", eventDto.getReceiverId(), tokens.size());
 
-        for (String token : tokens) {
-            try {
-                pushSenderPort.send(new PushMessage(
-                        token, eventDto.getTitle(), eventDto.getBody(), eventDto.getData()));
-                log.info("[FCM] 전송 요청 성공 - Token: {}", token);
-            } catch (Exception e) {
-                // 특정 토큰 전송 실패 시 로그 남기고 다음 토큰으로 진행
-                log.error("[FCM] 전송 중 에러 발생 - Token: {}, Error: {}", token, e.getMessage());
+        try {
+            for (String token : tokens) {
+                try {
+                    pushSenderPort.send(new PushMessage(
+                            eventDto.getNotificationId(), token, eventDto.getTitle(), eventDto.getBody(), eventDto.getData()));
+                    log.info("[FCM] 전송 요청 성공 - Token: {}", token);
+                } catch (Exception e) {
+                    // 특정 토큰 전송 실패 시 로그 남기고 다음 토큰으로 진행
+                    log.error("[FCM] 전송 중 에러 발생 - Token: {}, Error: {}", token, e.getMessage());
+                }
             }
+        } catch (Exception e) {
+            // 선점만 해두고 발송을 못 하면 그 알림은 영영 재시도되지 않는다. 되돌린다.
+            deduplicator.release(eventDto.getNotificationId());
+            throw e;
         }
     }
 }
