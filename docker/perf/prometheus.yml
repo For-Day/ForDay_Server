@@ -1,0 +1,18 @@
+# 부하 구간을 초 단위로 보려면 기본 15s로는 너무 성기다. 스레드가 200에 붙었다 떨어지는
+# 순간을 그래프에서 잡아내야 하므로 2초로 당긴다.
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+scrape_configs:
+  - job_name: forday-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # 앱은 호스트에서 직접 뜬다(컨테이너 아님).
+      # 8080이 아니라 8081 - measure 프로파일이 actuator를 전용 커넥터로 분리했다.
+      # 8080을 긁으면 부하 구간에 스크레이핑이 같이 죽어 그래프가 빈다.
+      - targets: ["host.docker.internal:8081"]
+
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ["rabbitmq:15692"]

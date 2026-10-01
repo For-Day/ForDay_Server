@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    # 대시보드 JSON이 이 uid로 참조한다 - 고정하지 않으면 매번 랜덤 uid가 생겨 패널이 깨진다.
+    uid: forday-prom
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

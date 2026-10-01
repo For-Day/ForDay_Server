@@ -1,0 +1,49 @@
+# 알림 파이프라인 4단계 측정용 로컬 스택.
+#
+# MySQL(3306)·Redis(6379)·MongoDB(27017)는 이미 로컬에서 돌고 있어 여기 넣지 않는다.
+# 부족한 세 가지만 띄운다 - RabbitMQ(측정 대상), Prometheus/Grafana(증거 캡처용 그래프).
+#
+# 앱은 컨테이너가 아니라 호스트에서 직접 기동한다(프로파일·JVM 옵션을 측정마다 바꿔야 하고,
+# 유실 실험에서 프로세스를 강제 종료해야 하기 때문). 그래서 Prometheus가 앱을 긁을 때는
+# host.docker.internal을 쓴다.
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: forday-perf-rabbitmq
+    # prometheus 플러그인은 배포판에 포함돼 있지만 기본 비활성이다. 서버 기동 전에 켠다.
+    command: sh -c "rabbitmq-plugins enable --offline rabbitmq_prometheus && rabbitmq-server"
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # 관리 UI - 큐 적체 그래프 캡처용
+      - "15692:15692"   # prometheus 스크레이핑
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: forday-perf-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/perf/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: forday-perf-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      # 측정용 로컬 스택이라 로그인 단계를 없앤다 - 캡처할 때 매번 로그인하지 않도록.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./docker/perf/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/perf/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
