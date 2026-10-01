@@ -3,14 +3,18 @@ import { check } from 'k6';
 import { setupGuestTokens, pickTarget, makeStatusCounters, tagStatus, BASE_URL } from './common.js';
 
 /**
- * #375 재측정 ③ 단계 - Redis Write-Back 큐만 적용, 분산 락은 아직 없음.
- * 중복확인은 v1과 동일하게 DB existsBy 조회, insert/count 반영만 Redis 큐를 거쳐
- * 비동기로 이뤄진다. measure 프로파일에서만 열리는
- * QueueOnlyReactionMeasurementService/TestReactionMeasurementController 대상.
+ * 알림 파이프라인 3·4단계 - 아웃박스 / RabbitMQ.
  *
- * 실행: K6_WEB_DASHBOARD=true k6 run --summary-export=stage3-summary.json reaction-test-queue-only.js
+ * 운영 경로({@code POST /records/{id}/reaction})를 그대로 때린다. 이 경로는 요청 트랜잭션
+ * 안에서 outbox 행만 저장하고 끝나며, 실제 발송은 NotificationOutboxRelay가 별도로 한다.
+ * 3단계와 4단계의 구분은 스크립트가 아니라 서버 설정(발행 대상: 직접 FCM / RabbitMQ)으로
+ * 바꾼다 - 클라이언트가 때리는 엔드포인트는 같아야 비교가 성립하기 때문이다.
  *
- * vus/duration(순간 폭증) 대신 constant-arrival-rate를 쓴다 - reaction-test.js 참고.
+ * 부하 프로파일은 stage1과 동일하게 고정한다.
+ *
+ * 실행:
+ *   K6_WEB_DASHBOARD=true k6 run --summary-export=docs/perf/results/stage3-outbox.json \
+ *     scripts/k6/notification-stage34-outbox-rabbit.js
  */
 export const options = {
   scenarios: {
@@ -25,7 +29,7 @@ export const options = {
   },
 };
 
-const counters = makeStatusCounters('queue_only');
+const counters = makeStatusCounters('stage34');
 
 export function setup() {
   return { tokens: setupGuestTokens() };
@@ -36,7 +40,7 @@ export default function (data) {
   const token = data.tokens[userIndex];
 
   const res = http.post(
-      `${BASE_URL}/records/${recordId}/reaction/measure/queue-only`,
+      `${BASE_URL}/records/${recordId}/reaction`,
       JSON.stringify({ reactionType }),
       { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
   );

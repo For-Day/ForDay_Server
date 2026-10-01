@@ -3,14 +3,14 @@ import { check } from 'k6';
 import { setupGuestTokens, pickTarget, makeStatusCounters, tagStatus, BASE_URL } from './common.js';
 
 /**
- * #375 재측정 ③ 단계 - Redis Write-Back 큐만 적용, 분산 락은 아직 없음.
- * 중복확인은 v1과 동일하게 DB existsBy 조회, insert/count 반영만 Redis 큐를 거쳐
- * 비동기로 이뤄진다. measure 프로파일에서만 열리는
- * QueueOnlyReactionMeasurementService/TestReactionMeasurementController 대상.
+ * 3단계 - 실제 프로덕션 v2 경로. Redis SETNX 분산락으로 DB 중복확인(existsBy) 쿼리 자체를
+ * 없애고, 큐+스케줄러(진짜 멀티로우 INSERT)로 반영한다. `ReactionRedisLockService` 참고.
  *
- * 실행: K6_WEB_DASHBOARD=true k6 run --summary-export=stage3-summary.json reaction-test-queue-only.js
+ * queue-only(락 없음) 단계와 구분되는 지점: 락이 "중복 방지"가 목적이 아니라, DB 조회를
+ * 아예 안 거치게 하는 게 핵심이다 - 요청마다 DB를 왕복하던 existsBy 쿼리를 Redis SETNX
+ * 하나로 대체한다.
  *
- * vus/duration(순간 폭증) 대신 constant-arrival-rate를 쓴다 - reaction-test.js 참고.
+ * 실행: k6 run --summary-export=stage3-v2lock-summary.json reaction-test-v2-lock.js
  */
 export const options = {
   scenarios: {
@@ -25,7 +25,7 @@ export const options = {
   },
 };
 
-const counters = makeStatusCounters('queue_only');
+const counters = makeStatusCounters('v2lock');
 
 export function setup() {
   return { tokens: setupGuestTokens() };
@@ -36,7 +36,7 @@ export default function (data) {
   const token = data.tokens[userIndex];
 
   const res = http.post(
-      `${BASE_URL}/records/${recordId}/reaction/measure/queue-only`,
+      `${BASE_URL}/api/v2/records/${recordId}/reaction`,
       JSON.stringify({ reactionType }),
       { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }
   );

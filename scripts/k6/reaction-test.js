@@ -11,10 +11,22 @@ import { setupGuestTokens, pickTarget, makeStatusCounters, tagStatus, BASE_URL }
  * 수치를 얻는다.
  *
  * 실행: K6_WEB_DASHBOARD=true k6 run --summary-export=stage1-summary.json reaction-test.js
+ *
+ * vus/duration(순간 폭증) 대신 constant-arrival-rate를 쓴다 - 서버가 빨라질수록(2·3단계)
+ * 순간 폭증 방식은 k6-서버 간 연결 자체가 못 버텨 서버 처리와 무관한 에러가 쌓였다(실측
+ * 중 발견). 도착률을 고정해야 단계 간 비교가 "서버가 얼마나 처리하는가"로 성립한다.
  */
 export const options = {
-  vus: 1000,
-  duration: '10s',
+  scenarios: {
+    constant_load: {
+      executor: 'constant-arrival-rate',
+      rate: 250,
+      timeUnit: '1s',
+      duration: '60s',
+      preAllocatedVUs: 200,
+      maxVUs: 1000,
+    },
+  },
 };
 
 const counters = makeStatusCounters('v1');
