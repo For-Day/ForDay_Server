@@ -37,10 +37,20 @@ spring:
   jpa:
     database: mysql
     database-platform: org.hibernate.dialect.MySQLDialect
-    generate-ddl: true
+    generate-ddl: false
     hibernate:
-      ddl-auto: update
+      # 스키마는 Flyway(db/migration)가 만든다. Hibernate에는 "엔티티와 스키마가
+      # 어긋나면 기동을 거부하라"는 역할만 남긴다. update로 두면 Flyway를 넣어도
+      # Hibernate가 뒤에서 또 스키마를 손대 효과가 없어진다.
+      ddl-auto: validate
     show-sql: true
+
+  flyway:
+    enabled: true
+    # 이미 테이블이 있는 DB(운영)에 처음 붙일 때, 현재 상태를 V1로 선언하고
+    # V2부터 적용한다. 빈 DB에서는 이 설정이 발동하지 않고 V1부터 순서대로 돈다.
+    baseline-on-migrate: true
+    baseline-version: 1
 
   data:
     redis:

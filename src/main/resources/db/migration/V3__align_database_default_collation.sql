@@ -1,0 +1,44 @@
+-- 데이터베이스 기본 collation을 테이블들과 맞춘다 (utf8mb4_unicode_ci -> utf8mb4_0900_ai_ci).
+--
+-- 왜 필요한가
+--   운영 DB는 collation이 세 레벨에서 서로 다르다(2026-10-01 실측).
+--     서버    collation_server     = utf8mb3_general_ci
+--     DB      @@collation_database = utf8mb4_unicode_ci
+--     테이블  24/24, 컬럼 74/74    = utf8mb4_0900_ai_ci
+--
+--   테이블·컬럼은 1종으로 통일돼 있어 지금 당장 깨지는 것은 없다. 문제는 DB 기본값이
+--   자기 안의 테이블 전부와 다르다는 것이다. CREATE TABLE에 charset/collation을
+--   지정하지 않으면 DB 기본값을 상속하는데, Hibernate가 생성하는 DDL에는 그 절이 없다.
+--   그래서 users.user_id(char(36), utf8mb4_0900_ai_ci)를 참조하는 새 테이블을 만들면
+--   FK 양쪽 collation이 어긋나 ERROR 3780으로 거부된다.
+--
+--   컷오버 때 덤프 복원을 실패시킨 것이 바로 이 오류다(ForDay_GitOps/README.md).
+--   그때 DROP DATABASE/CREATE DATABASE로 테이블은 복원했지만, 다시 만든 DB의 기본값이
+--   테이블들과 어긋난 상태로 남았다.
+--
+-- 재현 (로컬, 운영과 같은 이미지·DB 기본값)
+--   1. collation 미지정 + users FK 테이블을 SQL로 생성 -> ERROR 3780으로 거부됨.
+--   2. users를 참조하는 임시 엔티티를 두고 ddl-auto: update로 기동 ->
+--      Hibernate가 "create table ... engine=InnoDB"(charset 절 없음)로 테이블을 만들고,
+--      FK 추가가 같은 오류로 실패한다. 그런데 그 실패는 WARN으로만 기록되고
+--      (ExceptionHandlerLoggedImpl) 앱은 정상 기동한다.
+--      결과: 테이블은 생기고 FK 제약만 조용히 빠진다. 참조 정합성이 소리 없이 사라진다.
+--
+-- 안전성
+--   ALTER DATABASE는 스키마의 기본값 메타데이터만 바꾼다. 이미 존재하는 테이블의
+--   charset/collation은 건드리지 않는다 - 24개 테이블 모두 COLLATE=를 명시로 들고
+--   있으므로 그대로 utf8mb4_0900_ai_ci를 유지한다. 락도, 테이블 재구축도 없다.
+--
+--   방향을 반대로(테이블들을 unicode_ci로) 잡지 않은 이유: 1,300만 건이 적재된
+--   테이블을 포함해 24개를 전부 재구축해야 하고, 0900_ai_ci는 MySQL 8의 기본값이자
+--   이미 모든 테이블이 쓰는 값이다.
+--
+-- 범위
+--   서버 기본값(collation_server = utf8mb3_general_ci)은 bitnami 차트 설정 영역이라
+--   여기서 다루지 않는다(apps/mysql.yaml). DB 기본값만 맞으면 CREATE TABLE 상속
+--   경로는 해결된다.
+--
+-- DB명을 쓰지 않고 기본 데이터베이스를 대상으로 한다 - 환경마다 스키마명이 달라도
+--   같은 파일이 동작하도록.
+
+ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
