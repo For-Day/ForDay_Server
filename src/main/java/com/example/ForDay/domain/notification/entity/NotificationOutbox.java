@@ -50,8 +50,8 @@ public class NotificationOutbox extends BaseTimeEntity {
     // FCM 토큰과 landingUrl이 들어가 400바이트 안팎이라, 이 상태에서는 outbox 삽입이
     // "Data too long for column 'payload'"로 100% 실패한다 - 부하 테스트에서 발견했다.
     //
-    // 주의: ddl-auto:update는 이미 만들어진 컬럼의 타입을 바꾸지 않는다. 기존 DB에는
-    // ALTER TABLE notification_outbox MODIFY payload LONGTEXT NOT NULL 을 따로 적용해야 한다.
+    // 스키마는 V2__outbox_payload_to_longtext.sql이 LONGTEXT로 맞춘다. 이 선언과
+    // 마이그레이션은 함께 움직여야 한다 - 한쪽만 바꾸면 ddl-auto: validate가 기동을 거부한다.
     @Lob
     @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String payload;
