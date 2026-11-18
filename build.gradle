@@ -123,10 +123,30 @@ tasks.named('test') {
 	// migration 태그는 실제 MySQL이 필요하므로 기본 test에서 제외한다. CI에서는
 	// 별도 job(MySQL 서비스 컨테이너)이 migrationTest 태스크로 돌린다.
 	useJUnitPlatform {
-		excludeTags 'migration'
+		excludeTags 'migration', 'moderation-eval'
 	}
 	defaultCharacterEncoding = 'UTF-8'
 	finalizedBy tasks.named('jacocoTestReport')
+}
+
+// 이슈 #423 - 신고 심사 오프라인 평가. 실제 OpenAI를 호출하므로(비용 발생) 기본 test·CI에서 제외하고
+// 수동으로만 돌린다. 합성 평가셋(src/test/resources/moderation/eval-set.json)만 쓴다.
+//   OPENAI_API_KEY=... ./gradlew moderationEval -Pruns=3 -Psplit=dev -PpromptVersion=v1
+tasks.register('moderationEval', Test) {
+	description = '신고 심사 LLM을 합성 평가셋으로 평가한다 (OpenAI 호출, 수동 실행 전용).'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'moderation-eval'
+	}
+	defaultCharacterEncoding = 'UTF-8'
+	outputs.upToDateWhen { false }
+	testLogging { showStandardStreams = true }
+	systemProperty 'moderation.eval.runs', project.findProperty('runs') ?: '3'
+	systemProperty 'moderation.eval.split', project.findProperty('split') ?: 'all'
+	systemProperty 'moderation.eval.promptVersion', project.findProperty('promptVersion') ?: 'v1'
+	systemProperty 'moderation.eval.model', project.findProperty('evalModel') ?: 'gpt-4o-mini'
 }
 
 // db/migration이 실제 MySQL에 적용되는지, 그 결과가 엔티티와 맞는지만 검증한다.
