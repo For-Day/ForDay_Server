@@ -60,3 +60,7 @@ scripts/k6/fixtures/
 # 운영 스키마 덤프(1단계 기준선 수집 산출물). 스키마의 정본은
 # src/main/resources/db/migration/ 아래 Flyway 마이그레이션이다.
 prod-schema-*.sql
+
+# 설계 문서·장애 이력 문서는 로컬에서만 관리한다 (README는 계속 추적)
+docs/design/
+docs/incidents/
